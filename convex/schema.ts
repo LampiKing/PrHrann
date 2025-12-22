@@ -1,0 +1,102 @@
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+export default defineSchema({
+  // Trgovine (Spar, Mercator, Tuš, Lidl, Hofer, Jager)
+  stores: defineTable({
+    name: v.string(),
+    logo: v.optional(v.string()),
+    color: v.string(),
+    isPremium: v.boolean(), // Ali je trgovina samo za premium uporabnike
+  }),
+
+  // Izdelki
+  products: defineTable({
+    name: v.string(),
+    category: v.string(),
+    unit: v.string(), // npr. "1L", "500g", "1kg"
+    imageUrl: v.optional(v.string()),
+  }).index("by_name", ["name"])
+    .index("by_category", ["category"]),
+
+  // Cene izdelkov po trgovinah
+  prices: defineTable({
+    productId: v.id("products"),
+    storeId: v.id("stores"),
+    price: v.number(),
+    originalPrice: v.optional(v.number()), // Če je na akciji
+    isOnSale: v.boolean(),
+    lastUpdated: v.number(),
+  }).index("by_product", ["productId"])
+    .index("by_store", ["storeId"])
+    .index("by_product_and_store", ["productId", "storeId"]),
+
+  // Napredni kuponski sistem
+  coupons: defineTable({
+    storeId: v.id("stores"),
+    code: v.string(),
+    description: v.string(),
+    // Tip kupona: percentage_total, percentage_single_item, fixed, category_discount
+    couponType: v.optional(v.union(
+      v.literal("percentage_total"),
+      v.literal("percentage_single_item"),
+      v.literal("fixed"),
+      v.literal("category_discount")
+    )),
+    discountType: v.optional(v.string()), // Legacy field for backwards compatibility
+    discountValue: v.number(),
+    minPurchase: v.optional(v.number()),
+    // Dnevi veljavnosti (0=nedelja, 1=ponedeljek, ..., 6=sobota)
+    validDays: v.optional(v.array(v.number())),
+    validFrom: v.optional(v.number()),
+    validUntil: v.number(),
+    // Ali velja na akcijske izdelke
+    excludeSaleItems: v.optional(v.boolean()),
+    // Ali zahteva kartico zvestobe
+    requiresLoyaltyCard: v.optional(v.boolean()),
+    // Ali se lahko kombinira z drugimi kuponi
+    canCombine: v.optional(v.boolean()),
+    // Kategorije za category_discount tip
+    applicableCategories: v.optional(v.array(v.string())),
+    isPremiumOnly: v.boolean(),
+  }).index("by_store", ["storeId"]),
+
+  // Uporabniški profili
+  userProfiles: defineTable({
+    userId: v.string(),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    // Datum rojstva
+    birthDate: v.optional(v.object({
+      day: v.number(),
+      month: v.number(),
+      year: v.number(),
+    })),
+    isPremium: v.boolean(),
+    premiumUntil: v.optional(v.number()),
+    dailySearches: v.number(),
+    lastSearchDate: v.string(), // YYYY-MM-DD format
+    searchResetTime: v.optional(v.number()), // Timestamp when searches reset
+    // Kartice zvestobe
+    loyaltyCards: v.optional(v.array(v.id("stores"))),
+    // Priljubljene trgovine
+    favoriteStores: v.optional(v.array(v.id("stores"))),
+  }).index("by_user_id", ["userId"]),
+
+  // Košarica
+  cartItems: defineTable({
+    userId: v.string(),
+    productId: v.id("products"),
+    storeId: v.id("stores"),
+    quantity: v.number(),
+    priceAtAdd: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_user_and_product", ["userId", "productId"]),
+
+  // Zgodovina iskanj
+  searchHistory: defineTable({
+    userId: v.optional(v.string()),
+    query: v.string(),
+    timestamp: v.number(),
+  }).index("by_user", ["userId"]),
+});
