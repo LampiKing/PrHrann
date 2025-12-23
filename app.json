@@ -47,7 +47,6 @@
     "experiments": {
       "typedRoutes": true
     },
-    "displayName": "PrHran",
     "extra": {
       "router": {},
       "eas": {

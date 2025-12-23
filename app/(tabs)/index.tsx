@@ -63,7 +63,6 @@ export default function SearchScreen() {
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ProductResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [sortAscending, setSortAscending] = useState(true);
