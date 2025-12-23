@@ -4,7 +4,7 @@ import { betterAuth } from "better-auth";
 import { expo } from "@better-auth/expo";
 import { components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
-import { anonymous } from "better-auth/plugins";
+import { anonymous, multiSession, ipRateLimit } from "better-auth/plugins";
 
 const authFunctions: AuthFunctions = internal.auth;
 
@@ -32,10 +32,57 @@ export const createAuth = (
         },
         trustedOrigins: [siteUrl, "myapp://"],
         database: authComponent.adapter(ctx),
-        // Configure simple, non-verified email/password to get started
+        // Email/password with verification required
         emailAndPassword: {
             enabled: true,
-            requireEmailVerification: false,
+            requireEmailVerification: true,
+            sendVerificationOnSignUp: true,
+            autoSignInAfterVerification: true,
+            sendResetPassword: async ({ user, url, token }) => {
+                // TODO: Implement email sending (e.g., with Resend, SendGrid, etc.)
+                console.log(`Password reset link for ${user.email}: ${url}`);
+                console.log(`Token: ${token}`);
+                // For now, just log - in production, send actual email
+            },
+        },
+        emailVerification: {
+            sendOnSignUp: true,
+            autoSignInAfterVerification: true,
+            sendVerificationEmail: async ({ user, url, token }) => {
+                // TODO: Implement email sending (e.g., with Resend, SendGrid, etc.)
+                console.log(`Verification email for ${user.email}`);
+                console.log(`Verification URL: ${url}`);
+                console.log(`Token: ${token}`);
+                // For now, just log - in production, send actual email
+                // Example with Resend:
+                // await resend.emails.send({
+                //   from: 'PrHran <noreply@prhran.si>',
+                //   to: user.email,
+                //   subject: 'Potrdite vaš email',
+                //   html: `<a href="${url}">Kliknite za potrditev</a>`
+                // });
+            },
+        },
+        // Session settings - track IP and device
+        session: {
+            updateAge: 1000 * 60 * 5, // Update session every 5 minutes
+            expiresIn: 60 * 60 * 24 * 7, // 7 days
+            cookieCache: {
+                enabled: true,
+                maxAge: 5 * 60, // 5 minutes
+            },
+        },
+        // Security settings
+        rateLimit: {
+            enabled: true,
+            window: 60, // 1 minute window
+            max: 10, // Max 10 requests per minute per IP
+        },
+        advanced: {
+            crossSubDomainCookies: {
+                enabled: false,
+            },
+            disableCSRFCheck: false,
         },
         plugins: [
             // The Expo and Convex plugins are required
@@ -45,6 +92,16 @@ export const createAuth = (
                 authConfig: {} as any
             }),
             crossDomain({ siteUrl }),
+            // Multi-session management - max 2 active sessions per user
+            multiSession({
+                maximumActiveSessions: 2,
+            }),
+            // IP rate limiting and tracking
+            ipRateLimit({
+                window: 60, // 1 minute
+                max: 20, // 20 requests per minute per IP
+                storage: "memory", // Use in-memory storage
+            }),
         ],
     };
     

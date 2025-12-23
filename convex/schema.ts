@@ -81,7 +81,32 @@ export default defineSchema({
     loyaltyCards: v.optional(v.array(v.id("stores"))),
     // Priljubljene trgovine
     favoriteStores: v.optional(v.array(v.id("stores"))),
+    // Security tracking
+    lastIpAddress: v.optional(v.string()),
+    lastDeviceInfo: v.optional(v.string()),
+    suspiciousActivity: v.optional(v.boolean()),
   }).index("by_user_id", ["userId"]),
+
+  // Active sessions tracking
+  activeSessions: defineTable({
+    userId: v.string(),
+    sessionToken: v.string(),
+    ipAddress: v.string(),
+    deviceInfo: v.optional(v.string()),
+    location: v.optional(v.object({
+      country: v.optional(v.string()),
+      city: v.optional(v.string()),
+      coordinates: v.optional(v.object({
+        lat: v.number(),
+        lon: v.number(),
+      })),
+    })),
+    createdAt: v.number(),
+    lastActiveAt: v.number(),
+    expiresAt: v.number(),
+  }).index("by_user_id", ["userId"])
+    .index("by_session_token", ["sessionToken"])
+    .index("by_expires_at", ["expiresAt"]),
 
   // Košarica
   cartItems: defineTable({
