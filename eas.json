@@ -13,16 +13,16 @@
       "distribution": "internal",
       "node": "22.11.0",
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://amicable-kudu-812.convex.cloud",
-        "EXPO_PUBLIC_CONVEX_SITE_URL": "https://amicable-kudu-812.convex.site"
+        "EXPO_PUBLIC_CONVEX_URL": "https://vibrant-dolphin-871.convex.cloud",
+        "EXPO_PUBLIC_CONVEX_SITE_URL": "https://vibrant-dolphin-871.convex.site"
       }
     },
     "production": {
       "autoIncrement": true,
       "node": "22.11.0",
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://amicable-kudu-812.convex.cloud",
-        "EXPO_PUBLIC_CONVEX_SITE_URL": "https://amicable-kudu-812.convex.site"
+        "EXPO_PUBLIC_CONVEX_URL": "https://vibrant-dolphin-871.convex.cloud",
+        "EXPO_PUBLIC_CONVEX_SITE_URL": "https://vibrant-dolphin-871.convex.site"
       }
     }
   },

@@ -18,7 +18,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
 // export the trigger API functions so that triggers work
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
-const siteUrl = process.env.SITE_URL || "https://amicable-kudu-812.convex.site";
+const siteUrl = process.env.SITE_URL || "https://vibrant-dolphin-871.convex.site";
 
 export const createAuth = (
     ctx: GenericCtx<DataModel>,
