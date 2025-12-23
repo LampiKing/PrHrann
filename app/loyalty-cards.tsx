@@ -303,7 +303,7 @@ export default function LoyaltyCardsScreen() {
                     Odkleni Premium kartice
                   </Text>
                   <Text style={styles.premiumLockedText}>
-                    Z nadgradnjo na Premium dobiš dostop do kartic Jager in Lidl Plus ter ekskluzivnih popustov.
+                    Z nadgradnjo na Premium (1,99€/mesec) dobiš dostop do kartic Jager in Lidl Plus ter ekskluzivnih popustov.
                   </Text>
                   
                   {/* Preview of locked cards */}
@@ -331,7 +331,7 @@ export default function LoyaltyCardsScreen() {
                     >
                       <Ionicons name="star" size={18} color="#000" />
                       <Text style={styles.premiumButtonText}>
-                        Nadgradi na Premium - 1,99 €/mesec
+                        Nadgradi na Premium - 1,99€/mesec
                       </Text>
                     </LinearGradient>
                   </TouchableOpacity>

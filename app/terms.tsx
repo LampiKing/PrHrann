@@ -86,9 +86,10 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>4. Premium naročnina</Text>
             <Text style={styles.sectionText}>
-              Premium naročnina je plačljiva storitev, ki vključuje dodatne funkcije. Pogoji naročnine:
+              Premium naročnina je plačljiva storitev, ki vključuje dodatne funkcije. Ponujamo dva plana:
               {"\n\n"}
-              • Cena: 1,99 € na mesec{"\n"}
+              • Premium Solo: 1,99€ na mesec (1 uporabnik){"\n"}
+              • Premium Family: 2,99€ na mesec (do 3 uporabniki){"\n"}
               • Obračunsko obdobje: mesečno{"\n"}
               • Preklic: kadarkoli, brez dodatnih stroškov{"\n"}
               • Po preklicu: dostop do konca obračunskega obdobja

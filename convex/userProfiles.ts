@@ -182,7 +182,7 @@ export const recordSearch = authMutation({
           success: false, 
           searchesRemaining: 0, 
           resetTime,
-          error: "Dnevna limita iskanj dosežena. Nadgradite na Premium!" 
+          error: "Dnevna limita iskanj dosežena. Nadgradite na Premium (1,99€/mesec)!" 
         };
       }
       return { 
