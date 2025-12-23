@@ -7,18 +7,18 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "node": "20.18.1"
+      "node": "22.11.0"
     },
     "preview": {
       "distribution": "internal",
-      "node": "20.18.1",
+      "node": "22.11.0",
       "env": {
         "EXPO_PUBLIC_CONVEX_URL": "https://amicable-kudu-812.convex.cloud"
       }
     },
     "production": {
       "autoIncrement": true,
-      "node": "20.18.1",
+      "node": "22.11.0",
       "env": {
         "EXPO_PUBLIC_CONVEX_URL": "https://amicable-kudu-812.convex.cloud"
       }
