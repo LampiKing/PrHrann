@@ -36,7 +36,6 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# Lock files
+# Lock files (keep package-lock.json for reproducible builds)
 *.lockb
-*.lock
-package-lock.json
+yarn.lock
