@@ -15,69 +15,57 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import * as Linking from "expo-linking";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const PREMIUM_FEATURES = [
+const SOLO_FEATURES = [
   { icon: "infinite", title: "Neomejeno iskanje", description: "Brez dnevnih omejitev" },
-  { icon: "list", title: "Nakupovalni seznami", description: "Ustvari in deli sezname" },
+  { icon: "list", title: "Nakupovalni seznami", description: "Ustvari in organiziraj" },
   { icon: "notifications", title: "Obvestila o cenah", description: "Ko pade cena izdelka" },
   { icon: "analytics", title: "Sledenje prihrankom", description: "Mesečna statistika" },
   { icon: "pricetag", title: "Ekskluzivni kuponi", description: "Do 30% dodatni popusti" },
   { icon: "star", title: "Prednostna podpora", description: "24/7 pomoč" },
 ];
 
-const FAMILY_FEATURES = [
-  { icon: "people", title: "Do 3 uporabniki", description: "Delite Premium z družino" },
-  { icon: "sync", title: "Sinhronizacija seznamov", description: "Skupne nakupovalne liste" },
-  { icon: "shield-checkmark", title: "Varnostni nadzor", description: "GEO-lock in IP tracking" },
+const FAMILY_BONUS_FEATURES = [
+  { icon: "people", title: "Do 3 uporabniki", description: "Deli Premium z družino" },
+  { icon: "sync", title: "Deljenje seznamov", description: "Sinhronizacija v živo" },
+  { icon: "shield-checkmark", title: "Varnostni nadzor", description: "GEO-lock zaščita" },
 ];
 
 export default function PremiumScreen() {
   const router = useRouter();
+  const profile = useQuery(api.userProfiles.getProfile);
   const upgradeToPremium = useMutation(api.userProfiles.upgradeToPremium);
+  
+  const [selectedPlan, setSelectedPlan] = useState<"solo" | "family">("family");
   const [processing, setProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<"solo" | "family">("solo");
 
   // Animations
-  const cardScale = useRef(new Animated.Value(0.9)).current;
-  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
-  const checkmarkAnims = useRef(PREMIUM_FEATURES.map(() => new Animated.Value(0))).current;
   const successAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Card entrance
     Animated.parallel([
-      Animated.spring(cardScale, {
+      Animated.timing(fadeAnim, {
         toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
         tension: 50,
         friction: 8,
         useNativeDriver: true,
       }),
-      Animated.timing(cardOpacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
     ]).start();
 
-    // Staggered checkmarks
-    checkmarkAnims.forEach((anim, index) => {
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 400,
-        delay: 200 + index * 100,
-        easing: Easing.out(Easing.back(1.5)),
-        useNativeDriver: true,
-      }).start();
-    });
-
-    // Glow animation
+    // Continuous glow
     Animated.loop(
       Animated.sequence([
         Animated.timing(glowAnim, {
@@ -96,7 +84,7 @@ export default function PremiumScreen() {
     ).start();
   }, []);
 
-  const handlePayment = async (method: "apple" | "google" | "card") => {
+  const handlePayment = async () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -104,15 +92,11 @@ export default function PremiumScreen() {
     setProcessing(true);
 
     try {
-      // Simulate payment processing - v produkciji bi tukaj bil pravi payment provider
-      // Za Apple Pay: uporabi expo-apple-authentication + Stripe
-      // Za Google Pay: uporabi @stripe/stripe-react-native
+      // TODO: Real payment integration
       await new Promise((resolve) => setTimeout(resolve, 2000));
       
-      // Upgrade user to premium
       await upgradeToPremium({});
       
-      // Show success animation
       setPaymentSuccess(true);
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -125,10 +109,9 @@ export default function PremiumScreen() {
         useNativeDriver: true,
       }).start();
 
-      // Navigate back after success
       setTimeout(() => {
         router.replace("/(tabs)");
-      }, 2000);
+      }, 2500);
     } catch (error) {
       console.error("Payment error:", error);
       if (Platform.OS !== "web") {
@@ -143,13 +126,12 @@ export default function PremiumScreen() {
     return (
       <View style={styles.container}>
         <LinearGradient
-          colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
+          colors={["#0f0a1e", "#1a0a2e", "#270a3a"]}
           style={StyleSheet.absoluteFill}
         />
         <View style={styles.successContainer}>
           <Animated.View
             style={[
-              styles.successIcon,
               {
                 opacity: successAnim,
                 transform: [
@@ -165,191 +147,213 @@ export default function PremiumScreen() {
           >
             <LinearGradient
               colors={["#fbbf24", "#f59e0b", "#d97706"]}
-              style={styles.successIconBg}
+              style={styles.successBadge}
             >
-              <Ionicons name="checkmark" size={60} color="#000" />
+              <Ionicons name="checkmark-circle" size={80} color="#fff" />
             </LinearGradient>
+            <Text style={styles.successTitle}>Čestitamo! 🎉</Text>
+            <Text style={styles.successText}>
+              Zdaj ste Premium {selectedPlan === "family" ? "Family" : "Solo"} uporabnik!
+            </Text>
+            <Text style={styles.successSubtext}>
+              Uživajte v vseh funkcijah brez omejitev.
+            </Text>
           </Animated.View>
-          <Text style={styles.successTitle}>Čestitke! 🎉</Text>
-          <Text style={styles.successText}>
-            Zdaj si Premium uporabnik!{"\n"}Uživaj v neomejenih iskanjih.
-          </Text>
         </View>
       </View>
     );
   }
 
+  const price = selectedPlan === "family" ? "2,99" : "1,99";
+  const features = selectedPlan === "family" 
+    ? [...SOLO_FEATURES, ...FAMILY_BONUS_FEATURES]
+    : SOLO_FEATURES;
+
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
+        colors={["#0f0a1e", "#1a0a2e", "#270a3a"]}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Background Glow */}
+      {/* Animated glow */}
       <Animated.View
         style={[
-          styles.backgroundGlow,
+          styles.glowOrb,
           {
             opacity: glowAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [0.3, 0.6],
+              outputRange: [0.2, 0.4],
             }),
           },
         ]}
       />
 
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.closeButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Premium</Text>
-          <View style={{ width: 40 }} />
         </View>
 
         <ScrollView
-          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Premium Badge */}
           <Animated.View
-            style={[
-              styles.premiumBadge,
-              {
-                opacity: cardOpacity,
-                transform: [{ scale: cardScale }],
-              },
-            ]}
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }}
           >
-            <LinearGradient
-              colors={["#fbbf24", "#f59e0b", "#d97706"]}
-              style={styles.badgeGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="diamond" size={40} color="#000" />
-              <Text style={styles.badgeTitle}>PREMIUM</Text>
-              <Text style={styles.badgePrice}>1,99 €</Text>
-              <Text style={styles.badgePeriod}>/ mesec</Text>
-            </LinearGradient>
-          </Animated.View>
+            {/* Header */}
+            <View style={styles.titleContainer}>
+              <LinearGradient
+                colors={["#fbbf24", "#f59e0b"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.premiumBadge}
+              >
+                <Ionicons name="diamond" size={24} color="#000" />
+                <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+              </LinearGradient>
+              <Text style={styles.mainTitle}>Nadgradite na Premium</Text>
+              <Text style={styles.subtitle}>
+                Odklenite vse funkcije in privarčujte več kot kdaj koli prej
+              </Text>
+            </View>
 
-          {/* Features List */}
-          <View style={styles.featuresContainer}>
-            <Text style={styles.featuresTitle}>Kaj dobiš?</Text>
-            {PREMIUM_FEATURES.map((feature, index) => (
-              <Animated.View
-                key={feature.title}
+            {/* Plan Selector */}
+            <View style={styles.planSelector}>
+              {/* Solo Plan */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setSelectedPlan("solo");
+                  if (Platform.OS !== "web") {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                }}
                 style={[
-                  styles.featureRow,
-                  {
-                    opacity: checkmarkAnims[index],
-                    transform: [
-                      {
-                        translateX: checkmarkAnims[index].interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [-30, 0],
-                        }),
-                      },
-                    ],
-                  },
+                  styles.planCard,
+                  selectedPlan === "solo" && styles.planCardActive,
                 ]}
               >
-                <View style={styles.featureIcon}>
+                {selectedPlan === "solo" && (
+                  <View style={styles.selectedBadge}>
+                    <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                  </View>
+                )}
+                <View style={styles.planHeader}>
+                  <Ionicons name="person" size={32} color="#8b5cf6" />
+                  <Text style={styles.planName}>Solo</Text>
+                </View>
+                <Text style={styles.planPrice}>1,99€</Text>
+                <Text style={styles.planPeriod}>na mesec</Text>
+                <Text style={styles.planDescription}>
+                  Popolno za posamezne uporabnike
+                </Text>
+              </TouchableOpacity>
+
+              {/* Family Plan */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => {
+                  setSelectedPlan("family");
+                  if (Platform.OS !== "web") {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                }}
+                style={[
+                  styles.planCard,
+                  selectedPlan === "family" && styles.planCardActive,
+                ]}
+              >
+                <View style={styles.popularBadge}>
                   <LinearGradient
-                    colors={["rgba(251, 191, 36, 0.3)", "rgba(245, 158, 11, 0.1)"]}
-                    style={styles.featureIconBg}
+                    colors={["#fbbf24", "#f59e0b"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.popularBadgeGradient}
                   >
-                    <Ionicons
-                      name={feature.icon as keyof typeof Ionicons.glyphMap}
-                      size={22}
-                      color="#fbbf24"
-                    />
+                    <Text style={styles.popularBadgeText}>PRILJUBLJENO</Text>
                   </LinearGradient>
                 </View>
-                <View style={styles.featureText}>
-                  <Text style={styles.featureTitle}>{feature.title}</Text>
-                  <Text style={styles.featureDescription}>{feature.description}</Text>
+                {selectedPlan === "family" && (
+                  <View style={styles.selectedBadge}>
+                    <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                  </View>
+                )}
+                <View style={styles.planHeader}>
+                  <Ionicons name="people" size={32} color="#f59e0b" />
+                  <Text style={styles.planName}>Family</Text>
                 </View>
-                <Ionicons name="checkmark-circle" size={24} color="#10b981" />
-              </Animated.View>
-            ))}
-          </View>
-
-          {/* Payment Buttons - Direct Action */}
-          <View style={styles.paymentSection}>
-            <Text style={styles.paymentTitle}>Izberi način plačila</Text>
-
-            {/* Apple Pay Button */}
-            <TouchableOpacity
-              style={styles.paymentButton}
-              onPress={() => handlePayment("apple")}
-              disabled={processing}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={["#000", "#1a1a1a"]}
-                style={styles.paymentButtonGradient}
-              >
-                <Ionicons name="logo-apple" size={24} color="#fff" />
-                <Text style={styles.paymentButtonText}>Plačaj z Apple Pay</Text>
-                <Text style={styles.paymentButtonPrice}>1,99 €</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Google Pay Button */}
-            <TouchableOpacity
-              style={styles.paymentButton}
-              onPress={() => handlePayment("google")}
-              disabled={processing}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={["#fff", "#f5f5f5"]}
-                style={styles.paymentButtonGradient}
-              >
-                <View style={styles.googlePayIcon}>
-                  <Text style={styles.googleG}>G</Text>
-                </View>
-                <Text style={[styles.paymentButtonText, { color: "#000" }]}>
-                  Plačaj z Google Pay
+                <Text style={styles.planPrice}>2,99€</Text>
+                <Text style={styles.planPeriod}>na mesec</Text>
+                <Text style={styles.planDescription}>
+                  Do 3 uporabnikov + deljenje seznamov
                 </Text>
-                <Text style={[styles.paymentButtonPrice, { color: "#000" }]}>1,99 €</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+                <View style={styles.savingsBadge}>
+                  <Text style={styles.savingsText}>Prihraniš 3€/mesec</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
 
-            {/* Card Button */}
+            {/* Features List */}
+            <View style={styles.featuresContainer}>
+              <Text style={styles.featuresTitle}>Kaj dobite?</Text>
+              {features.map((feature, index) => (
+                <View key={feature.title} style={styles.featureRow}>
+                  <View style={styles.featureIconContainer}>
+                    <LinearGradient
+                      colors={
+                        selectedPlan === "family"
+                          ? ["#fbbf24", "#f59e0b"]
+                          : ["#8b5cf6", "#7c3aed"]
+                      }
+                      style={styles.featureIconBg}
+                    >
+                      <Ionicons
+                        name={feature.icon as any}
+                        size={20}
+                        color="#fff"
+                      />
+                    </LinearGradient>
+                  </View>
+                  <View style={styles.featureTextContainer}>
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={styles.featureDescription}>
+                      {feature.description}
+                    </Text>
+                  </View>
+                  <Ionicons name="checkmark-circle" size={22} color="#10b981" />
+                </View>
+              ))}
+            </View>
+
+            {/* CTA Button */}
             <TouchableOpacity
-              style={styles.paymentButton}
-              onPress={() => handlePayment("card")}
+              style={styles.ctaButton}
+              onPress={handlePayment}
               disabled={processing}
-              activeOpacity={0.8}
+              activeOpacity={0.9}
             >
               <LinearGradient
-                colors={["#8b5cf6", "#7c3aed"]}
-                style={styles.paymentButtonGradient}
+                colors={
+                  selectedPlan === "family"
+                    ? ["#fbbf24", "#f59e0b", "#d97706"]
+                    : ["#8b5cf6", "#7c3aed", "#6d28d9"]
+                }
+                style={styles.ctaGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
               >
-                <Ionicons name="card" size={24} color="#fff" />
-                <Text style={styles.paymentButtonText}>Kreditna kartica</Text>
-                <Text style={styles.paymentButtonPrice}>1,99 €</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          {/* Processing Overlay */}
-          {processing && (
-            <View style={styles.processingOverlay}>
-              <View style={styles.processingCard}>
-                <Animated.View
-                  style={[
-                    styles.processingSpinner,
-                    {
+                {processing ? (
+                  <Animated.View
+                    style={{
                       transform: [
                         {
                           rotate: glowAnim.interpolate({
@@ -358,25 +362,42 @@ export default function PremiumScreen() {
                           }),
                         },
                       ],
-                    },
-                  ]}
-                >
-                  <Ionicons name="sync" size={32} color="#fbbf24" />
-                </Animated.View>
-                <Text style={styles.processingText}>Obdelava plačila...</Text>
+                    }}
+                  >
+                    <Ionicons name="sync" size={24} color="#fff" />
+                  </Animated.View>
+                ) : (
+                  <>
+                    <Text style={styles.ctaText}>
+                      Začni z {price}€/mesec
+                    </Text>
+                    <Ionicons name="arrow-forward" size={24} color="#fff" />
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Trust badges */}
+            <View style={styles.trustBadges}>
+              <View style={styles.trustBadge}>
+                <Ionicons name="shield-checkmark" size={16} color="#10b981" />
+                <Text style={styles.trustText}>Varno plačilo</Text>
+              </View>
+              <View style={styles.trustBadge}>
+                <Ionicons name="refresh" size={16} color="#10b981" />
+                <Text style={styles.trustText}>Prekliči kadarkoli</Text>
+              </View>
+              <View style={styles.trustBadge}>
+                <Ionicons name="lock-closed" size={16} color="#10b981" />
+                <Text style={styles.trustText}>SSL zaščita</Text>
               </View>
             </View>
-          )}
 
-          {/* Security Note */}
-          <View style={styles.securityNote}>
-            <Ionicons name="shield-checkmark" size={16} color="#10b981" />
-            <Text style={styles.securityText}>
-              Varno plačilo • Prekliči kadarkoli
+            <Text style={styles.disclaimer}>
+              Mesečna naročnina z avtomatskim podaljšanjem. Prekličete lahko kadarkoli
+              brez dodatnih stroškov. Vse cene vključujejo DDV.
             </Text>
-          </View>
-
-          <View style={{ height: 40 }} />
+          </Animated.View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -386,80 +407,160 @@ export default function PremiumScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0a0a12",
+    backgroundColor: "#0f0a1e",
   },
   safeArea: {
     flex: 1,
   },
-  backgroundGlow: {
+  glowOrb: {
     position: "absolute",
     width: SCREEN_WIDTH * 1.5,
     height: SCREEN_WIDTH * 1.5,
     backgroundColor: "#fbbf24",
     borderRadius: SCREEN_WIDTH,
-    top: -SCREEN_WIDTH * 0.5,
-    left: -SCREEN_WIDTH * 0.25,
-    opacity: 0.1,
+    top: -SCREEN_WIDTH * 0.7,
+    left: SCREEN_WIDTH * 0.1,
+    opacity: 0.2,
   },
   header: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: "flex-end",
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  scrollView: {
-    flex: 1,
-  },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  premiumBadge: {
+  titleContainer: {
     alignItems: "center",
     marginBottom: 32,
   },
-  badgeGradient: {
-    width: SCREEN_WIDTH - 80,
-    paddingVertical: 32,
-    borderRadius: 24,
+  premiumBadge: {
+    flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#fbbf24",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+    marginBottom: 16,
   },
-  badgeTitle: {
-    fontSize: 28,
+  premiumBadgeText: {
+    fontSize: 14,
     fontWeight: "900",
     color: "#000",
-    marginTop: 12,
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
-  badgePrice: {
-    fontSize: 48,
+  mainTitle: {
+    fontSize: 32,
+    fontWeight: "900",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 24,
+    paddingHorizontal: 20,
+  },
+  planSelector: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 32,
+  },
+  planCard: {
+    flex: 1,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+    position: "relative",
+  },
+  planCardActive: {
+    backgroundColor: "rgba(139, 92, 246, 0.2)",
+    borderColor: "#8b5cf6",
+    shadowColor: "#8b5cf6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  selectedBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+  },
+  popularBadge: {
+    position: "absolute",
+    top: -10,
+    left: "50%",
+    marginLeft: -50,
+    width: 100,
+  },
+  popularBadgeGradient: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  popularBadgeText: {
+    fontSize: 10,
     fontWeight: "900",
     color: "#000",
+    letterSpacing: 0.5,
+  },
+  planHeader: {
+    alignItems: "center",
+    marginBottom: 12,
     marginTop: 8,
   },
-  badgePeriod: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "rgba(0, 0, 0, 0.6)",
-    marginTop: -4,
+  planName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
+    marginTop: 8,
+  },
+  planPrice: {
+    fontSize: 36,
+    fontWeight: "900",
+    color: "#fff",
+    textAlign: "center",
+  },
+  planPeriod: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  planDescription: {
+    fontSize: 12,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  savingsBadge: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginTop: 12,
+    alignSelf: "center",
+  },
+  savingsText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#10b981",
   },
   featuresContainer: {
     marginBottom: 32,
@@ -473,139 +574,91 @@ const styles = StyleSheet.create({
   featureRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(139, 92, 246, 0.1)",
   },
-  featureIcon: {
-    marginRight: 14,
+  featureIconContainer: {
+    marginRight: 12,
   },
   featureIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  featureText: {
+  featureTextContainer: {
     flex: 1,
   },
   featureTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: "#fff",
+    marginBottom: 2,
   },
   featureDescription: {
     fontSize: 13,
     color: "#9ca3af",
-    marginTop: 2,
   },
-  paymentSection: {
-    marginBottom: 24,
-  },
-  paymentTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: 16,
-  },
-  paymentButton: {
-    marginBottom: 12,
+  ctaButton: {
     borderRadius: 16,
     overflow: "hidden",
+    marginBottom: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  paymentButtonGradient: {
+  ctaGradient: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 18,
-    paddingHorizontal: 20,
     gap: 12,
   },
-  paymentButtonText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  paymentButtonPrice: {
-    fontSize: 16,
+  ctaText: {
+    fontSize: 18,
     fontWeight: "800",
     color: "#fff",
   },
-  googlePayIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#fff",
-    alignItems: "center",
+  trustBadges: {
+    flexDirection: "row",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-  },
-  googleG: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#4285F4",
-  },
-  processingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 100,
-  },
-  processingCard: {
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
-    borderRadius: 24,
-    padding: 32,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-  },
-  processingSpinner: {
+    gap: 20,
     marginBottom: 16,
   },
-  processingText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  securityNote: {
+  trustBadge: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 16,
-    gap: 8,
+    gap: 6,
   },
-  securityText: {
-    fontSize: 13,
+  trustText: {
+    fontSize: 12,
     color: "#9ca3af",
   },
-  // Success screen styles
+  disclaimer: {
+    fontSize: 11,
+    color: "#6b7280",
+    textAlign: "center",
+    lineHeight: 16,
+    paddingHorizontal: 12,
+  },
+  // Success screen
   successContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 40,
   },
-  successIcon: {
-    marginBottom: 24,
-  },
-  successIconBg: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  successBadge: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 24,
     shadowColor: "#fbbf24",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.6,
@@ -613,16 +666,22 @@ const styles = StyleSheet.create({
     elevation: 15,
   },
   successTitle: {
-    fontSize: 28,
-    fontWeight: "800",
+    fontSize: 32,
+    fontWeight: "900",
     color: "#fff",
-    marginBottom: 12,
     textAlign: "center",
+    marginBottom: 12,
   },
   successText: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  successSubtext: {
+    fontSize: 15,
     color: "#9ca3af",
     textAlign: "center",
-    lineHeight: 24,
   },
 });
