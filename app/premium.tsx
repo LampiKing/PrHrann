@@ -23,10 +23,17 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const PREMIUM_FEATURES = [
   { icon: "infinite", title: "Neomejeno iskanje", description: "Brez dnevnih omejitev" },
-  { icon: "pricetag", title: "Ekskluzivni kuponi", description: "Do 30% dodatni popusti" },
+  { icon: "list", title: "Nakupovalni seznami", description: "Ustvari in deli sezname" },
   { icon: "notifications", title: "Obvestila o cenah", description: "Ko pade cena izdelka" },
-  { icon: "analytics", title: "Analiza prihrankov", description: "Mesečna statistika" },
+  { icon: "analytics", title: "Sledenje prihrankom", description: "Mesečna statistika" },
+  { icon: "pricetag", title: "Ekskluzivni kuponi", description: "Do 30% dodatni popusti" },
   { icon: "star", title: "Prednostna podpora", description: "24/7 pomoč" },
+];
+
+const FAMILY_FEATURES = [
+  { icon: "people", title: "Do 3 uporabniki", description: "Delite Premium z družino" },
+  { icon: "sync", title: "Sinhronizacija seznamov", description: "Skupne nakupovalne liste" },
+  { icon: "shield-checkmark", title: "Varnostni nadzor", description: "GEO-lock in IP tracking" },
 ];
 
 export default function PremiumScreen() {
@@ -34,6 +41,7 @@ export default function PremiumScreen() {
   const upgradeToPremium = useMutation(api.userProfiles.upgradeToPremium);
   const [processing, setProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<"solo" | "family">("solo");
 
   // Animations
   const cardScale = useRef(new Animated.Value(0.9)).current;

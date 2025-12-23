@@ -74,6 +74,9 @@ export default defineSchema({
     })),
     isPremium: v.boolean(),
     premiumUntil: v.optional(v.number()),
+    premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))), // solo: 1.99€, family: 2.99€
+    familyOwnerId: v.optional(v.string()), // Če je član family plana
+    familyMembers: v.optional(v.array(v.string())), // Max 3 osebe za family plan
     dailySearches: v.number(),
     lastSearchDate: v.string(), // YYYY-MM-DD format
     searchResetTime: v.optional(v.number()), // Timestamp when searches reset
@@ -85,7 +88,64 @@ export default defineSchema({
     lastIpAddress: v.optional(v.string()),
     lastDeviceInfo: v.optional(v.string()),
     suspiciousActivity: v.optional(v.boolean()),
-  }).index("by_user_id", ["userId"]),
+    // Savings tracker
+    totalSavings: v.optional(v.number()), // Skupni prihranki
+    monthlySavings: v.optional(v.number()), // Prihranki ta mesec
+    lastSavingsReset: v.optional(v.number()), // Kdaj resetiramo mesečne
+  }).index("by_user_id", ["userId"])
+    .index("by_family_owner", ["familyOwnerId"]),
+
+  // Shopping Lists
+  shoppingLists: defineTable({
+    userId: v.string(),
+    name: v.string(), // "Tedenski nakup", "Za žur"...
+    icon: v.optional(v.string()), // Emoji ikona
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    // Family sharing
+    sharedWith: v.optional(v.array(v.string())), // userId-ji družinskih članov
+    isShared: v.optional(v.boolean()),
+  }).index("by_user_id", ["userId"])
+    .index("by_created_at", ["userId", "createdAt"]),
+
+  // Shopping List Items
+  shoppingListItems: defineTable({
+    listId: v.id("shoppingLists"),
+    productId: v.id("products"),
+    quantity: v.number(),
+    checked: v.boolean(), // Ali je že kupljeno
+    addedBy: v.optional(v.string()), // Kdo je dodal (za family)
+    addedAt: v.number(),
+  }).index("by_list", ["listId"])
+    .index("by_product", ["productId"]),
+
+  // Price Alerts
+  priceAlerts: defineTable({
+    userId: v.string(),
+    productId: v.id("products"),
+    storeId: v.optional(v.id("stores")), // Če želi spremljati specifično trgovino
+    targetPrice: v.number(), // Želena cena
+    currentPrice: v.number(), // Trenutna najnižja cena
+    isActive: v.boolean(),
+    triggered: v.boolean(), // Ali je bil alert že sprožen
+    triggeredAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_product", ["productId"])
+    .index("by_active", ["isActive"]),
+
+  // Purchases (za savings tracking)
+  purchases: defineTable({
+    userId: v.string(),
+    productId: v.id("products"),
+    storeId: v.id("stores"),
+    quantity: v.number(),
+    pricePaid: v.number(), // Cena ki jo je plačal
+    regularPrice: v.number(), // Redna cena (brez akcije)
+    savedAmount: v.number(), // Prihranek
+    purchaseDate: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_date", ["userId", "purchaseDate"]),
 
   // Active sessions tracking
   activeSessions: defineTable({
