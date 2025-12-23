@@ -14,9 +14,13 @@ import type * as cart from "../cart.js";
 import type * as coupons from "../coupons.js";
 import type * as functions from "../functions.js";
 import type * as http from "../http.js";
+import type * as priceAlerts from "../priceAlerts.js";
 import type * as products from "../products.js";
+import type * as savings from "../savings.js";
+import type * as security from "../security.js";
 import type * as seedData from "../seedData.js";
 import type * as seedHelpers from "../seedHelpers.js";
+import type * as shoppingLists from "../shoppingLists.js";
 import type * as stores from "../stores.js";
 import type * as userProfiles from "../userProfiles.js";
 
@@ -33,9 +37,13 @@ declare const fullApi: ApiFromModules<{
   coupons: typeof coupons;
   functions: typeof functions;
   http: typeof http;
+  priceAlerts: typeof priceAlerts;
   products: typeof products;
+  savings: typeof savings;
+  security: typeof security;
   seedData: typeof seedData;
   seedHelpers: typeof seedHelpers;
+  shoppingLists: typeof shoppingLists;
   stores: typeof stores;
   userProfiles: typeof userProfiles;
 }>;

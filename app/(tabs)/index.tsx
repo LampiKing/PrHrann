@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
+import { canGuestViewProduct, recordGuestView, getGuestViewsRemaining, resetGuestData } from "@/lib/guest-mode";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -68,6 +69,13 @@ export default function SearchScreen() {
   const [sortAscending, setSortAscending] = useState(true);
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
 
+  // Guest mode state
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [guestViewsRemaining, setGuestViewsRemaining] = useState(1);
+  const [guestCooldownTime, setGuestCooldownTime] = useState<string | null>(null);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [hasViewedAsGuest, setHasViewedAsGuest] = useState(false);
+
   // Camera/Scanner state
   const [showScanner, setShowScanner] = useState(false);
   const [scanningImage, setScanningImage] = useState<string | null>(null);
@@ -95,6 +103,28 @@ export default function SearchScreen() {
   const isPremium = profile?.isPremium ?? false;
   const searchesRemaining = profile?.searchesRemaining ?? 3;
   const searchResetTime = profile?.searchResetTime;
+
+  // Check if user is in guest mode (not authenticated)
+  useEffect(() => {
+    setIsGuestMode(!isAuthenticated);
+    
+    // If authenticated and had viewed as guest, reset guest data
+    if (isAuthenticated && hasViewedAsGuest) {
+      resetGuestData();
+      setHasViewedAsGuest(false);
+    }
+    
+    // Load guest view status
+    if (!isAuthenticated) {
+      loadGuestStatus();
+    }
+  }, [isAuthenticated]);
+  
+  const loadGuestStatus = async () => {
+    const status = await getGuestViewsRemaining();
+    setGuestViewsRemaining(status.remaining);
+    setGuestCooldownTime(status.timeUntilReset || null);
+  };
 
   // Timer state for countdown
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
@@ -140,6 +170,23 @@ export default function SearchScreen() {
   const handleSearch = async () => {
     if (searchQuery.length < 2) return;
     
+    // GUEST MODE: Check if guest can view
+    if (isGuestMode) {
+      const guestCheck = await canGuestViewProduct();
+      
+      if (!guestCheck.allowed) {
+        setShowGuestLimitModal(true);
+        return;
+      }
+      
+      // Guest can view - proceed with search but don't record in backend
+      setSearching(true);
+      // Search will happen via useQuery below
+      setTimeout(() => setSearching(false), 500);
+      return;
+    }
+    
+    // AUTHENTICATED USER: Check search limits
     if (!isPremium && searchesRemaining <= 0) {
       setShowPremiumModal(true);
       return;
@@ -1027,7 +1074,41 @@ export default function SearchScreen() {
             <Text style={styles.resultsCount}>
               {sortedResults.length} {sortedResults.length === 1 ? "rezultat" : "rezultatov"}
             </Text>
-            {sortedResults.map((product, index) => renderProductCard(product, index))}
+            {/* GUEST MODE: Show only 1 product */}
+            {isGuestMode ? (
+              <>
+                {sortedResults.slice(0, 1).map((product, index) => renderProductCard(product, index))}
+                {sortedResults.length > 1 && (
+                  <TouchableOpacity
+                    style={styles.guestLimitCard}
+                    onPress={() => {
+                      recordGuestView(sortedResults[0]._id);
+                      setHasViewedAsGuest(true);
+                      loadGuestStatus();
+                      setShowGuestLimitModal(true);
+                    }}
+                  >
+                    <LinearGradient
+                      colors={["rgba(139, 92, 246, 0.15)", "rgba(88, 28, 135, 0.15)"]}
+                      style={styles.guestLimitGradient}
+                    >
+                      <Ionicons name="lock-closed" size={48} color="rgba(139, 92, 246, 0.6)" />
+                      <Text style={styles.guestLimitTitle}>Registriraj se za več!</Text>
+                      <Text style={styles.guestLimitText}>
+                        Prikazujemo samo 1 izdelek.{"\n"}
+                        Registriraj se za dostop do vseh {sortedResults.length - 1} izdelkov!
+                      </Text>
+                      <View style={styles.guestLimitButton}>
+                        <Text style={styles.guestLimitButtonText}>Brezplačna registracija</Text>
+                        <Ionicons name="arrow-forward" size={16} color="#fff" />
+                      </View>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : (
+              sortedResults.map((product, index) => renderProductCard(product, index))
+            )}
           </View>
         )}
 
@@ -1153,6 +1234,108 @@ export default function SearchScreen() {
                   </View>
                 )}
               </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Guest Limit Modal */}
+      <Modal
+        transparent
+        visible={showGuestLimitModal}
+        onRequestClose={() => setShowGuestLimitModal(false)}
+        animationType="fade"
+        hardwareAccelerated
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.premiumModal}>
+            <LinearGradient
+              colors={["rgba(139, 92, 246, 0.95)", "rgba(88, 28, 135, 0.98)"]}
+              style={styles.premiumModalGradient}
+            >
+              <TouchableOpacity
+                style={styles.premiumCloseBtn}
+                onPress={() => setShowGuestLimitModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+
+              <View style={styles.premiumIconContainer}>
+                <LinearGradient
+                  colors={["#ef4444", "#dc2626"]}
+                  style={styles.premiumIconGradient}
+                >
+                  <Ionicons name="lock-closed" size={40} color="#fff" />
+                </LinearGradient>
+              </View>
+
+              <Text style={styles.premiumModalTitle}>🚫 Brezplačni limit dosežen</Text>
+              <Text style={styles.premiumModalSubtitle}>
+                Pregledate lahko samo 1 izdelek na 24 ur brez prijave
+              </Text>
+
+              <View style={styles.guestLimitInfo}>
+                {guestCooldownTime && (
+                  <View style={styles.guestCooldownBox}>
+                    <Ionicons name="time" size={24} color="#fbbf24" />
+                    <Text style={styles.guestCooldownText}>
+                      Naslednji pregled čez: {guestCooldownTime}
+                    </Text>
+                  </View>
+                )}
+                <Text style={styles.guestLimitDescription}>
+                  Ta omejitev velja na napravo, da preprečimo zlorabe sistema.
+                </Text>
+              </View>
+
+              <View style={styles.premiumFeatures}>
+                <View style={styles.premiumFeatureItem}>
+                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                  <Text style={styles.premiumFeatureText}>Neomejeno iskanje izdelkov</Text>
+                </View>
+                <View style={styles.premiumFeatureItem}>
+                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                  <Text style={styles.premiumFeatureText}>Dostop do vseh cen in trgovin</Text>
+                </View>
+                <View style={styles.premiumFeatureItem}>
+                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                  <Text style={styles.premiumFeatureText}>Shranjuj najljubše izdelke</Text>
+                </View>
+                <View style={styles.premiumFeatureItem}>
+                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                  <Text style={styles.premiumFeatureText}>Brezplačno - za vedno!</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.premiumCtaBtn}
+                onPress={() => {
+                  setShowGuestLimitModal(false);
+                  router.push("/auth");
+                }}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={["#8b5cf6", "#7c3aed", "#6d28d9"]}
+                  style={styles.premiumCtaBtnGradient}
+                >
+                  <Ionicons name="person-add" size={20} color="#fff" />
+                  <Text style={styles.premiumCtaBtnText}>BREZPLAČNA REGISTRACIJA</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.guestLoginLink}
+                onPress={() => {
+                  setShowGuestLimitModal(false);
+                  router.push("/auth");
+                }}
+              >
+                <Text style={styles.guestLoginLinkText}>
+                  Že imaš račun? <Text style={styles.guestLoginLinkBold}>Prijavi se →</Text>
+                </Text>
+              </TouchableOpacity>
             </LinearGradient>
           </View>
         </View>
@@ -2123,5 +2306,91 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // Guest Mode Styles
+  guestLimitCard: {
+    marginTop: 16,
+    borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: "#8b5cf6",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  guestLimitGradient: {
+    padding: 24,
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 2,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderRadius: 20,
+  },
+  guestLimitTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#8b5cf6",
+    marginTop: 8,
+  },
+  guestLimitText: {
+    fontSize: 15,
+    color: "#6b7280",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  guestLimitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#8b5cf6",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  guestLimitButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  guestLimitInfo: {
+    width: "100%",
+    gap: 12,
+    marginBottom: 16,
+  },
+  guestCooldownBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(251, 191, 36, 0.1)",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
+  },
+  guestCooldownText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fbbf24",
+  },
+  guestLimitDescription: {
+    fontSize: 13,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  guestLoginLink: {
+    marginTop: 12,
+    paddingVertical: 8,
+  },
+  guestLoginLinkText: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+  },
+  guestLoginLinkBold: {
+    fontWeight: "700",
+    color: "#fff",
   },
 });

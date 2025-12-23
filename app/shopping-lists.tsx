@@ -146,7 +146,10 @@ export default function ShoppingListsScreen() {
                 <TouchableOpacity
                   key={list._id}
                   style={styles.listCard}
-                  onPress={() => router.push(`/shopping-list/${list._id}`)}
+                  onPress={() => {
+                    // TODO: Navigate to list detail screen when implemented
+                    console.log('Navigate to list:', list._id);
+                  }}
                   activeOpacity={0.8}
                 >
                   <LinearGradient

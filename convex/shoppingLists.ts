@@ -84,17 +84,17 @@ export const getListItems = query({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return { items: [], cheapestStore: null, totalCost: 0 };
+    if (!identity) return { items: [], cheapestStore: undefined, totalCost: 0 };
 
     // Preveri dostop
     const list = await ctx.db.get(args.listId);
-    if (!list) return { items: [], cheapestStore: null, totalCost: 0 };
+    if (!list) return { items: [], cheapestStore: undefined, totalCost: 0 };
 
     const hasAccess = 
       list.userId === identity.subject ||
       (list.sharedWith?.includes(identity.subject) ?? false);
 
-    if (!hasAccess) return { items: [], cheapestStore: null, totalCost: 0 };
+    if (!hasAccess) return { items: [], cheapestStore: undefined, totalCost: 0 };
 
     const items = await ctx.db
       .query("shoppingListItems")
@@ -157,7 +157,7 @@ export const getListItems = query({
       });
     });
 
-    let cheapestStore: { name: string; total: number; color: string; itemsCount: number } | null = null;
+    let cheapestStore = null as { name: string; total: number; color: string; itemsCount: number } | null;
     let minTotal = Infinity;
 
     storeMap.forEach((value, storeName) => {
@@ -176,7 +176,7 @@ export const getListItems = query({
     return {
       items: validItems,
       cheapestStore,
-      totalCost: cheapestStore?.total || 0,
+      totalCost: cheapestStore ? cheapestStore.total : 0,
     };
   },
 });

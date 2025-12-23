@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, action } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
 // Ustvari price alert
 export const createAlert = mutation({
@@ -27,7 +28,7 @@ export const createAlert = mutation({
       prices = await ctx.db
         .query("prices")
         .withIndex("by_product_and_store", (q) => 
-          q.eq("productId", args.productId).eq("storeId", args.storeId)
+          q.eq("productId", args.productId).eq("storeId", args.storeId as Id<"stores">)
         )
         .collect();
     } else {
@@ -80,7 +81,7 @@ export const getAlerts = query({
           prices = await ctx.db
             .query("prices")
             .withIndex("by_product_and_store", (q) => 
-              q.eq("productId", alert.productId).eq("storeId", alert.storeId)
+              q.eq("productId", alert.productId).eq("storeId", alert.storeId as Id<"stores">)
             )
             .collect();
         } else {
@@ -190,7 +191,7 @@ export const checkAlerts = mutation({
         prices = await ctx.db
           .query("prices")
           .withIndex("by_product_and_store", (q) => 
-            q.eq("productId", alert.productId).eq("storeId", alert.storeId)
+            q.eq("productId", alert.productId).eq("storeId", alert.storeId as Id<"stores">)
           )
           .collect();
       } else {

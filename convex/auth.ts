@@ -4,7 +4,7 @@ import { betterAuth } from "better-auth";
 import { expo } from "@better-auth/expo";
 import { components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
-import { anonymous, multiSession, ipRateLimit } from "better-auth/plugins";
+import { anonymous, multiSession } from "better-auth/plugins";
 
 const authFunctions: AuthFunctions = internal.auth;
 
@@ -32,35 +32,17 @@ export const createAuth = (
         },
         trustedOrigins: [siteUrl, "myapp://"],
         database: authComponent.adapter(ctx),
-        // Email/password with verification required
+        // Email/password - email verification DISABLED until email service is set up
         emailAndPassword: {
             enabled: true,
-            requireEmailVerification: true,
-            sendVerificationOnSignUp: true,
+            requireEmailVerification: false,  // DISABLED - users can login immediately
+            sendVerificationOnSignUp: false,
             autoSignInAfterVerification: true,
-            sendResetPassword: async ({ user, url, token }) => {
+            sendResetPassword: async ({ user, url, token }: any) => {
                 // TODO: Implement email sending (e.g., with Resend, SendGrid, etc.)
                 console.log(`Password reset link for ${user.email}: ${url}`);
                 console.log(`Token: ${token}`);
                 // For now, just log - in production, send actual email
-            },
-        },
-        emailVerification: {
-            sendOnSignUp: true,
-            autoSignInAfterVerification: true,
-            sendVerificationEmail: async ({ user, url, token }) => {
-                // TODO: Implement email sending (e.g., with Resend, SendGrid, etc.)
-                console.log(`Verification email for ${user.email}`);
-                console.log(`Verification URL: ${url}`);
-                console.log(`Token: ${token}`);
-                // For now, just log - in production, send actual email
-                // Example with Resend:
-                // await resend.emails.send({
-                //   from: 'PrHran <noreply@prhran.si>',
-                //   to: user.email,
-                //   subject: 'Potrdite vaš email',
-                //   html: `<a href="${url}">Kliknite za potrditev</a>`
-                // });
             },
         },
         // Session settings - track IP and device
@@ -94,13 +76,7 @@ export const createAuth = (
             crossDomain({ siteUrl }),
             // Multi-session management - max 2 active sessions per user
             multiSession({
-                maximumActiveSessions: 2,
-            }),
-            // IP rate limiting and tracking
-            ipRateLimit({
-                window: 60, // 1 minute
-                max: 20, // 20 requests per minute per IP
-                storage: "memory", // Use in-memory storage
+                maximumSessions: 2,
             }),
         ],
     };
