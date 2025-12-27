@@ -51,8 +51,14 @@ export const requestEmailVerification = authAction({
     }
 
     const apiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.FROM_EMAIL;
+    const fromName = process.env.FROM_NAME || "PrHran";
     if (!apiKey) {
       console.warn("RESEND_API_KEY ni nastavljen. Email ne bo poslan.");
+      return { success: true, email };
+    }
+    if (!fromEmail) {
+      console.warn("FROM_EMAIL ni nastavljen. Email ne bo poslan.");
       return { success: true, email };
     }
 
@@ -65,7 +71,7 @@ export const requestEmailVerification = authAction({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "PrHran <noreply@yourdomain.com>",
+        from: `${fromName} <${fromEmail}>`,
         to: email,
         subject: "Potrditev e-naslova",
         text,

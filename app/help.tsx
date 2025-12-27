@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   View,
   Text,
@@ -21,32 +21,32 @@ const FAQ_ITEMS = [
   {
     question: "Kako deluje primerjava cen?",
     answer:
-      "Pr'Hran avtomatsko primerja cene izdelkov v vseh slovenskih trgovinah (Spar, Mercator, Tuš, Hofer, Lidl, Jager). Cene se posodabljajo dnevno ob 22:00, da ti vedno prikažemo najnovejše podatke.",
+      "Pr'Hran avtomatsko primerja cene izdelkov v vseh slovenskih trgovinah (Spar, Mercator, TuĹˇ, Hofer, Lidl, Jager). Cene se posodabljajo dnevno ob 22:00, da ti vedno prikaĹľemo najnovejĹˇe podatke.",
   },
   {
     question: "Kako delujejo kuponi?",
     answer:
-      "Naš sistem avtomatsko upošteva vse aktivne kupone in akcije v trgovinah. Pri izračunu končne cene ti pokažemo, koliko lahko prihranite z uporabo kuponov. Premium uporabniki imajo dostop do ekskluzivnih kuponov.",
+      "NaĹˇ sistem avtomatsko upoĹˇteva vse aktivne kupone in akcije v trgovinah. Pri izraÄŤunu konÄŤne cene ti pokaĹľemo, koliko lahko prihranite z uporabo kuponov. Premium uporabniki imajo dostop do ekskluzivnih kuponov.",
   },
   {
-    question: "Kaj vključuje Premium naročnina?",
+    question: "Kaj vkljuÄŤuje Premium naroÄŤnina?",
     answer:
-      "Premium naročnina (1,99 €/mesec) vključuje: neomejeno iskanje izdelkov, dostop do vseh trgovin (vključno s Hofer, Lidl, Jager), obvestila o padcih cen in ekskluzivne kupone.",
+      "Premium naroÄŤnina (1,99 â‚¬/mesec) vkljuÄŤuje: neomejeno iskanje izdelkov, dostop do vseh trgovin (vkljuÄŤno s Hofer, Lidl, Jager), obvestila o padcih cen in ekskluzivne kupone.",
   },
   {
-    question: "Kako dodam izdelek v košarico?",
+    question: "Kako dodam izdelek v koĹˇarico?",
     answer:
-      "Ko najdeš izdelek, preprosto klikni na gumb 'Dodaj v košarico' pri želeni trgovini. V košarici lahko nato vidiš skupno ceno in prihranke za vsako trgovino posebej.",
+      "Ko najdeĹˇ izdelek, preprosto klikni na gumb 'Dodaj v koĹˇarico' pri Ĺľeleni trgovini. V koĹˇarici lahko nato vidiĹˇ skupno ceno in prihranke za vsako trgovino posebej.",
   },
   {
-    question: "Ali so cene vedno točne?",
+    question: "Ali so cene vedno toÄŤne?",
     answer:
-      "Cene posodabljamo dnevno iz uradnih virov trgovin. Občasno lahko pride do manjših odstopanj zaradi lokalnih akcij ali zakasnitev pri posodabljanju. Priporočamo, da ceno preverite tudi v trgovini.",
+      "Cene posodabljamo dnevno iz uradnih virov trgovin. ObÄŤasno lahko pride do manjĹˇih odstopanj zaradi lokalnih akcij ali zakasnitev pri posodabljanju. PriporoÄŤamo, da ceno preverite tudi v trgovini.",
   },
   {
-    question: "Kako prekličem Premium naročnino?",
+    question: "Kako prekliÄŤem Premium naroÄŤnino?",
     answer:
-      "Premium naročnino lahko kadarkoli prekličeš v nastavitvah profila. Po preklicu boš imel dostop do Premium funkcij do konca obračunskega obdobja.",
+      "Premium naroÄŤnino lahko kadarkoli prekliÄŤeĹˇ v nastavitvah profila. Po preklicu boĹˇ imel dostop do Premium funkcij do konca obraÄŤunskega obdobja.",
   },
 ];
 
@@ -70,9 +70,9 @@ export default function HelpScreen() {
     
     Alert.alert(
       "Resetiraj podatke",
-      "Ali si prepričan da želiš resetirati in ponovno naložiti vse podatke? To bo izbrisalo vse obstoječe podatke.",
+      "Ali si prepriÄŤan da ĹľeliĹˇ resetirati in ponovno naloĹľiti vse podatke? To bo izbrisalo vse obstojeÄŤe podatke.",
       [
-        { text: "Prekliči", style: "cancel" },
+        { text: "PrekliÄŤi", style: "cancel" },
         {
           text: "Resetiraj",
           style: "destructive",
@@ -81,11 +81,11 @@ export default function HelpScreen() {
             try {
               const result = await resetData({});
               Alert.alert(
-                "Uspešno!",
-                `Naloženih:\n${result.stores} trgovin\n${result.products} izdelkov\n${result.prices} cen\n${result.coupons} kuponov`
+                "UspeĹˇno!",
+                `NaloĹľenih:\n${result.stores} trgovin\n${result.products} izdelkov\n${result.prices} cen\n${result.coupons} kuponov`
               );
             } catch {
-              Alert.alert("Napaka", "Ni bilo mogoče resetirati podatkov.");
+              Alert.alert("Napaka", "Ni bilo mogoÄŤe resetirati podatkov.");
             } finally {
               setIsResetting(false);
             }
@@ -100,7 +100,7 @@ export default function HelpScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     if (method === "email") {
-      Linking.openURL("mailto:podpora@prhran.si");
+      Linking.openURL("mailto:support@prhran.com");
     }
   };
 
@@ -120,7 +120,7 @@ export default function HelpScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Pomoč</Text>
+          <Text style={styles.headerTitle}>PomoÄŤ</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -138,9 +138,9 @@ export default function HelpScreen() {
               <View style={styles.contactIcon}>
                 <Ionicons name="headset" size={32} color="#a78bfa" />
               </View>
-              <Text style={styles.contactTitle}>Potrebuješ pomoč?</Text>
+              <Text style={styles.contactTitle}>PotrebujeĹˇ pomoÄŤ?</Text>
               <Text style={styles.contactText}>
-                Naša ekipa ti je na voljo za vsa vprašanja in težave.
+                NaĹˇa ekipa ti je na voljo za vsa vpraĹˇanja in teĹľave.
               </Text>
               <TouchableOpacity
                 style={styles.contactButton}
@@ -151,7 +151,7 @@ export default function HelpScreen() {
                   style={styles.contactButtonGradient}
                 >
                   <Ionicons name="mail" size={18} color="#fff" />
-                  <Text style={styles.contactButtonText}>podpora@prhran.si</Text>
+                  <Text style={styles.contactButtonText}>support@prhran.com</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </LinearGradient>
@@ -159,7 +159,7 @@ export default function HelpScreen() {
 
           {/* FAQ Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pogosta vprašanja</Text>
+            <Text style={styles.sectionTitle}>Pogosta vpraĹˇanja</Text>
 
             {FAQ_ITEMS.map((item, index) => (
               <TouchableOpacity
@@ -186,7 +186,7 @@ export default function HelpScreen() {
           {/* App Info */}
           <View style={styles.appInfo}>
             <Text style={styles.appVersion}>Pr'Hran verzija 1.0.0</Text>
-            <Text style={styles.appCopyright}>© 2024 Pr'Hran. Vse pravice pridržane.</Text>
+            <Text style={styles.appCopyright}>Â© 2024 Pr'Hran. Vse pravice pridrĹľane.</Text>
           </View>
 
           {/* Debug Reset Button */}
@@ -201,7 +201,7 @@ export default function HelpScreen() {
             >
               <Ionicons name="refresh" size={20} color="#ef4444" />
               <Text style={styles.debugButtonText}>
-                {isResetting ? "Resetiranje..." : "🔧 Resetiraj podatke (Debug)"}
+                {isResetting ? "Resetiranje..." : "đź”§ Resetiraj podatke (Debug)"}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -369,3 +369,4 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
 });
+
