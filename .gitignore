@@ -38,4 +38,4 @@ yarn-error.*
 
 # Lock files (keep package-lock.json for reproducible builds)
 *.lockb
-yarn.lock
+yarn.lockpackage-lock.zip
