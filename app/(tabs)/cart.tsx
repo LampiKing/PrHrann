@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   Share,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -18,6 +17,8 @@ import { Id } from "@/convex/_generated/dataModel";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "react-native";
+import AppLogo from "@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png";
+import { createShadow } from "@/lib/shadow-helper";
 import { useRouter } from "expo-router";
 
 interface CartItemType {
@@ -25,12 +26,23 @@ interface CartItemType {
   productId: Id<"products">;
   productName: string;
   productUnit: string;
+  productCategory: string;
   storeId: Id<"stores">;
   storeName: string;
   storeColor: string;
   quantity: number;
   priceAtAdd: number;
   currentPrice: number;
+  isOnSale: boolean;
+}
+
+interface BestCoupon {
+  couponId: Id<"coupons">;
+  code: string;
+  description: string;
+  savings: number;
+  appliedTo: string;
+  finalSubtotal: number;
 }
 
 interface StoreGroup {
@@ -39,23 +51,77 @@ interface StoreGroup {
   storeColor: string;
   items: CartItemType[];
   subtotal: number;
+  bestCoupon?: BestCoupon;
 }
 
-const STORE_LOGOS: Record<string, string> = {
-  "Spar": "🟢",
-  "Mercator": "🔵",
-  "Tus": "🟡",
-  "Hofer": "🔴",
-  "Lidl": "🟠",
-  "Jager": "🟣",
+type BrandAccent = { color: string; position?: "left" | "right"; width?: number };
+type BrandRing = { color: string; width?: number };
+type BrandLogo = "mercator";
+type StoreBrand = {
+  bg: string;
+  border: string;
+  text: string;
+  accent?: BrandAccent;
+  ring?: BrandRing;
+  cornerIcon?: { char: string; color: string; top: number; left: number; fontSize: number };
+  logo?: BrandLogo;
+};
+
+const STORE_BRANDS: Record<string, StoreBrand> = {
+  mercator: {
+    bg: "#d3003c",
+    border: "#b60035",
+    text: "#fff",
+    logo: "mercator",
+  },
+  spar: {
+    bg: "#c8102e",
+    border: "#a70e27",
+    text: "#fff",
+  },
+  tuš: {
+    bg: "#0d8a3c",
+    border: "#0b6e30",
+    text: "#fff",
+    cornerIcon: { char: "★", color: "#facc15", top: 2, left: 20, fontSize: 9 },
+  },
+  tus: {
+    bg: "#0d8a3c",
+    border: "#0b6e30",
+    text: "#fff",
+    cornerIcon: { char: "★", color: "#facc15", top: 2, left: 20, fontSize: 9 },
+  },
+  hofer: {
+    bg: "#0b3d7a",
+    border: "#0b3d7a",
+    text: "#fff",
+    ring: { color: "#fbbf24", width: 1.2 },
+  },
+  lidl: {
+    bg: "#0047ba",
+    border: "#0047ba",
+    text: "#fff",
+  },
+  jager: {
+    bg: "#1f8a3c",
+    border: "#b91c1c",
+    text: "#fff",
+    accent: { color: "#b91c1c", position: "left", width: 4 },
+  },
+};
+
+const getStoreBrand = (name?: string, fallbackColor?: string) => {
+  const key = (name || "").toLowerCase();
+  const brand = STORE_BRANDS[key as keyof typeof STORE_BRANDS];
+  if (brand) return brand;
+  const color = fallbackColor || "#8b5cf6";
+  return { bg: color, border: color, text: "#fff" };
 };
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
-  const [showOptimizeModal, setShowOptimizeModal] = useState(false);
-  const [error, setError] = useState("");
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
@@ -72,6 +138,16 @@ export default function CartScreen() {
   const clearCart = useMutation(api.cart.clearCart);
 
   const isPremium = profile?.isPremium ?? false;
+  const premiumType = profile?.premiumType;
+  // Gost je anonymous uporabnik ali brez emaila
+  const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
+
+  // Redirect guest to auth
+  useEffect(() => {
+    if (isGuest) {
+      router.replace("/auth");
+    }
+  }, [isGuest]);
 
   useEffect(() => {
     Animated.parallel([
@@ -149,27 +225,6 @@ export default function CartScreen() {
     }
   };
 
-  // Calculate potential savings
-  const calculatePotentialSavings = () => {
-    if (!cart || cart.groupedByStore.length <= 1) return null;
-    
-    const totals = cart.groupedByStore.map((g: StoreGroup) => g.subtotal);
-    const min = Math.min(...totals);
-    const max = Math.max(...totals);
-    const savings = max - min;
-    
-    if (savings < 0.1) return null;
-    
-    const cheapestStore = cart.groupedByStore.find((g: StoreGroup) => g.subtotal === min);
-    return {
-      amount: savings,
-      percentage: Math.round((savings / max) * 100),
-      cheapestStore: cheapestStore?.storeName || "",
-    };
-  };
-
-  const potentialSavings = calculatePotentialSavings();
-
   if (!cart) {
     return (
       <View style={styles.container}>
@@ -197,7 +252,7 @@ export default function CartScreen() {
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <Image
-            source={require("@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png")}
+            source={AppLogo}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -205,9 +260,16 @@ export default function CartScreen() {
             {isPremium ? "Premium košarica" : "Tvoja košarica"}
           </Text>
           {isPremium && (
-            <View style={styles.premiumBadge}>
-              <Ionicons name="star" size={12} color="#fbbf24" />
-              <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+            <View style={styles.premiumBadgeContainer}>
+              <LinearGradient
+                colors={["#fbbf24", "#f59e0b"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.premiumBadge}
+              >
+                <Ionicons name="star" size={14} color="#0b0814" />
+                <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+              </LinearGradient>
             </View>
           )}
         </Animated.View>
@@ -229,50 +291,38 @@ export default function CartScreen() {
           </Animated.View>
         ) : (
           <>
-            {/* Savings Banner */}
-            {potentialSavings && (
-              <Animated.View style={[styles.savingsBanner, { opacity: fadeAnim }]}>
-                <LinearGradient
-                  colors={["rgba(16, 185, 129, 0.2)", "rgba(5, 150, 105, 0.1)"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.savingsBannerGradient}
-                >
-                  <View style={styles.savingsIcon}>
-                    <Ionicons name="trending-down" size={24} color="#10b981" />
-                  </View>
-                  <View style={styles.savingsInfo}>
-                    <Text style={styles.savingsTitle}>Prihrani do {formatPrice(potentialSavings.amount)}</Text>
-                    <Text style={styles.savingsSubtitle}>
-                      Najcenejše v {potentialSavings.cheapestStore} (-{potentialSavings.percentage}%)
+            {/* Quick Summary */}
+            <Animated.View style={[styles.quickSummary, { opacity: fadeAnim }]}>
+              {isPremium && (
+                <View style={styles.premiumSummaryBadge}>
+                  <Ionicons name="star" size={16} color="#fbbf24" />
+                  <Text style={styles.premiumSummaryText}>
+                    {premiumType === "family" ? "Družinska naročnina" : "Plus naročnina"}
+                  </Text>
+                  {cart.totalSavings > 0 && (
+                    <Text style={styles.premiumSummaryExtra}>
+                      Prihranek: {formatPrice(cart.totalSavings)}
                     </Text>
-                  </View>
-                </LinearGradient>
-              </Animated.View>
-            )}
-
-            {/* Summary Card */}
-            <Animated.View style={[styles.summaryCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-              <LinearGradient
-                colors={["rgba(139, 92, 246, 0.15)", "rgba(59, 7, 100, 0.3)"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.summaryGradient}
-              >
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Izdelkov</Text>
-                  <Text style={styles.summaryValue}>{cart.itemCount}</Text>
+                  )}
                 </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Trgovin</Text>
-                  <Text style={styles.summaryValue}>{cart.groupedByStore.length}</Text>
+              )}
+              <View style={styles.quickSummaryMain}>
+                <Text style={styles.quickSummaryMainLabel}>VSE SKUPAJ</Text>
+                <Text style={[styles.quickSummaryMainValue, isPremium && styles.premiumMainValue]}>
+                  {formatPrice(cart.totalSavings > 0 ? cart.totalWithCoupons : cart.total)}
+                </Text>
+              </View>
+              <View style={styles.quickSummaryRow}>
+                <View style={styles.quickSummaryItem}>
+                  <Text style={styles.quickSummaryLabel}>Količina</Text>
+                  <Text style={styles.quickSummaryValue}>{cart.itemCount} kom</Text>
                 </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryRow}>
-                  <Text style={styles.totalLabel}>SKUPAJ</Text>
-                  <Text style={styles.totalValue}>{formatPrice(cart.total)}</Text>
+                <View style={styles.quickSummaryDivider} />
+                <View style={styles.quickSummaryItem}>
+                  <Text style={styles.quickSummaryLabel}>Trgovin</Text>
+                  <Text style={styles.quickSummaryValue}>{cart.groupedByStore.length}</Text>
                 </View>
-              </LinearGradient>
+              </View>
             </Animated.View>
 
             {/* Store Groups */}
@@ -300,15 +350,48 @@ export default function CartScreen() {
                 >
                   {/* Store Header */}
                   <View style={styles.storeHeader}>
-                    <View style={styles.storeInfo}>
-                      <View style={[styles.storeLogo, { backgroundColor: group.storeColor + "20" }]}>
-                        <Text style={styles.storeLogoText}>{STORE_LOGOS[group.storeName] || "🏪"}</Text>
-                      </View>
-                      <View>
-                        <Text style={styles.storeGroupName}>{group.storeName}</Text>
-                        <Text style={styles.storeItemCount}>{group.items.length} izdelkov</Text>
-                      </View>
-                    </View>
+                    {(() => {
+                      const storeBrand = getStoreBrand(group.storeName, group.storeColor);
+                      return (
+                        <View style={styles.storeInfo}>
+                          <View style={[
+                            styles.storeLogo,
+                            { backgroundColor: storeBrand.bg, borderColor: storeBrand.border }
+                          ]}>
+                            {storeBrand.ring && (
+                              <View
+                                style={[
+                                  styles.brandRingLarge,
+                                  { borderColor: storeBrand.ring.color, borderWidth: storeBrand.ring.width ?? 1.6 },
+                                ]}
+                              />
+                            )}
+                            {storeBrand.cornerIcon && (
+                              <Text
+                                style={[
+                                  styles.cornerIcon,
+                                  {
+                                    top: storeBrand.cornerIcon.top,
+                                    left: storeBrand.cornerIcon.left,
+                                    color: storeBrand.cornerIcon.color,
+                                    fontSize: storeBrand.cornerIcon.fontSize,
+                                  },
+                                ]}
+                              >
+                                {storeBrand.cornerIcon.char}
+                              </Text>
+                            )}
+                            <Text style={[styles.storeLogoText, { color: storeBrand.text }]}>
+                              {group.storeName.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text style={styles.storeGroupName}>{group.storeName}</Text>
+                            <Text style={styles.storeItemCount}>{group.items.length} izdelkov</Text>
+                          </View>
+                        </View>
+                      );
+                    })()}
                     <View style={styles.storeSubtotal}>
                       <Text style={styles.storeSubtotalLabel}>Skupaj</Text>
                       <Text style={styles.storeSubtotalValue}>{formatPrice(group.subtotal)}</Text>
@@ -328,6 +411,9 @@ export default function CartScreen() {
                         <View style={styles.itemInfo}>
                           <Text style={styles.itemName}>{item.productName}</Text>
                           <Text style={styles.itemUnit}>{item.productUnit}</Text>
+                          {item.quantity > 1 && (
+                            <Text style={styles.itemPerUnit}>Cena/kos: {formatPrice(item.currentPrice)}</Text>
+                          )}
                         </View>
 
                         <View style={styles.itemControls}>
@@ -361,41 +447,66 @@ export default function CartScreen() {
                       </View>
                     ))}
                   </View>
+
+                  {/* Coupon Badge */}
+                  {group.bestCoupon && (
+                    <View style={styles.couponBadge}>
+                      <LinearGradient
+                        colors={["rgba(16, 185, 129, 0.2)", "rgba(5, 150, 105, 0.1)"]}
+                        style={styles.couponBadgeGradient}
+                      >
+                        <View style={styles.couponIconBig}>
+                          <Ionicons name="checkmark-circle" size={28} color="#10b981" />
+                        </View>
+                        <View style={styles.couponMainInfo}>
+                          <View style={styles.couponCodeSection}>
+                            <Text style={styles.couponCodeLabel}>KUPON</Text>
+                            <Text style={styles.couponCodeBig}>{group.bestCoupon.code}</Text>
+                          </View>
+                          <Text style={styles.couponDescription}>{group.bestCoupon.description}</Text>
+                          <Text style={styles.couponAppliedStrong}>
+                            Velja za: {group.bestCoupon.appliedTo}
+                          </Text>
+                        </View>
+                        <View style={styles.couponSavingsBox}>
+                          <Text style={styles.couponSavingsLabel}>Prihranek</Text>
+                          <Text style={styles.couponSavingsValue}>-{formatPrice(group.bestCoupon.savings)}</Text>
+                        </View>
+                      </LinearGradient>
+                    </View>
+                  )}
+
                 </LinearGradient>
               </Animated.View>
             ))}
 
-            {/* Premium Optimize CTA */}
-            {!isPremium && cart.groupedByStore.length > 1 && (
-              <TouchableOpacity
-                style={styles.optimizeCta}
-                onPress={() => setShowOptimizeModal(true)}
-              >
+            {/* Coupon Savings Banner - NA DNU */}
+            {cart.totalSavings > 0 && (
+              <Animated.View style={[styles.savingsBanner, { opacity: fadeAnim }]}>
                 <LinearGradient
-                  colors={["rgba(251, 191, 36, 0.15)", "rgba(245, 158, 11, 0.1)"]}
+                  colors={["rgba(16, 185, 129, 0.25)", "rgba(5, 150, 105, 0.15)"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
-                  style={styles.optimizeGradient}
+                  style={styles.savingsBannerGradient}
                 >
-                  <View style={styles.optimizeIcon}>
-                    <Ionicons name="flash" size={24} color="#fbbf24" />
+                  <View style={styles.savingsIcon}>
+                    <Ionicons name="pricetag" size={24} color="#10b981" />
                   </View>
-                  <View style={styles.optimizeInfo}>
-                    <Text style={styles.optimizeTitle}>Optimiziraj košarico</Text>
-                    <Text style={styles.optimizeSubtitle}>
-                      Premium najde najcenejšo kombinacijo izdelkov med vsemi trgovinami.
+                  <View style={styles.savingsInfo}>
+                    <Text style={styles.savingsTitle}>💰 Prihranek s kuponi: {formatPrice(cart.totalSavings)}</Text>
+                    <Text style={styles.savingsSubtitle}>
+                      Avtomatsko izbrani najboljši kuponi za vsako trgovino
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#fbbf24" />
                 </LinearGradient>
-              </TouchableOpacity>
+              </Animated.View>
             )}
 
             {/* Action Buttons */}
             <View style={styles.actionButtons}>
               <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
                 <Ionicons name="share-outline" size={20} color="#a78bfa" />
-                <Text style={styles.shareButtonText}>Deli seznam</Text>
+                <Text style={styles.shareButtonText}>Deli košarico</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.clearButton} onPress={handleClearCart}>
@@ -409,66 +520,6 @@ export default function CartScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Optimize Modal */}
-      {showOptimizeModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={["rgba(139, 92, 246, 0.2)", "rgba(59, 7, 100, 0.4)"]}
-              style={styles.modalGradient}
-            >
-              <TouchableOpacity
-                style={styles.modalClose}
-                onPress={() => setShowOptimizeModal(false)}
-              >
-                <Ionicons name="close" size={24} color="#9ca3af" />
-              </TouchableOpacity>
-
-              <View style={styles.modalIcon}>
-                <LinearGradient
-                  colors={["#fbbf24", "#f59e0b"]}
-                  style={styles.modalIconBg}
-                >
-                  <Ionicons name="star" size={32} color="#fff" />
-                </LinearGradient>
-              </View>
-
-              <Text style={styles.modalTitle}>Premium optimizacija</Text>
-              <Text style={styles.modalDescription}>
-                Naš algoritem analizira tvojo košarico in najde najcenejšo kombinacijo izdelkov med vsemi trgovinami.
-              </Text>
-
-              <View style={styles.modalFeatures}>
-                <View style={styles.modalFeature}>
-                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-                  <Text style={styles.modalFeatureText}>Avtomatska optimizacija</Text>
-                </View>
-                <View style={styles.modalFeature}>
-                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-                  <Text style={styles.modalFeatureText}>Prikaz prihrankov</Text>
-                </View>
-                <View style={styles.modalFeature}>
-                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-                  <Text style={styles.modalFeatureText}>Vse trgovine vključene</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity style={styles.modalButton} onPress={() => router.push("/premium")}>
-                <LinearGradient
-                  colors={["#fbbf24", "#f59e0b"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.modalButtonGradient}
-                >
-                  <Text style={styles.modalButtonText}>Nadgradi na Premium</Text>
-                  <Text style={styles.modalButtonPrice}>1,99 €/mesec</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
     </View>
   );
 }
@@ -518,33 +569,185 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logo: {
-    width: 70,
-    height: 70,
-    marginBottom: 8,
+    width: 80,
+    height: 80,
+    marginBottom: 10,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "800",
     color: "#fff",
     letterSpacing: -0.5,
   },
+  premiumBadgeContainer: {
+    marginTop: 8,
+  },
   premiumBadge: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.65)",
+    ...createShadow("#fbbf24", 0, 6, 0.45, 14, 8),
+  },
+  premiumBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#000",
+    letterSpacing: 1,
+  },
+  premiumSummaryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(251, 191, 36, 0.3)",
   },
-  premiumBadgeText: {
+  premiumSummaryText: {
     fontSize: 11,
-    fontWeight: "700",
     color: "#fbbf24",
-    marginLeft: 4,
+    fontWeight: "600",
+    flex: 1,
+  },
+  premiumTotalValue: {
+    color: "#fbbf24",
+    fontSize: 26,
+  },
+  originalTotal: {
+    fontSize: 14,
+    color: "#6b7280",
+    textDecorationLine: "line-through",
+    marginBottom: 2,
+  },
+  couponBadge: {
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  couponBadgeGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+    gap: 14,
+  },
+  couponIconBig: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  couponMainInfo: {
+    flex: 1,
+  },
+  couponCodeSection: {
+    marginBottom: 8,
+  },
+  couponCodeLabel: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#10b981",
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  couponCodeBig: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#10b981",
+    letterSpacing: 1,
+  },
+  couponDescription: {
+    fontSize: 12,
+    color: "#9ca3af",
+    marginBottom: 4,
+  },
+  couponAppliedStrong: {
+    fontSize: 11,
+    color: "#e5e7eb",
+    fontWeight: "600",
+  },
+  couponSavingsBox: {
+    alignItems: "flex-end",
+  },
+  couponSavingsLabel: {
+    fontSize: 10,
+    color: "#6b7280",
+    marginBottom: 3,
+  },
+  couponSavingsValue: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#10b981",
+  },
+  couponIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  couponInfo: {
+    flex: 1,
+  },
+  couponCodeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  couponCode: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#10b981",
     letterSpacing: 0.5,
+  },
+  couponApplied: {
+    fontSize: 11,
+    color: "#6b7280",
+    fontStyle: "italic",
+  },
+  possibleCouponsContainer: {
+    marginTop: 12,
+    padding: 14,
+    backgroundColor: "rgba(59, 130, 246, 0.08)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(59, 130, 246, 0.2)",
+  },
+  possibleCouponsLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#60a5fa",
+    marginBottom: 10,
+  },
+  possibleCouponsList: {
+    gap: 8,
+  },
+  possibleCouponItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  possibleCouponText: {
+    fontSize: 12,
+    color: "#9ca3af",
+    flex: 1,
+  },
+  couponSavings: {
+    alignItems: "flex-end",
   },
   emptyState: {
     alignItems: "center",
@@ -560,6 +763,7 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignItems: "center",
     justifyContent: "center",
+    ...createShadow("#8b5cf6", 0, 4, 0.3, 12, 6),
   },
   emptyTitle: {
     fontSize: 20,
@@ -572,6 +776,69 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     textAlign: "center",
     lineHeight: 22,
+  },
+  quickSummary: {
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  // duplicate premiumSummaryBadge/premiumSummaryText removed (defined earlier)
+  premiumSummaryExtra: {
+    fontSize: 14,
+    color: "#10b981",
+    fontWeight: "700",
+    marginLeft: "auto",
+  },
+  quickSummaryMain: {
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(139, 92, 246, 0.2)",
+  },
+  quickSummaryMainLabel: {
+    fontSize: 11,
+    color: "#9ca3af",
+    marginBottom: 6,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+  },
+  quickSummaryMainValue: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  premiumMainValue: {
+    color: "#fbbf24",
+  },
+  quickSummaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+  },
+  quickSummaryItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  quickSummaryLabel: {
+    fontSize: 9,
+    color: "#9ca3af",
+    marginBottom: 3,
+  },
+  quickSummaryValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  quickSummaryDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: "rgba(139, 92, 246, 0.2)",
+    marginHorizontal: 12,
   },
   savingsBanner: {
     marginBottom: 16,
@@ -618,6 +885,25 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  summarySavingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  savingsIconSmall: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summarySavingsText: {
+    fontSize: 13,
+    color: "#10b981",
+    fontWeight: "700",
   },
   summaryRow: {
     flexDirection: "row",
@@ -679,9 +965,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    borderWidth: 2,
+    position: "relative",
   },
   storeLogoText: {
-    fontSize: 20,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  patternDot: {
+    position: "absolute",
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    opacity: 0.9,
+  },
+  brandRingLarge: {
+    position: "absolute",
+    top: -1.5,
+    left: -1.5,
+    right: -1.5,
+    bottom: -1.5,
+    borderRadius: 14,
+    opacity: 0.9,
+  },
+  cornerIcon: {
+    position: "absolute",
+    fontWeight: "900",
+    opacity: 0.95,
   },
   storeGroupName: {
     fontSize: 16,
@@ -733,6 +1044,11 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     marginTop: 2,
   },
+  itemPerUnit: {
+    fontSize: 12,
+    color: "#c4d4ff",
+    marginTop: 2,
+  },
   itemControls: {
     flexDirection: "row",
     alignItems: "center",
@@ -772,41 +1088,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(239, 68, 68, 0.1)",
     alignItems: "center",
     justifyContent: "center",
-  },
-  optimizeCta: {
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  optimizeGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.3)",
-  },
-  optimizeIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "rgba(251, 191, 36, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14,
-  },
-  optimizeInfo: {
-    flex: 1,
-  },
-  optimizeTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#fbbf24",
-  },
-  optimizeSubtitle: {
-    fontSize: 12,
-    color: "#fcd34d",
-    marginTop: 2,
   },
   actionButtons: {
     flexDirection: "row",

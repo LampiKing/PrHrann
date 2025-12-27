@@ -7,20 +7,23 @@ import {
   ScrollView,
   Platform,
   Animated,
-  Easing,
   Dimensions,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { PLAN_FREE, PLAN_PLUS, PLAN_FAMILY, MARKETING } from "@/lib/branding";
+import { createShadow } from "@/lib/shadow-helper";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const SOLO_FEATURES = [
+const INDIVIDUAL_FEATURES = [
+  { icon: "camera", title: "📸 Slikaj izdelek", description: "Takoj najde najnižjo ceno" },
   { icon: "infinite", title: "Neomejeno iskanje", description: "Brez dnevnih omejitev" },
   { icon: "list", title: "Nakupovalni seznami", description: "Ustvari in organiziraj" },
   { icon: "notifications", title: "Obvestila o cenah", description: "Ko pade cena izdelka" },
@@ -37,17 +40,30 @@ const FAMILY_BONUS_FEATURES = [
 
 export default function PremiumScreen() {
   const router = useRouter();
-  const profile = useQuery(api.userProfiles.getProfile);
+  const { isAuthenticated } = useConvexAuth();
   const upgradeToPremium = useMutation(api.userProfiles.upgradeToPremium);
   
-  const [selectedPlan, setSelectedPlan] = useState<"solo" | "family">("family");
+  // Check if user is guest (anonymous)
+  const profile = useQuery(
+    api.userProfiles.getProfile,
+    isAuthenticated ? {} : "skip"
+  );
+  const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
+  const isAlreadyPremium = profile?.isPremium ?? false;
+  const currentPremiumType = profile?.premiumType ?? "solo";
+  
+  const [selectedPlan, setSelectedPlan] = useState<"individual" | "family">(
+    isAlreadyPremium && currentPremiumType === "solo" ? "family" : "family"
+  );
   const [processing, setProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
+  // Remove continuous glow/pulsing; keep page static and calm
+  // Spinner animation removed for clearer, more stable UI
   const successAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -65,26 +81,21 @@ export default function PremiumScreen() {
       }),
     ]).start();
 
-    // Continuous glow
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 2000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0,
-          duration: 2000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
   }, []);
 
   const handlePayment = async () => {
+    // If guest, show auth modal instead of payment
+    if (isGuest || !isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    
+    // Validate plan selection
+    if (!selectedPlan) {
+      console.error("No plan selected");
+      return;
+    }
+    
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -95,7 +106,9 @@ export default function PremiumScreen() {
       // TODO: Real payment integration
       await new Promise((resolve) => setTimeout(resolve, 2000));
       
-      await upgradeToPremium({});
+      await upgradeToPremium({
+        planType: selectedPlan === "family" ? "family" : "solo"
+      });
       
       setPaymentSuccess(true);
       if (Platform.OS !== "web") {
@@ -153,7 +166,7 @@ export default function PremiumScreen() {
             </LinearGradient>
             <Text style={styles.successTitle}>Čestitamo! 🎉</Text>
             <Text style={styles.successText}>
-              Zdaj ste Premium {selectedPlan === "family" ? "Family" : "Solo"} uporabnik!
+              Zdaj ste {selectedPlan === "family" ? "PrHran Family" : "PrHran Plus"} uporabnik!
             </Text>
             <Text style={styles.successSubtext}>
               Uživajte v vseh funkcijah brez omejitev.
@@ -166,8 +179,8 @@ export default function PremiumScreen() {
 
   const price = selectedPlan === "family" ? "2,99" : "1,99";
   const features = selectedPlan === "family" 
-    ? [...SOLO_FEATURES, ...FAMILY_BONUS_FEATURES]
-    : SOLO_FEATURES;
+    ? [...INDIVIDUAL_FEATURES, ...FAMILY_BONUS_FEATURES]
+    : INDIVIDUAL_FEATURES;
 
   return (
     <View style={styles.container}>
@@ -176,18 +189,8 @@ export default function PremiumScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Animated glow */}
-      <Animated.View
-        style={[
-          styles.glowOrb,
-          {
-            opacity: glowAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0.2, 0.4],
-            }),
-          },
-        ]}
-      />
+      {/* Static glow (no pulsing) */}
+      <View style={styles.glowOrb} />
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
@@ -220,47 +223,53 @@ export default function PremiumScreen() {
                 <Ionicons name="diamond" size={24} color="#000" />
                 <Text style={styles.premiumBadgeText}>PREMIUM</Text>
               </LinearGradient>
-              <Text style={styles.mainTitle}>Nadgradite na Premium</Text>
+              <Text style={styles.mainTitle}>
+                {isAlreadyPremium && currentPremiumType === "solo" ? "Nadgradite na Family" : "Nadgradite na Premium"}
+              </Text>
               <Text style={styles.subtitle}>
-                Odklenite vse funkcije in privarčujte več kot kdaj koli prej
+                {isAlreadyPremium && currentPremiumType === "solo" 
+                  ? "Deli Premium z družino in prihrani še več"
+                  : "Odklenite vse funkcije in privarčujte več kot kdaj koli prej"
+                }
               </Text>
             </View>
 
             {/* Plan Selector */}
             <View style={styles.planSelector}>
-              {/* Solo Plan */}
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => {
-                  setSelectedPlan("solo");
-                  if (Platform.OS !== "web") {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                }}
-                style={[
-                  styles.planCard,
-                  selectedPlan === "solo" && styles.planCardActive,
-                ]}
-              >
-                {selectedPlan === "solo" && (
-                  <View style={styles.selectedBadge}>
-                    <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+              {/* Individual Plan - show only if not already premium */}
+              {!isAlreadyPremium && (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setSelectedPlan("individual");
+                    if (Platform.OS !== "web") {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                  }}
+                  style={[
+                    styles.planCard,
+                    selectedPlan === "individual" && styles.planCardActivePlus,
+                  ]}
+                >
+                  {selectedPlan === "individual" && (
+                    <View style={[styles.selectedBadge, styles.selectedBadgePlus]}>
+                      <Ionicons name="checkmark-circle" size={22} color="#0b0814" />
+                      <Text style={styles.selectedBadgeText}>Izbrano</Text>
+                    </View>
+                  )}
+                  <View style={styles.planHeader}>
+                    <Ionicons name="person" size={32} color="#8b5cf6" />
+                    <Text style={styles.planName}>{PLAN_PLUS}</Text>
                   </View>
-                )}
-                <View style={styles.planHeader}>
-                  <Ionicons name="person" size={32} color="#8b5cf6" />
-                  <Text style={styles.planName}>Solo</Text>
-                </View>
-                <Text style={styles.planPrice}>1,99€</Text>
-                <Text style={styles.planPeriod}>na mesec</Text>
-                <Text style={styles.planDescription}>
-                  Popolno za posamezne uporabnike
-                </Text>
-              </TouchableOpacity>
+                  <Text style={styles.planPrice}>1,99€</Text>
+                  <Text style={styles.planPeriod}>/ mesec</Text>
+                  <Text style={styles.planDescription}>{MARKETING.blurbs.plusShort}</Text>
+                </TouchableOpacity>
+              )}
 
               {/* Family Plan */}
               <TouchableOpacity
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 onPress={() => {
                   setSelectedPlan("family");
                   if (Platform.OS !== "web") {
@@ -269,7 +278,7 @@ export default function PremiumScreen() {
                 }}
                 style={[
                   styles.planCard,
-                  selectedPlan === "family" && styles.planCardActive,
+                  selectedPlan === "family" && styles.planCardActiveFamily,
                 ]}
               >
                 <View style={styles.popularBadge}>
@@ -279,33 +288,187 @@ export default function PremiumScreen() {
                     end={{ x: 1, y: 0 }}
                     style={styles.popularBadgeGradient}
                   >
-                    <Text style={styles.popularBadgeText}>PRILJUBLJENO</Text>
+                    <Text style={styles.popularBadgeText}>NAJBOLJŠE</Text>
                   </LinearGradient>
                 </View>
                 {selectedPlan === "family" && (
-                  <View style={styles.selectedBadge}>
-                    <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+                  <View style={[styles.selectedBadge, styles.selectedBadgeFamily]}>
+                    <Ionicons name="checkmark-circle" size={22} color="#0b0814" />
+                    <Text style={styles.selectedBadgeText}>Izbrano</Text>
                   </View>
                 )}
                 <View style={styles.planHeader}>
                   <Ionicons name="people" size={32} color="#f59e0b" />
-                  <Text style={styles.planName}>Family</Text>
+                  <Text style={styles.planName}>{PLAN_FAMILY}</Text>
                 </View>
-                <Text style={styles.planPrice}>2,99€</Text>
-                <Text style={styles.planPeriod}>na mesec</Text>
-                <Text style={styles.planDescription}>
-                  Do 3 uporabnikov + deljenje seznamov
+                <Text style={styles.planPrice}>
+                  {isAlreadyPremium && currentPremiumType === "solo" ? "+1€" : "2,99€"}
                 </Text>
+                <Text style={styles.planPeriod}>
+                  {isAlreadyPremium && currentPremiumType === "solo" ? "dodatek" : "/ mesec"}
+                </Text>
+                <Text style={styles.planDescription}>{MARKETING.blurbs.familyShort}</Text>
                 <View style={styles.savingsBadge}>
                   <Text style={styles.savingsText}>Prihraniš 3€/mesec</Text>
                 </View>
               </TouchableOpacity>
             </View>
 
+            {/* Features Comparison */}
+            <View style={styles.comparisonContainer}>
+              <Text style={styles.comparisonTitle}>Kaj se razlikuje?</Text>
+              
+              <View style={styles.comparisonTable}>
+                {/* Header */}
+                <View style={styles.comparisonRow}>
+                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
+                    <Text style={styles.comparisonHeaderText}>Funkcija</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.basicCell]}>
+                    <Text style={styles.comparisonHeaderText}>{PLAN_FREE}</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.premiumCell]}>
+                    <Text style={styles.comparisonHeaderText}>{PLAN_PLUS}</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.familyCell]}>
+                    <Text style={styles.comparisonHeaderText}>{PLAN_FAMILY}</Text>
+                  </View>
+                </View>
+
+                {/* Comparison Items */}
+                <View style={styles.comparisonRow}>
+                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
+                    <Text style={styles.comparisonItemText}>Brezplačna iskanja</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.basicCell]}>
+                    <Text style={styles.comparisonValue}>3/dan</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.premiumCell]}>
+                    <Text style={styles.comparisonValue}>{MARKETING.labels.unlimited}</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.familyCell]}>
+                    <Text style={styles.comparisonValue}>{MARKETING.labels.unlimited}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.comparisonRow}>
+                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
+                    <Text style={styles.comparisonItemText}>Slikanje izdelkov</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.basicCell]}>
+                    <Ionicons name="close" size={20} color="#ef4444" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.premiumCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.familyCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                </View>
+
+                <View style={styles.comparisonRow}>
+                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
+                    <Text style={styles.comparisonItemText}>Ekskluzivni kuponi</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.basicCell]}>
+                    <Ionicons name="close" size={20} color="#ef4444" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.premiumCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.familyCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                </View>
+
+                <View style={styles.comparisonRow}>
+                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
+                    <Text style={styles.comparisonItemText}>Obvestila o cenah</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.basicCell]}>
+                    <Ionicons name="close" size={20} color="#ef4444" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.premiumCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.familyCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                </View>
+
+                <View style={styles.comparisonRow}>
+                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
+                    <Text style={styles.comparisonItemText}>Sledenje prihrankom</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.basicCell]}>
+                    <Ionicons name="close" size={20} color="#ef4444" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.premiumCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.familyCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                </View>
+
+                <View style={styles.comparisonRow}>
+                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
+                    <Text style={styles.comparisonItemText}>Deljenje seznamov</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.basicCell]}>
+                    <Ionicons name="close" size={20} color="#ef4444" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.premiumCell]}>
+                    <Ionicons name="close" size={20} color="#ef4444" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.familyCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                </View>
+
+                <View style={styles.comparisonRow}>
+                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
+                    <Text style={styles.comparisonItemText}>Uporabnikov</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.basicCell]}>
+                    <Text style={styles.comparisonValue}>1</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.premiumCell]}>
+                    <Text style={styles.comparisonValue}>1</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.familyCell]}>
+                    <Text style={styles.comparisonValue}>3</Text>
+                  </View>
+                </View>
+
+                <View style={styles.comparisonRow}>
+                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
+                    <Text style={styles.comparisonItemText}>Prednostna podpora</Text>
+                  </View>
+                  <View style={[styles.comparisonCell, styles.basicCell]}>
+                    <Ionicons name="close" size={20} color="#ef4444" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.premiumCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                  <View style={[styles.comparisonCell, styles.familyCell]}>
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
+                  </View>
+                </View>
+
+                {/* Removed ads row: no ads in any plan */}
+
+                {/* Removed duplicate rows for cleaner, symmetric table */}
+              </View>
+
+              {/* Comparison footer for clarity */}
+              <Text style={styles.comparisonFooter}>{MARKETING.footerLine}</Text>
+            </View>
+
             {/* Features List */}
             <View style={styles.featuresContainer}>
-              <Text style={styles.featuresTitle}>Kaj dobite?</Text>
-              {features.map((feature, index) => (
+              <Text style={styles.featuresTitle}>Premium prednosti</Text>
+              {features.map((feature) => (
                 <View key={feature.title} style={styles.featureRow}>
                   <View style={styles.featureIconContainer}>
                     <LinearGradient
@@ -317,7 +480,7 @@ export default function PremiumScreen() {
                       style={styles.featureIconBg}
                     >
                       <Ionicons
-                        name={feature.icon as any}
+                        name={feature.icon as keyof typeof Ionicons.glyphMap}
                         size={20}
                         color="#fff"
                       />
@@ -352,24 +515,11 @@ export default function PremiumScreen() {
                 end={{ x: 1, y: 0 }}
               >
                 {processing ? (
-                  <Animated.View
-                    style={{
-                      transform: [
-                        {
-                          rotate: glowAnim.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: ["0deg", "360deg"],
-                          }),
-                        },
-                      ],
-                    }}
-                  >
-                    <Ionicons name="sync" size={24} color="#fff" />
-                  </Animated.View>
+                  <Ionicons name="sync" size={24} color="#fff" />
                 ) : (
                   <>
                     <Text style={styles.ctaText}>
-                      Začni z {price}€/mesec
+                      Izbran paket: {selectedPlan === "family" ? "Family" : "Plus"} — {price}€/mesec
                     </Text>
                     <Ionicons name="arrow-forward" size={24} color="#fff" />
                   </>
@@ -400,6 +550,86 @@ export default function PremiumScreen() {
           </Animated.View>
         </ScrollView>
       </SafeAreaView>
+
+      {/* Auth Required Modal for Guests */}
+      <Modal
+        transparent
+        visible={showAuthModal}
+        onRequestClose={() => setShowAuthModal(false)}
+        animationType="fade"
+        hardwareAccelerated
+      >
+        <View style={styles.authModalOverlay}>
+          <View style={styles.authModal}>
+            <LinearGradient
+              colors={["rgba(139, 92, 246, 0.98)", "rgba(88, 28, 135, 0.99)"]}
+              style={styles.authModalGradient}
+            >
+              <TouchableOpacity
+                style={styles.authCloseBtn}
+                onPress={() => setShowAuthModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+
+              <View style={styles.authIconContainer}>
+                <LinearGradient
+                  colors={["#fbbf24", "#f59e0b"]}
+                  style={styles.authIconGradient}
+                >
+                  <Ionicons name="person-add" size={44} color="#000" />
+                </LinearGradient>
+              </View>
+
+              <Text style={styles.authModalTitle}>🔐 Prijava potrebna</Text>
+              <Text style={styles.authModalSubtitle}>
+                Za nakup Premium naročnine se moraš najprej prijaviti ali registrirati.
+              </Text>
+
+              <View style={styles.authBenefits}>
+                <View style={styles.authBenefitItem}>
+                  <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
+                  <Text style={styles.authBenefitText}>Brezplačna registracija</Text>
+                </View>
+                <View style={styles.authBenefitItem}>
+                  <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
+                  <Text style={styles.authBenefitText}>3 iskanja na dan - zastonj!</Text>
+                </View>
+                <View style={styles.authBenefitItem}>
+                  <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
+                  <Text style={styles.authBenefitText}>Možnost nadgradnje kadarkoli</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.authPrimaryBtn}
+                onPress={() => {
+                  setShowAuthModal(false);
+                  setTimeout(() => {
+                    router.push({ pathname: "/auth", params: { mode: "register" } });
+                  }, 0);
+                }}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={["#fbbf24", "#f59e0b", "#d97706"]}
+                  style={styles.authPrimaryBtnGradient}
+                >
+                  <Ionicons name="log-in" size={22} color="#000" />
+                  <Text style={styles.authPrimaryBtnText}>PRIJAVA / REGISTRACIJA</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.authSecondaryBtn}
+                onPress={() => setShowAuthModal(false)}
+              >
+                <Text style={styles.authSecondaryBtnText}>Nadaljuj brez prijave</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -452,6 +682,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 8,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.7)",
+    ...createShadow("#fbbf24", 0, 8, 0.4, 20, 10),
   },
   premiumBadgeText: {
     fontSize: 14,
@@ -475,7 +708,7 @@ const styles = StyleSheet.create({
   },
   planSelector: {
     flexDirection: "row",
-    gap: 12,
+    gap: 14,
     marginBottom: 32,
   },
   planCard: {
@@ -487,19 +720,43 @@ const styles = StyleSheet.create({
     borderColor: "rgba(139, 92, 246, 0.2)",
     position: "relative",
   },
-  planCardActive: {
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
-    borderColor: "#8b5cf6",
-    shadowColor: "#8b5cf6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+  planCardActivePlus: {
+    backgroundColor: "rgba(139, 92, 246, 0.25)",
+    borderColor: "#c084fc",
+    ...createShadow("#8b5cf6", 0, 8, 0.35, 16, 10),
+  },
+  planCardActiveFamily: {
+    backgroundColor: "rgba(251, 191, 36, 0.18)",
+    borderColor: "#fbbf24",
+    ...createShadow("#fbbf24", 0, 10, 0.4, 18, 12),
   },
   selectedBadge: {
     position: "absolute",
     top: 12,
     right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "#0f172a",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.25)",
+  },
+  selectedBadgePlus: {
+    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    borderColor: "rgba(192, 132, 252, 0.7)",
+  },
+  selectedBadgeFamily: {
+    backgroundColor: "rgba(251, 191, 36, 0.18)",
+    borderColor: "rgba(251, 191, 36, 0.7)",
+  },
+  selectedBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: -0.1,
   },
   popularBadge: {
     position: "absolute",
@@ -605,11 +862,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
     marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
+    ...createShadow("#000", 0, 8, 0.3, 16, 10),
   },
   ctaGradient: {
     flexDirection: "row",
@@ -659,11 +912,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
-    shadowColor: "#fbbf24",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 15,
+    ...createShadow("#fbbf24", 0, 8, 0.6, 20, 15),
   },
   successTitle: {
     fontSize: 32,
@@ -682,6 +931,186 @@ const styles = StyleSheet.create({
   successSubtext: {
     fontSize: 15,
     color: "#9ca3af",
+    textAlign: "center",
+  },
+  comparisonContainer: {
+    marginBottom: 32,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "rgba(30, 30, 46, 0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+    padding: 0,
+  },
+  comparisonTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(139, 92, 246, 0.1)",
+  },
+  comparisonTable: {
+    overflow: "hidden",
+  },
+  comparisonRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(139, 92, 246, 0.1)",
+    alignItems: "center",
+  },
+  comparisonCell: {
+    padding: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  featureNameCell: {
+    flex: 1.5,
+    alignItems: "flex-start",
+    paddingLeft: 16,
+  },
+  basicCell: {
+    flex: 1,
+    backgroundColor: "rgba(107, 114, 128, 0.1)",
+  },
+  premiumCell: {
+    flex: 1,
+    backgroundColor: "rgba(34, 197, 94, 0.1)",
+  },
+  familyCell: {
+    flex: 1,
+    backgroundColor: "rgba(251, 191, 36, 0.12)",
+  },
+  comparisonHeaderText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#e5e7eb",
+    textAlign: "center",
+  },
+  comparisonItemText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+    flex: 1,
+  },
+  comparisonValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#8b5cf6",
+  },
+  comparisonFooter: {
+    fontSize: 12,
+    color: "#6b7280",
+    textAlign: "center",
+    paddingVertical: 12,
+  },
+  // Auth Modal Styles
+  authModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  authModal: {
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 24,
+    overflow: "hidden",
+    ...createShadow("#8b5cf6", 0, 8, 0.4, 24, 20),
+  },
+  authModalGradient: {
+    padding: 28,
+    alignItems: "center",
+  },
+  authCloseBtn: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  authIconContainer: {
+    marginBottom: 20,
+    ...createShadow("#fbbf24", 0, 4, 0.5, 16, 8),
+  },
+  authIconGradient: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  authModalTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  authModalSubtitle: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.85)",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 24,
+    paddingHorizontal: 10,
+  },
+  authBenefits: {
+    width: "100%",
+    marginBottom: 24,
+    gap: 14,
+  },
+  authBenefitItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.25)",
+  },
+  authBenefitText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  authPrimaryBtn: {
+    width: "100%",
+    marginBottom: 14,
+    borderRadius: 16,
+    overflow: "hidden",
+    ...createShadow("#fbbf24", 0, 4, 0.4, 12, 8),
+  },
+  authPrimaryBtnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  authPrimaryBtnText: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#000",
+    letterSpacing: 0.5,
+  },
+  authSecondaryBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  authSecondaryBtnText: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.6)",
     textAlign: "center",
   },
 });

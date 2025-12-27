@@ -7,12 +7,15 @@ import {
   ScrollView,
   Linking,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 const FAQ_ITEMS = [
   {
@@ -28,7 +31,7 @@ const FAQ_ITEMS = [
   {
     question: "Kaj vključuje Premium naročnina?",
     answer:
-      "Premium naročnina (1,99 €/mesec) vključuje: neomejeno iskanje izdelkov, dostop do vseh trgovin (vključno s Hofer, Lidl, Jager), optimizacijo košarice za maksimalne prihranke, obvestila o padcih cen in ekskluzivne kupone.",
+      "Premium naročnina (1,99 €/mesec) vključuje: neomejeno iskanje izdelkov, dostop do vseh trgovin (vključno s Hofer, Lidl, Jager), obvestila o padcih cen in ekskluzivne kupone.",
   },
   {
     question: "Kako dodam izdelek v košarico?",
@@ -50,12 +53,46 @@ const FAQ_ITEMS = [
 export default function HelpScreen() {
   const router = useRouter();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+  const resetData = useAction(api.stores.resetAndSeedData);
 
   const handleToggle = (index: number) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setExpandedIndex(expandedIndex === index ? null : index);
+  };
+
+  const handleResetData = async () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    }
+    
+    Alert.alert(
+      "Resetiraj podatke",
+      "Ali si prepričan da želiš resetirati in ponovno naložiti vse podatke? To bo izbrisalo vse obstoječe podatke.",
+      [
+        { text: "Prekliči", style: "cancel" },
+        {
+          text: "Resetiraj",
+          style: "destructive",
+          onPress: async () => {
+            setIsResetting(true);
+            try {
+              const result = await resetData({});
+              Alert.alert(
+                "Uspešno!",
+                `Naloženih:\n${result.stores} trgovin\n${result.products} izdelkov\n${result.prices} cen\n${result.coupons} kuponov`
+              );
+            } catch {
+              Alert.alert("Napaka", "Ni bilo mogoče resetirati podatkov.");
+            } finally {
+              setIsResetting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleContact = (method: string) => {
@@ -151,6 +188,23 @@ export default function HelpScreen() {
             <Text style={styles.appVersion}>Pr'Hran verzija 1.0.0</Text>
             <Text style={styles.appCopyright}>© 2024 Pr'Hran. Vse pravice pridržane.</Text>
           </View>
+
+          {/* Debug Reset Button */}
+          <TouchableOpacity
+            style={styles.debugButton}
+            onPress={handleResetData}
+            disabled={isResetting}
+          >
+            <LinearGradient
+              colors={["rgba(239, 68, 68, 0.2)", "rgba(220, 38, 38, 0.3)"]}
+              style={styles.debugButtonGradient}
+            >
+              <Ionicons name="refresh" size={20} color="#ef4444" />
+              <Text style={styles.debugButtonText}>
+                {isResetting ? "Resetiranje..." : "🔧 Resetiraj podatke (Debug)"}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -292,5 +346,26 @@ const styles = StyleSheet.create({
   appCopyright: {
     fontSize: 12,
     color: "#4b5563",
+  },
+  debugButton: {
+    marginTop: 20,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  debugButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    borderRadius: 14,
+  },
+  debugButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#ef4444",
   },
 });

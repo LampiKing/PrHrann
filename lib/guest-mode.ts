@@ -95,7 +95,7 @@ export async function canGuestViewProduct(): Promise<{
   if (guestData.viewCount >= 1) {
     const now = Date.now();
     const timeSinceLastView = now - guestData.lastViewTime;
-    const cooldownPeriod = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const cooldownPeriod = 24 * 60 * 60 * 1000; // 24 hours for guests (1 search/day)
     
     if (timeSinceLastView < cooldownPeriod) {
       // Still in cooldown
@@ -105,7 +105,7 @@ export async function canGuestViewProduct(): Promise<{
       
       return {
         allowed: false,
-        reason: 'Presegli ste brezplačni limit (1 izdelek/24h)',
+        reason: 'Gost ima samo 1 iskanje na dan. Registriraj se za 3 iskanja/dan!',
         timeRemaining: `${hours}h ${minutes}m`,
       };
     }
@@ -169,7 +169,7 @@ export async function getGuestViewsRemaining(): Promise<{
   if (guestData.viewCount >= 1) {
     const now = Date.now();
     const timeSinceLastView = now - guestData.lastViewTime;
-    const cooldownPeriod = 24 * 60 * 60 * 1000;
+    const cooldownPeriod = 24 * 60 * 60 * 1000; // 24 hours for guests
     
     if (timeSinceLastView < cooldownPeriod) {
       const timeRemaining = cooldownPeriod - timeSinceLastView;

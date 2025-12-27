@@ -20,7 +20,7 @@ export const authQuery = customQuery(
         // which validate data access at access / write time.
         // This new ctx will be applied to the function's.
         // The user is a new field, the db replaces ctx.db
-        return { user };
+        return { user, db: ctx.db };
     })
 );
 
@@ -29,7 +29,7 @@ export const authMutation = customMutation(
     customCtx(async (ctx) => {
         const user = await authComponent.getAuthUser(ctx);
         if (!user) throw new Error("Authentication required");
-        return { user };
+        return { user, db: ctx.db };
     })
 );
 

@@ -5,24 +5,24 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Image,
-  Dimensions,
+  ActivityIndicator,
   Animated,
   Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AppLogo from "@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png";
 import { authClient } from "@/lib/auth-client";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import { createShadow } from "@/lib/shadow-helper";
 import { useConvexAuth } from "convex/react";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import Logo from "@/lib/Logo";
 
 const FACTS = [
   "💡 Povprečna slovenska družina lahko prihrani do 150€ mesečno!",
@@ -30,12 +30,12 @@ const FACTS = [
   "📊 Primerjamo cene iz 6 največjih slovenskih trgovin.",
   "⏰ Prihranite do 2 uri tedensko z avtomatskim iskanjem!",
   "🏆 Več kot 10.000 Slovencev že prihrani s Pr'Hran!",
-  "📸 Premium: Slikaj izdelek in najdi najnižjo ceno!",
+  "📸 Premium: Slikaj izdelek → takoj najde najnižjo ceno!",
 ];
 
 export default function AuthScreen() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -44,14 +44,40 @@ export default function AuthScreen() {
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [appleLoading, setAppleLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [anonymousLoading, setAnonymousLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [currentFact, setCurrentFact] = useState(0);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+
+  const switchMode = (login: boolean) => {
+    triggerHaptic();
+    setIsLogin(login);
+    setError("");
+    setSuccess("");
+    setFocusedField(null);
+    setResetLoading(false);
+  };
+
+  useEffect(() => {
+    if (mode === "login" && !isLogin) {
+      setIsLogin(true);
+      setError("");
+      setSuccess("");
+      setFocusedField(null);
+      return;
+    }
+    if (mode === "register" && isLogin) {
+      setIsLogin(false);
+      setError("");
+      setSuccess("");
+      setFocusedField(null);
+    }
+  }, [mode, isLogin]);
 
   // Animations
   const logoGlow = useRef(new Animated.Value(0)).current;
@@ -66,6 +92,7 @@ export default function AuthScreen() {
 
   // Redirect if authenticated
   useEffect(() => {
+    console.log("Auth useEffect: isAuthenticated =", isAuthenticated, "authLoading =", authLoading);
     if (isAuthenticated && !authLoading) {
       router.replace("/(tabs)");
     }
@@ -79,13 +106,13 @@ export default function AuthScreen() {
           toValue: 1,
           duration: 2000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(logoGlow, {
           toValue: 0,
           duration: 2000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ])
     ).start();
@@ -99,13 +126,13 @@ export default function AuthScreen() {
           toValue: 1.05,
           duration: 3000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(logoScale, {
           toValue: 1,
           duration: 3000,
           easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ])
     ).start();
@@ -118,12 +145,12 @@ export default function AuthScreen() {
         toValue: 0,
         duration: 800,
         easing: Easing.out(Easing.back(1.2)),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(cardOpacity, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start();
   }, []);
@@ -135,7 +162,7 @@ export default function AuthScreen() {
         toValue: 1,
         duration: 8000,
         easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
+        useNativeDriver: false,
       })
     ).start();
 
@@ -144,7 +171,7 @@ export default function AuthScreen() {
         toValue: 1,
         duration: 10000,
         easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
+        useNativeDriver: false,
       })
     ).start();
   }, []);
@@ -155,13 +182,13 @@ export default function AuthScreen() {
       Animated.timing(factOpacity, {
         toValue: 0,
         duration: 300,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start(() => {
         setCurrentFact((prev) => (prev + 1) % FACTS.length);
         Animated.timing(factOpacity, {
           toValue: 1,
           duration: 300,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }).start();
       });
     }, 4000);
@@ -190,41 +217,68 @@ export default function AuthScreen() {
   const shakeError = () => {
     triggerErrorHaptic();
     Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: false }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: false }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: false }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: false }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: false }),
     ]).start();
   };
 
   const showSuccessAnimation = () => {
     triggerSuccessHaptic();
     Animated.sequence([
-      Animated.timing(successAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(successAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
       Animated.delay(1500),
-      Animated.timing(successAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(successAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
     ]).start();
   };
 
   const validateEmail = (email: string) => {
+    // More robust email validation
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+    return re.test(email) && email.length <= 254 && email.includes('.');
   };
 
+  const trimmedEmail = email.trim().toLowerCase();
+  const trimmedName = name.trim();
+  const emailValid = validateEmail(trimmedEmail);
+  const passwordValid = password.length >= 6;
+  const confirmValid = isLogin ? true : confirmPassword.length >= 6 && password === confirmPassword;
+  const nameValid = isLogin ? true : trimmedName.length >= 2;
+  const canSubmit = isLogin
+    ? emailValid && passwordValid
+    : emailValid && passwordValid && confirmValid && nameValid && agreedToTerms;
+  const isPrimaryDisabled = loading || resetLoading || !canSubmit;
+
+  const passwordStrengthScore =
+    (password.length >= 8 ? 1 : 0) +
+    (/[A-Z]/.test(password) ? 1 : 0) +
+    (/[0-9]/.test(password) ? 1 : 0) +
+    (/[^A-Za-z0-9]/.test(password) ? 1 : 0);
+  const passwordStrengthLevel =
+    password.length === 0 ? 0 : passwordStrengthScore <= 1 ? 1 : passwordStrengthScore <= 3 ? 2 : 3;
+  const passwordStrengthLabel =
+    passwordStrengthLevel === 1 ? "Šibko" : passwordStrengthLevel === 2 ? "Dobro" : "Močno";
+  const passwordStrengthColor =
+    passwordStrengthLevel === 1 ? "#f97316" : passwordStrengthLevel === 2 ? "#fbbf24" : "#22c55e";
+
   const handleAuth = async () => {
+    if (loading) {
+      return;
+    }
     triggerHaptic();
     setError("");
     setSuccess("");
 
     // Validation
-    if (!email.trim()) {
+    if (!trimmedEmail) {
       setError("Prosimo, vnesite e-naslov");
       shakeError();
       return;
     }
 
-    if (!validateEmail(email)) {
+    if (!validateEmail(trimmedEmail)) {
       setError("Prosimo, vnesite veljaven e-naslov");
       shakeError();
       return;
@@ -247,8 +301,8 @@ export default function AuthScreen() {
         shakeError();
         return;
       }
-      if (!name.trim()) {
-        setError("Prosimo, vnesite ime");
+      if (!trimmedName || trimmedName.length < 2) {
+        setError("Ime mora imeti vsaj 2 znaka");
         shakeError();
         return;
       }
@@ -259,14 +313,20 @@ export default function AuthScreen() {
     try {
       if (isLogin) {
         // Login
+        console.log("Attempting login...");
         const result = await authClient.signIn.email({ 
-          email: email.trim().toLowerCase(), 
+          email: trimmedEmail, 
           password 
         });
         
+        console.log("Login result:", result);
+        
         if (result.error) {
-          console.log("Login error:", result.error);
-          if (result.error.code === "INVALID_EMAIL_OR_PASSWORD" || 
+          console.error("Login error details:", JSON.stringify(result.error));
+          if (result.error.code === "EMAIL_NOT_VERIFIED" ||
+              result.error.message?.toLowerCase().includes("verify")) {
+            setError("Najprej potrdi e-naslov. Preveri e-pošto za potrditveno povezavo.");
+          } else if (result.error.code === "INVALID_EMAIL_OR_PASSWORD" || 
               result.error.message?.includes("Invalid") ||
               result.error.message?.includes("password")) {
             setError("Napačen e-naslov ali geslo");
@@ -274,41 +334,46 @@ export default function AuthScreen() {
                      result.error.message?.includes("exist")) {
             setError("Račun s tem e-naslovom ne obstaja. Registrirajte se!");
           } else {
-            setError("Prijava ni uspela. Preverite podatke.");
+            setError(`Prijava ni uspela: ${result.error.message || "Neznana napaka"}`);
           }
           shakeError();
           setLoading(false);
           return;
         }
         
+        console.log("Login successful!");
         setSuccess("Uspešna prijava! 🎉");
         showSuccessAnimation();
         // Router will redirect automatically via useEffect
       } else {
         // Register
+        console.log("Attempting registration...");
         const result = await authClient.signUp.email({ 
-          email: email.trim().toLowerCase(), 
+          email: trimmedEmail, 
           password, 
-          name: name.trim() 
+          name: trimmedName 
         });
         
+        console.log("Register result:", result);
+        
         if (result.error) {
-          console.log("Register error:", result.error);
+          console.error("Register error details:", JSON.stringify(result.error));
           if (result.error.message?.includes("exist") || 
               result.error.message?.includes("already") ||
               result.error.code === "USER_ALREADY_EXISTS") {
             setError("Račun s tem e-naslovom že obstaja. Prijavite se!");
           } else {
-            setError("Registracija ni uspela. Poskusite znova.");
+            setError(`Registracija ni uspela: ${result.error.message || "Neznana napaka"}`);
           }
           shakeError();
           setLoading(false);
           return;
         }
         
-        setSuccess("Račun ustvarjen! Dobrodošli! 🚀");
+        console.log("Registration successful!");
+        setSuccess("Račun ustvarjen! Preveri e-pošto za potrditev ✅");
         showSuccessAnimation();
-        // Router will redirect automatically via useEffect
+        // Email verification required; user stays on auth screen until verified
       }
     } catch (err: unknown) {
       console.log("Auth error:", err);
@@ -332,31 +397,50 @@ export default function AuthScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    triggerHaptic();
-    setGoogleLoading(true);
-    setError("");
-    try {
-      await authClient.signIn.social({ provider: "google" });
-    } catch (err) {
-      console.log("Google error:", err);
-      setError("Google prijava ni uspela");
-      shakeError();
-      setGoogleLoading(false);
+  const handleForgotPassword = async () => {
+    if (resetLoading || loading) {
+      return;
     }
-  };
-
-  const handleAppleSignIn = async () => {
     triggerHaptic();
-    setAppleLoading(true);
     setError("");
-    try {
-      await authClient.signIn.social({ provider: "apple" });
-    } catch (err) {
-      console.log("Apple error:", err);
-      setError("Apple prijava ni uspela");
+    setSuccess("");
+
+    if (!trimmedEmail) {
+      setError("Vnesite e-naslov za ponastavitev gesla");
       shakeError();
-      setAppleLoading(false);
+      return;
+    }
+
+    if (!validateEmail(trimmedEmail)) {
+      setError("Prosimo, vnesite veljaven e-naslov");
+      shakeError();
+      return;
+    }
+
+    const resetRedirectUrl =
+      Platform.OS === "web" && typeof window !== "undefined"
+        ? `${window.location.origin}/reset`
+        : "myapp://reset";
+
+    setResetLoading(true);
+    try {
+      const result = await authClient.requestPasswordReset({
+        email: trimmedEmail,
+        redirectTo: resetRedirectUrl,
+      });
+      if (result.error) {
+        setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
+        shakeError();
+        return;
+      }
+      setSuccess("Če račun obstaja, smo poslali povezavo za ponastavitev.");
+      showSuccessAnimation();
+    } catch (err) {
+      console.log("Reset password error:", err);
+      setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
+      shakeError();
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -367,19 +451,26 @@ export default function AuthScreen() {
     try {
       const result = await authClient.signIn.anonymous();
       if (result.error) {
-        setError("Anonimna prijava ni uspela");
+        console.log("Anonymous error:", result.error);
+        setError("Prijava kot gost ni uspela. Poskusite znova.");
         shakeError();
         setAnonymousLoading(false);
         return;
       }
       setSuccess("Dobrodošli! 👋");
       showSuccessAnimation();
+      // Router will redirect automatically via useEffect
     } catch (err) {
       console.log("Anonymous error:", err);
-      setError("Anonimna prijava ni uspela");
+      setError("Prijava kot gost ni uspela. Poskusite znova.");
       shakeError();
       setAnonymousLoading(false);
     }
+  };
+
+  const handleTermsPress = () => {
+    triggerHaptic();
+    router.push("/terms");
   };
 
   if (authLoading) {
@@ -389,7 +480,7 @@ export default function AuthScreen() {
           colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
           style={StyleSheet.absoluteFill}
         />
-        <ActivityIndicator size="large" color="#a78bfa" />
+        <Logo size={90} />
         <Text style={styles.loadingText}>Nalaganje...</Text>
       </View>
     );
@@ -398,7 +489,7 @@ export default function AuthScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
+        colors={["#0a0a12", "#12081f", "#1a0a2e", "#270a3a", "#0f0a1e"]}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -406,11 +497,11 @@ export default function AuthScreen() {
 
       {/* Success Overlay */}
       <Animated.View
+        pointerEvents="none"
         style={[
           styles.successOverlay,
           {
             opacity: successAnim,
-            pointerEvents: "none",
           },
         ]}
       >
@@ -477,6 +568,41 @@ export default function AuthScreen() {
           },
         ]}
       />
+      {/* Additional WOW orbs */}
+      <Animated.View
+        style={[
+          styles.backgroundOrb,
+          styles.orb4,
+          {
+            transform: [
+              {
+                translateY: orb2Anim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0, 50, 0],
+                }),
+              },
+              {
+                translateX: orb2Anim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0, -50, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      />
+      <Animated.View
+        style={[
+          styles.backgroundOrb,
+          styles.orb5,
+          {
+            opacity: orb1Anim.interpolate({
+              inputRange: [0, 0.25, 0.5, 0.75, 1],
+              outputRange: [0.2, 0.5, 0.8, 0.5, 0.2],
+            }),
+          },
+        ]}
+      />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -511,7 +637,7 @@ export default function AuthScreen() {
               />
               <Animated.View style={{ transform: [{ scale: logoScale }] }}>
                 <Image
-                  source={require("@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png")}
+                  source={AppLogo}
                   style={styles.logo}
                   resizeMode="contain"
                 />
@@ -562,6 +688,27 @@ export default function AuthScreen() {
                       : "Pridružite se tisočim, ki že prihranijo"}
                   </Text>
 
+                  <View style={styles.modeSwitch}>
+                    <TouchableOpacity
+                      style={[styles.modeOption, isLogin ? styles.modeOptionActive : styles.modeOptionInactive]}
+                      onPress={() => switchMode(true)}
+                    >
+                      <Ionicons name="log-in-outline" size={16} color={isLogin ? "#0f172a" : "#cbd5e1"} />
+                      <Text style={[styles.modeOptionText, isLogin ? styles.modeOptionTextActive : styles.modeOptionTextInactive]}>
+                        Prijava
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.modeOption, !isLogin ? styles.modeOptionActive : styles.modeOptionInactive]}
+                      onPress={() => switchMode(false)}
+                    >
+                      <Ionicons name="person-add-outline" size={16} color={!isLogin ? "#0f172a" : "#cbd5e1"} />
+                      <Text style={[styles.modeOptionText, !isLogin ? styles.modeOptionTextActive : styles.modeOptionTextInactive]}>
+                        Registracija
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
                   {error ? (
                     <View style={styles.errorContainer}>
                       <Ionicons name="alert-circle" size={18} color="#ef4444" />
@@ -569,241 +716,324 @@ export default function AuthScreen() {
                     </View>
                   ) : null}
 
-                  {/* Social Login Buttons */}
-                  <View style={styles.socialButtons}>
-                    <TouchableOpacity
-                      style={styles.socialButton}
-                      onPress={handleGoogleSignIn}
-                      disabled={googleLoading}
-                    >
-                      <LinearGradient
-                        colors={["rgba(255, 255, 255, 0.1)", "rgba(255, 255, 255, 0.05)"]}
-                        style={styles.socialButtonGradient}
+                  
+
+                  {/* Removed email divider for cleaner layout */}
+
+                  <View style={styles.formSection}>
+                    {!isLogin && (
+                      <View
+                        style={[
+                          styles.inputContainer,
+                          focusedField === "name" && styles.inputContainerFocused,
+                        ]}
                       >
-                        {googleLoading ? (
-                          <ActivityIndicator color="#fff" size="small" />
-                        ) : (
-                          <>
-                            <View style={styles.googleIcon}>
-                              <Text style={styles.googleG}>G</Text>
-                            </View>
-                            <Text style={styles.socialButtonText}>Google</Text>
-                          </>
-                        )}
-                      </LinearGradient>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.socialButton}
-                      onPress={handleAppleSignIn}
-                      disabled={appleLoading}
-                    >
-                      <LinearGradient
-                        colors={["rgba(255, 255, 255, 0.1)", "rgba(255, 255, 255, 0.05)"]}
-                        style={styles.socialButtonGradient}
-                      >
-                        {appleLoading ? (
-                          <ActivityIndicator color="#fff" size="small" />
-                        ) : (
-                          <>
-                            <Ionicons name="logo-apple" size={22} color="#fff" />
-                            <Text style={styles.socialButtonText}>Apple</Text>
-                          </>
-                        )}
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.divider}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>ali z e-pošto</Text>
-                    <View style={styles.dividerLine} />
-                  </View>
-
-                  {/* Form Fields */}
-                  {!isLogin && (
-                    <View style={styles.inputContainer}>
-                      <Ionicons name="person-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
-                      <TextInput
-                        style={styles.input}
-                        placeholder="Ime in priimek"
-                        placeholderTextColor="#6b7280"
-                        value={name}
-                        onChangeText={setName}
-                        autoCapitalize="words"
-                      />
-                    </View>
-                  )}
-
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="mail-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="E-naslov"
-                      placeholderTextColor="#6b7280"
-                      value={email}
-                      onChangeText={setEmail}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Geslo (min. 6 znakov)"
-                      placeholderTextColor="#6b7280"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                    />
-                    <TouchableOpacity
-                      style={styles.eyeButton}
-                      onPress={() => setShowPassword(!showPassword)}
-                    >
-                      <Ionicons
-                        name={showPassword ? "eye-off" : "eye"}
-                        size={20}
-                        color="#6b7280"
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  {!isLogin && (
-                    <>
-                      <View style={styles.inputContainer}>
-                        <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
+                        <Ionicons name="person-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
                         <TextInput
                           style={styles.input}
-                          placeholder="Potrdi geslo"
+                          placeholder="Ime in priimek"
                           placeholderTextColor="#6b7280"
-                          value={confirmPassword}
-                          onChangeText={setConfirmPassword}
-                          secureTextEntry={!showPassword}
+                          value={name}
+                          onChangeText={setName}
+                          onFocus={() => setFocusedField("name")}
+                          onBlur={() => setFocusedField(null)}
+                          autoComplete="name"
+                          autoCapitalize="words"
+                          autoCorrect={false}
+                          textContentType="name"
+                          returnKeyType="next"
                         />
                       </View>
+                    )}
 
-                      {/* Birth Date Picker */}
-                      <View style={styles.birthDateSection}>
-                        <Text style={styles.birthDateLabel}>
-                          <Ionicons name="calendar-outline" size={16} color="#a78bfa" /> Datum rojstva (opcijsko)
-                        </Text>
-                        <View style={styles.birthDateRow}>
-                          <View style={styles.birthDateInputWrapper}>
-                            <TextInput
-                              style={styles.birthDateInput}
-                              placeholder="Dan"
-                              placeholderTextColor="#6b7280"
-                              value={birthDay}
-                              onChangeText={(text) => {
-                                const num = text.replace(/[^0-9]/g, '');
-                                if (num === '' || (parseInt(num) >= 1 && parseInt(num) <= 31)) {
-                                  setBirthDay(num);
-                                }
-                              }}
-                              keyboardType="number-pad"
-                              maxLength={2}
-                            />
-                          </View>
-                          <View style={styles.birthDateInputWrapper}>
-                            <TextInput
-                              style={styles.birthDateInput}
-                              placeholder="Mesec"
-                              placeholderTextColor="#6b7280"
-                              value={birthMonth}
-                              onChangeText={(text) => {
-                                const num = text.replace(/[^0-9]/g, '');
-                                if (num === '' || (parseInt(num) >= 1 && parseInt(num) <= 12)) {
-                                  setBirthMonth(num);
-                                }
-                              }}
-                              keyboardType="number-pad"
-                              maxLength={2}
-                            />
-                          </View>
-                          <View style={[styles.birthDateInputWrapper, styles.birthDateYearWrapper]}>
-                            <TextInput
-                              style={styles.birthDateInput}
-                              placeholder="Leto"
-                              placeholderTextColor="#6b7280"
-                              value={birthYear}
-                              onChangeText={(text) => {
-                                const num = text.replace(/[^0-9]/g, '');
-                                setBirthYear(num);
-                              }}
-                              keyboardType="number-pad"
-                              maxLength={4}
-                            />
-                          </View>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.termsRow}
-                        onPress={() => {
-                          triggerHaptic();
-                          setAgreedToTerms(!agreedToTerms);
-                        }}
-                      >
-                        <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
-                          {agreedToTerms && (
-                            <Ionicons name="checkmark" size={14} color="#fff" />
-                          )}
-                        </View>
-                        <Text style={styles.termsText}>
-                          Strinjam se s{" "}
-                          <Text style={styles.termsLink}>Pogoji uporabe</Text> in{" "}
-                          <Text style={styles.termsLink}>Politiko zasebnosti</Text>
-                        </Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-
-                  {/* Primary Button */}
-                  <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={handleAuth}
-                    disabled={loading}
-                    activeOpacity={0.9}
-                  >
-                    <LinearGradient
-                      colors={["#8b5cf6", "#a855f7", "#7c3aed"]}
-                      style={styles.buttonGradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        focusedField === "email" && styles.inputContainerFocused,
+                      ]}
                     >
-                      {loading ? (
-                        <ActivityIndicator color="#fff" />
-                      ) : (
-                        <>
-                          <Text style={styles.primaryButtonText}>
-                            {isLogin ? "Prijava" : "Registriraj se"}
-                          </Text>
-                          <Ionicons name="arrow-forward" size={20} color="#fff" />
-                        </>
-                      )}
-                    </LinearGradient>
-                  </TouchableOpacity>
+                      <Ionicons name="mail-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="E-naslov"
+                        placeholderTextColor="#6b7280"
+                        value={email}
+                        onChangeText={setEmail}
+                        onFocus={() => setFocusedField("email")}
+                        onBlur={() => setFocusedField(null)}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="email"
+                        textContentType="emailAddress"
+                        returnKeyType="next"
+                      />
+                    </View>
 
-                  {/* Switch Login/Register */}
-                  <TouchableOpacity
-                    onPress={() => {
-                      triggerHaptic();
-                      setIsLogin(!isLogin);
-                      setError("");
-                      setSuccess("");
-                    }}
-                    style={styles.switchButton}
-                  >
-                    <Text style={styles.switchText}>
-                      {isLogin ? "Še nimaš računa? " : "Že imaš račun? "}
-                      <Text style={styles.switchLink}>
-                        {isLogin ? "Registracija" : "Prijava"}
-                      </Text>
-                    </Text>
-                  </TouchableOpacity>
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        focusedField === "password" && styles.inputContainerFocused,
+                      ]}
+                    >
+                      <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Geslo (min. 6 znakov)"
+                        placeholderTextColor="#6b7280"
+                        value={password}
+                        onChangeText={setPassword}
+                        onFocus={() => setFocusedField("password")}
+                        onBlur={() => setFocusedField(null)}
+                        secureTextEntry={!showPassword}
+                        autoCorrect={false}
+                        autoComplete={isLogin ? "current-password" : "new-password"}
+                        textContentType={isLogin ? "password" : "newPassword"}
+                        returnKeyType={isLogin ? "done" : "next"}
+                        onSubmitEditing={() => {
+                          if (isLogin) {
+                            handleAuth();
+                          }
+                        }}
+                      />
+                      <TouchableOpacity
+                        style={styles.eyeButton}
+                        onPress={() => setShowPassword(!showPassword)}
+                      >
+                        <Ionicons
+                          name={showPassword ? "eye-off" : "eye"}
+                          size={20}
+                          color="#6b7280"
+                        />
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.helperRow}>
+                      <Ionicons name="shield-checkmark-outline" size={16} color="#6b7280" />
+                      <Text style={styles.helperText}>Vsaj 6 znakov; najbolj varno je črke + številke.</Text>
+                    </View>
+
+                    {isLogin && (
+                      <View style={styles.forgotRow}>
+                        <TouchableOpacity
+                          onPress={handleForgotPassword}
+                          disabled={resetLoading}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.forgotText,
+                              resetLoading && styles.forgotTextDisabled,
+                            ]}
+                          >
+                            {resetLoading ? "Pošiljam povezavo..." : "Pozabljeno geslo?"}
+                          </Text>
+                        </TouchableOpacity>
+                        {resetLoading && (
+                          <ActivityIndicator size="small" color="#a78bfa" />
+                        )}
+                      </View>
+                    )}
+
+                    {!isLogin && password.length > 0 && (
+                      <View style={styles.strengthRow}>
+                        <View style={styles.strengthBars}>
+                          {[0, 1, 2].map((index) => (
+                            <View
+                              key={index}
+                              style={[
+                                styles.strengthBar,
+                                passwordStrengthLevel > index && { backgroundColor: passwordStrengthColor },
+                              ]}
+                            />
+                          ))}
+                        </View>
+                        <Text style={[styles.strengthText, { color: passwordStrengthColor }]}>
+                          {passwordStrengthLabel}
+                        </Text>
+                      </View>
+                    )}
+
+                    {!isLogin && (
+                      <>
+                        <View
+                          style={[
+                            styles.inputContainer,
+                            focusedField === "confirmPassword" && styles.inputContainerFocused,
+                          ]}
+                        >
+                          <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
+                          <TextInput
+                            style={styles.input}
+                            placeholder="Potrdi geslo"
+                            placeholderTextColor="#6b7280"
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            onFocus={() => setFocusedField("confirmPassword")}
+                            onBlur={() => setFocusedField(null)}
+                            secureTextEntry={!showPassword}
+                            autoCorrect={false}
+                            autoComplete="new-password"
+                            textContentType="newPassword"
+                            returnKeyType="done"
+                            onSubmitEditing={handleAuth}
+                          />
+                        </View>
+
+                        {/* Birth Date Picker */}
+                        <View style={styles.birthDateSection}>
+                          <Text style={styles.birthDateLabel}>
+                            <Ionicons name="calendar-outline" size={16} color="#a78bfa" /> Datum rojstva (opcijsko)
+                          </Text>
+                          <View style={styles.birthDateRow}>
+                            <View
+                              style={[
+                                styles.birthDateInputWrapper,
+                                focusedField === "birthDay" && styles.birthDateInputFocused,
+                              ]}
+                            >
+                              <TextInput
+                                style={styles.birthDateInput}
+                                placeholder="Dan"
+                                placeholderTextColor="#6b7280"
+                                value={birthDay}
+                                onChangeText={(text) => {
+                                  const num = text.replace(/[^0-9]/g, '');
+                                  if (num === '' || (parseInt(num) >= 1 && parseInt(num) <= 31)) {
+                                    setBirthDay(num);
+                                  }
+                                }}
+                                onFocus={() => setFocusedField("birthDay")}
+                                onBlur={() => setFocusedField(null)}
+                                keyboardType="number-pad"
+                                maxLength={2}
+                              />
+                            </View>
+                            <View
+                              style={[
+                                styles.birthDateInputWrapper,
+                                focusedField === "birthMonth" && styles.birthDateInputFocused,
+                              ]}
+                            >
+                              <TextInput
+                                style={styles.birthDateInput}
+                                placeholder="Mesec"
+                                placeholderTextColor="#6b7280"
+                                value={birthMonth}
+                                onChangeText={(text) => {
+                                  const num = text.replace(/[^0-9]/g, '');
+                                  if (num === '' || (parseInt(num) >= 1 && parseInt(num) <= 12)) {
+                                    setBirthMonth(num);
+                                  }
+                                }}
+                                onFocus={() => setFocusedField("birthMonth")}
+                                onBlur={() => setFocusedField(null)}
+                                keyboardType="number-pad"
+                                maxLength={2}
+                              />
+                            </View>
+                            <View
+                              style={[
+                                styles.birthDateInputWrapper,
+                                styles.birthDateYearWrapper,
+                                focusedField === "birthYear" && styles.birthDateInputFocused,
+                              ]}
+                            >
+                              <TextInput
+                                style={styles.birthDateInput}
+                                placeholder="Leto"
+                                placeholderTextColor="#6b7280"
+                                value={birthYear}
+                                onChangeText={(text) => {
+                                  const num = text.replace(/[^0-9]/g, '');
+                                  setBirthYear(num);
+                                }}
+                                onFocus={() => setFocusedField("birthYear")}
+                                onBlur={() => setFocusedField(null)}
+                                keyboardType="number-pad"
+                                maxLength={4}
+                              />
+                            </View>
+                          </View>
+                        </View>
+
+                        <View style={styles.termsRow}>
+                          <TouchableOpacity
+                            style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}
+                            onPress={() => {
+                              triggerHaptic();
+                              setAgreedToTerms(!agreedToTerms);
+                            }}
+                            activeOpacity={0.8}
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: agreedToTerms }}
+                          >
+                            {agreedToTerms && (
+                              <Ionicons name="checkmark" size={14} color="#fff" />
+                            )}
+                          </TouchableOpacity>
+                          <Text style={styles.termsText}>
+                            Strinjam se s{" "}
+                            <Text style={styles.termsLink} onPress={handleTermsPress}>
+                              Pogoji uporabe
+                            </Text>{" "}
+                            in{" "}
+                            <Text style={styles.termsLink} onPress={handleTermsPress}>
+                              Politiko zasebnosti
+                            </Text>
+                          </Text>
+                        </View>
+                      </>
+                    )}
+                  </View>
+
+                  {/* Separator above actions for breathing room */}
+                  <View style={styles.actionsSeparator} />
+
+                  {/* Actions Row: Primary */}
+                  <View style={styles.actionsRowSingle}>
+                    <TouchableOpacity
+                      style={[
+                        styles.primaryButton,
+                        styles.primaryButtonFlex,
+                        isPrimaryDisabled && styles.primaryButtonDisabled,
+                      ]}
+                      onPress={handleAuth}
+                      disabled={isPrimaryDisabled}
+                      activeOpacity={0.9}
+                    >
+                      <LinearGradient
+                        colors={
+                          isPrimaryDisabled
+                            ? ["rgba(148, 163, 184, 0.5)", "rgba(71, 85, 105, 0.6)"]
+                            : ["#c084fc", "#a855f7", "#7c3aed"]
+                        }
+                        style={styles.buttonGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                      >
+                        {loading ? (
+                          <Logo size={22} />
+                        ) : (
+                          <>
+                            <Text
+                              style={[
+                                styles.primaryButtonText,
+                                isPrimaryDisabled && styles.primaryButtonTextDisabled,
+                              ]}
+                            >
+                              {isLogin ? "Prijava" : "Registriraj se"}
+                            </Text>
+                            <Ionicons
+                              name="arrow-forward"
+                              size={20}
+                              color={isPrimaryDisabled ? "#cbd5e1" : "#fff"}
+                            />
+                          </>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
 
                   {/* Anonymous Sign In */}
                   <View style={styles.anonymousDivider}>
@@ -813,17 +1043,20 @@ export default function AuthScreen() {
                   </View>
 
                   <TouchableOpacity
-                    style={styles.anonymousButton}
+                    style={[
+                      styles.anonymousButton,
+                      anonymousLoading && styles.anonymousButtonDisabled,
+                    ]}
                     onPress={handleAnonymousSignIn}
                     disabled={anonymousLoading}
                   >
                     {anonymousLoading ? (
-                      <ActivityIndicator color="#a78bfa" size="small" />
+                      <Logo size={18} />
                     ) : (
                       <>
                         <Ionicons name="eye-off-outline" size={18} color="#a78bfa" />
                         <Text style={styles.anonymousButtonText}>
-                          Preizkusi brez računa
+                          Nadaljuj kot gost
                         </Text>
                       </>
                     )}
@@ -853,7 +1086,7 @@ export default function AuthScreen() {
                     <Ionicons name="camera" size={20} color="#fbbf24" />
                   </View>
                   <Text style={styles.featureText}>
-                    Slikaj izdelek <Text style={styles.premiumBadge}>PREMIUM</Text>
+                    Slikaj izdelek → takoj najde najnižjo ceno <Text style={styles.premiumBadge}>PREMIUM</Text>
                   </Text>
                 </View>
               </View>
@@ -907,6 +1140,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
+    alignItems: "center",
   },
   backgroundOrb: {
     position: "absolute",
@@ -936,6 +1170,22 @@ const styles = StyleSheet.create({
     left: -60,
     opacity: 0.08,
   },
+  orb4: {
+    width: 150,
+    height: 150,
+    backgroundColor: "#ec4899",
+    bottom: "20%",
+    right: -40,
+    opacity: 0.1,
+  },
+  orb5: {
+    width: 100,
+    height: 100,
+    backgroundColor: "#06b6d4",
+    top: "60%",
+    right: "10%",
+    opacity: 0.15,
+  },
   logoSection: {
     alignItems: "center",
     marginBottom: 20,
@@ -943,16 +1193,12 @@ const styles = StyleSheet.create({
   },
   logoGlow: {
     position: "absolute",
-    width: 160,
-    height: 160,
+    width: 180,
+    height: 180,
     backgroundColor: "#8b5cf6",
-    borderRadius: 80,
-    top: -10,
-    shadowColor: "#8b5cf6",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 50,
-    elevation: 20,
+    borderRadius: 90,
+    top: -15,
+    ...createShadow("#8b5cf6", 0, 0, 1, 60, 25),
   },
   logo: {
     width: 120,
@@ -976,13 +1222,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderRadius: 16,
     overflow: "hidden",
+    width: "100%",
+    maxWidth: 480,
   },
   factGradient: {
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 18,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
+    borderColor: "rgba(167, 139, 250, 0.35)",
   },
   factText: {
     fontSize: 14,
@@ -992,12 +1240,15 @@ const styles = StyleSheet.create({
   },
   cardContainer: {
     marginBottom: 24,
+    width: "100%",
+    maxWidth: 480,
   },
   card: {
     borderRadius: 28,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderWidth: 1.5,
+    borderColor: "rgba(139, 92, 246, 0.4)",
     overflow: "hidden",
+    ...createShadow("#8b5cf6", 0, 4, 0.3, 12, 6),
   },
   cardInner: {
     padding: 24,
@@ -1015,6 +1266,44 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 24,
   },
+  modeSwitch: {
+    flexDirection: "row",
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    borderRadius: 20,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "rgba(167, 139, 250, 0.45)",
+    gap: 10,
+    marginBottom: 24,
+  },
+  modeOption: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    minHeight: 50,
+  },
+  modeOptionActive: {
+    backgroundColor: "#a78bfa",
+    ...createShadow("#a78bfa", 0, 6, 0.35, 12, 8),
+  },
+  modeOptionInactive: {
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+  },
+  modeOptionText: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  modeOptionTextActive: {
+    color: "#0f0a1e",
+  },
+  modeOptionTextInactive: {
+    color: "#cbd5e1",
+  },
   errorContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -1031,6 +1320,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     lineHeight: 20,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  sectionLabel: {
+    color: "#e5e7eb",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  sectionTag: {
+    color: "#a78bfa",
+    fontSize: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(167, 133, 247, 0.4)",
+    backgroundColor: "rgba(167, 133, 247, 0.12)",
+    overflow: "hidden",
   },
   socialButtons: {
     flexDirection: "row",
@@ -1052,28 +1363,21 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 14,
   },
-  googleIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  googleG: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#4285F4",
-  },
-  socialButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  divider: {
+  dividerBadge: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(139, 92, 246, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.25)",
+  },
+  dividerBadgeText: {
+    color: "#c4c8d4",
+    fontSize: 13,
+    fontWeight: "600",
   },
   anonymousDivider: {
     flexDirection: "row",
@@ -1091,6 +1395,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     fontSize: 13,
   },
+  formSection: {
+    backgroundColor: "rgba(17, 24, 39, 0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.15)",
+    borderRadius: 18,
+    padding: 14,
+    gap: 10,
+  },
   inputContainer: {
     marginBottom: 14,
     position: "relative",
@@ -1100,6 +1412,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  inputContainerFocused: {
+    borderColor: "#c084fc",
+    backgroundColor: "rgba(31, 41, 55, 0.7)",
+    ...createShadow("#a78bfa", 0, 0, 0.35, 10, 4),
   },
   inputIcon: {
     marginLeft: 14,
@@ -1113,6 +1430,55 @@ const styles = StyleSheet.create({
   },
   eyeButton: {
     padding: 16,
+  },
+  helperRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: -4,
+    marginBottom: 8,
+  },
+  helperText: {
+    color: "#9ca3af",
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 16,
+  },
+  forgotRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: -2,
+    marginBottom: 8,
+  },
+  forgotText: {
+    color: "#a78bfa",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  forgotTextDisabled: {
+    color: "#94a3b8",
+  },
+  strengthRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+  strengthBars: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 6,
+  },
+  strengthBar: {
+    flex: 1,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(148, 163, 184, 0.35)",
+  },
+  strengthText: {
+    fontSize: 12,
+    fontWeight: "700",
   },
   termsRow: {
     flexDirection: "row",
@@ -1142,40 +1508,54 @@ const styles = StyleSheet.create({
   termsLink: {
     color: "#a78bfa",
     fontWeight: "600",
+    textDecorationLine: "underline",
   },
   primaryButton: {
     borderRadius: 14,
     overflow: "hidden",
     marginBottom: 16,
-    shadowColor: "#8b5cf6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    ...createShadow("#a78bfa", 0, 10, 0.55, 20, 12),
+  },
+  primaryButtonDisabled: {
+    opacity: 0.85,
+  },
+  primaryButtonFlex: {
+    flex: 1,
+    marginBottom: 0,
   },
   buttonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    gap: 10,
+    paddingVertical: 18,
+    gap: 12,
   },
   primaryButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
+    color: "#0b0814",
+    fontSize: 19,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
-  switchButton: {
-    paddingVertical: 8,
+  primaryButtonTextDisabled: {
+    color: "#e2e8f0",
   },
-  switchText: {
-    color: "#9ca3af",
-    textAlign: "center",
-    fontSize: 15,
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 16,
+    marginBottom: 16,
   },
-  switchLink: {
-    color: "#a78bfa",
-    fontWeight: "700",
+  actionsRowSingle: {
+    alignItems: "center",
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  actionsSeparator: {
+    height: 1,
+    backgroundColor: "rgba(139, 92, 246, 0.18)",
+    marginTop: 12,
+    marginBottom: 6,
   },
   anonymousButton: {
     flexDirection: "row",
@@ -1188,6 +1568,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(139, 92, 246, 0.3)",
     backgroundColor: "rgba(139, 92, 246, 0.1)",
   },
+  anonymousButtonDisabled: {
+    opacity: 0.6,
+  },
   anonymousButtonText: {
     color: "#a78bfa",
     fontSize: 15,
@@ -1195,6 +1578,8 @@ const styles = StyleSheet.create({
   },
   featuresSection: {
     marginTop: 8,
+    width: "100%",
+    maxWidth: 480,
   },
   featuresTitle: {
     fontSize: 18,
@@ -1257,6 +1642,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  birthDateInputFocused: {
+    borderColor: "#c084fc",
   },
   birthDateYearWrapper: {
     flex: 1.5,

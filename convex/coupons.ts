@@ -21,6 +21,11 @@ function getCouponType(coupon: {
   couponType?: "percentage_total" | "percentage_single_item" | "fixed" | "category_discount";
   discountType?: string;
 }): "percentage_total" | "percentage_single_item" | "fixed" | "category_discount" {
+  // Validate coupon object
+  if (!coupon || (typeof coupon !== 'object')) {
+    return "percentage_total"; // Safe default
+  }
+  
   if (coupon.couponType) return coupon.couponType;
   // Legacy support
   if (coupon.discountType === "percentage") return "percentage_total";
@@ -77,6 +82,8 @@ export const getByStore = query({
         if (c.validDays && c.validDays.length > 0 && !c.validDays.includes(currentDay)) return false;
         // Preveri premium
         if (c.isPremiumOnly && !args.isPremium) return false;
+        // Preveri ali je aktiven
+        if (c.isActive === false) return false;
         return true;
       })
       .map((c) => ({
@@ -95,6 +102,8 @@ export const getByStore = query({
         requiresLoyaltyCard: c.requiresLoyaltyCard ?? false,
         canCombine: c.canCombine ?? false,
         applicableCategories: c.applicableCategories,
+        maxUsesPerUser: c.maxUsesPerUser,
+        additionalNotes: c.additionalNotes,
         isPremiumOnly: c.isPremiumOnly,
       }));
   },
@@ -162,6 +171,7 @@ export const calculateBestCoupon = query({
       if (c.validFrom && c.validFrom > now) return false;
       if (c.validDays && c.validDays.length > 0 && !c.validDays.includes(currentDay)) return false;
       if (c.isPremiumOnly && !args.isPremium) return false;
+      if (c.isActive === false) return false; // Preveri aktivnost
       const requiresLoyalty = c.requiresLoyaltyCard ?? false;
       if (requiresLoyalty && !args.hasLoyaltyCard) return false;
       return true;

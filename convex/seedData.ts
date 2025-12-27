@@ -1,9 +1,8 @@
-﻿"use node";
-
+﻿
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+
 
 // ============================================
 // 📦 PODATKI ZA VNOS
@@ -11,12 +10,12 @@ import { Id } from "./_generated/dataModel";
 
 // 🏪 TRGOVINE - Spremeni logo URL-je ko imas prave slike
 export const STORES_DATA = [
-  { name: "Spar", color: "#00843D", logo: "", isPremium: false },
-  { name: "Mercator", color: "#E31E24", logo: "", isPremium: false },
-  { name: "Tus", color: "#ED1C24", logo: "", isPremium: false },
-  { name: "Lidl", color: "#0050AA", logo: "", isPremium: false },
-  { name: "Hofer", color: "#00529B", logo: "", isPremium: false },
-  { name: "Jager", color: "#8B4513", logo: "", isPremium: true },
+  { name: "Spar", color: "#FDB913", logo: "", isPremium: false }, // Rumeno-rdeč
+  { name: "Mercator", color: "#E31E24", logo: "", isPremium: false }, // Belo-rdeč
+  { name: "Tus", color: "#1B5E20", logo: "", isPremium: false }, // Temno zelen
+  { name: "Lidl", color: "#0050AA", logo: "", isPremium: false }, // Moder
+  { name: "Hofer", color: "#FFD500", logo: "", isPremium: true }, // Rumen - PREMIUM
+  { name: "Jager", color: "#8B4513", logo: "", isPremium: true }, // PREMIUM
 ];
 
 // 🛒 IZDELKI - Dodaj svoje izdelke tukaj

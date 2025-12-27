@@ -9,15 +9,18 @@
  */
 
 import type * as ai from "../ai.js";
+import type * as aiCouponParser from "../aiCouponParser.js";
 import type * as auth from "../auth.js";
 import type * as cart from "../cart.js";
 import type * as coupons from "../coupons.js";
+import type * as emailVerification from "../emailVerification.js";
 import type * as functions from "../functions.js";
 import type * as http from "../http.js";
 import type * as priceAlerts from "../priceAlerts.js";
 import type * as products from "../products.js";
 import type * as savings from "../savings.js";
 import type * as security from "../security.js";
+import type * as seedCoupons from "../seedCoupons.js";
 import type * as seedData from "../seedData.js";
 import type * as seedHelpers from "../seedHelpers.js";
 import type * as shoppingLists from "../shoppingLists.js";
@@ -32,15 +35,18 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
+  aiCouponParser: typeof aiCouponParser;
   auth: typeof auth;
   cart: typeof cart;
   coupons: typeof coupons;
+  emailVerification: typeof emailVerification;
   functions: typeof functions;
   http: typeof http;
   priceAlerts: typeof priceAlerts;
   products: typeof products;
   savings: typeof savings;
   security: typeof security;
+  seedCoupons: typeof seedCoupons;
   seedData: typeof seedData;
   seedHelpers: typeof seedHelpers;
   shoppingLists: typeof shoppingLists;

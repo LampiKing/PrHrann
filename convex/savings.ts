@@ -45,7 +45,6 @@ export const recordPurchase = mutation({
       .first();
 
     if (profile) {
-      const now = Date.now();
       const monthStart = new Date();
       monthStart.setDate(1);
       monthStart.setHours(0, 0, 0, 0);

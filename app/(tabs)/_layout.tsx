@@ -1,7 +1,8 @@
 import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { View, StyleSheet, Platform, ActivityIndicator } from "react-native";
-import { useMutation, useQuery, useConvexAuth } from "convex/react";
+import { View, StyleSheet, Platform } from "react-native";
+import Logo from "@/lib/Logo";
+import { useQuery, useConvexAuth, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useEffect } from "react";
 import { LinearGradient } from "expo-linear-gradient";
@@ -9,29 +10,36 @@ import { LinearGradient } from "expo-linear-gradient";
 export default function TabsLayout() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   
+  // Check if user is guest (anonymous user)
+  const profile = useQuery(
+    api.userProfiles.getProfile,
+    isAuthenticated ? {} : "skip"
+  );
+  
+  // Detect guest mode
+  const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
+  
   // Only query stores when authenticated
   const stores = useQuery(
     api.stores.getAll,
     isAuthenticated ? {} : "skip"
   );
-  const seedStores = useMutation(api.stores.seedStores);
-  const seedProducts = useMutation(api.products.seedProducts);
-  const seedCoupons = useMutation(api.coupons.seedCoupons);
+  const initializeAllData = useAction(api.stores.initializeAllData);
 
   useEffect(() => {
     const initializeData = async () => {
       if (isAuthenticated && stores && stores.length === 0) {
         try {
-          await seedStores({});
-          await seedProducts({});
-          await seedCoupons({});
-        } catch {
-          // Ignoriraj napake pri inicializaciji
+          console.log('🔄 Inicializacija podatkov...');
+          const result = await initializeAllData({});
+          console.log('✅ Podatki inicializirani:', result);
+        } catch (error) {
+          console.error('❌ Napaka pri inicializaciji:', error);
         }
       }
     };
     initializeData();
-  }, [isAuthenticated, stores, seedStores, seedProducts, seedCoupons]);
+  }, [isAuthenticated, stores, initializeAllData]);
 
   // Show loading while checking auth
   if (isLoading) {
@@ -41,7 +49,7 @@ export default function TabsLayout() {
           colors={["#0a0a0f", "#1a1025", "#0a0a0f"]}
           style={StyleSheet.absoluteFill}
         />
-        <ActivityIndicator size="large" color="#a855f7" />
+        <Logo size={90} />
       </View>
     );
   }
@@ -80,6 +88,7 @@ export default function TabsLayout() {
           name="cart"
           options={{
             title: "Košarica",
+            href: isGuest ? null : undefined,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="cart" size={size} color={color} />
             ),
@@ -89,6 +98,7 @@ export default function TabsLayout() {
           name="profile"
           options={{
             title: "Profil",
+            href: isGuest ? null : undefined,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="person" size={size} color={color} />
             ),

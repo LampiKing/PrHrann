@@ -30,10 +30,13 @@ export const search = query({
     })
   ),
   handler: async (ctx, args) => {
-    if (!args.query.trim()) return [];
+    // Validate query
+    if (!args.query || !args.query.trim() || args.query.trim().length < 2) {
+      return [];
+    }
 
     const allProducts = await ctx.db.query("products").collect();
-    const searchLower = args.query.toLowerCase();
+    const searchLower = args.query.toLowerCase().trim();
     
     const matchedProducts = allProducts.filter(
       (p) => p.name.toLowerCase().includes(searchLower)
@@ -55,6 +58,8 @@ export const search = query({
             if (!store) return null;
             // Če ni premium, skrij premium trgovine
             if (!args.isPremium && store.isPremium) return null;
+            // Filtriraj neveljavne cene
+            if (!Number.isFinite(price.price) || price.price <= 0) return null;
             return {
               storeId: price.storeId,
               storeName: store.name,
@@ -67,18 +72,22 @@ export const search = query({
           .filter((p): p is NonNullable<typeof p> => p !== null)
           .sort((a, b) => a.price - b.price);
 
-        const validPrices = pricesWithStores.map((p) => p.price);
-        
+        // Če po filtriranju ni cen, preskoči izdelek
+        if (pricesWithStores.length === 0) return null;
+
+        const validPriceNumbers = pricesWithStores.map((p) => p.price);
+
         return {
           ...product,
           prices: pricesWithStores,
-          lowestPrice: Math.min(...validPrices, 0),
-          highestPrice: Math.max(...validPrices, 0),
+          lowestPrice: Math.min(...validPriceNumbers),
+          highestPrice: Math.max(...validPriceNumbers),
         };
       })
     );
 
-    return results.filter((r) => r.prices.length > 0);
+    // Odstrani izdelke brez veljavnih cen
+    return results.filter((r): r is NonNullable<typeof r> => r !== null && r.prices.length > 0);
   },
 });
 

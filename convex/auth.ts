@@ -5,6 +5,7 @@ import { expo } from "@better-auth/expo";
 import { components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import { anonymous, multiSession } from "better-auth/plugins";
+import authConfig from "./auth.config";
 
 const authFunctions: AuthFunctions = internal.auth;
 
@@ -12,13 +13,84 @@ const authFunctions: AuthFunctions = internal.auth;
 // as well as helper methods for general use.
 export const authComponent = createClient<DataModel>(components.betterAuth, {
     authFunctions,
-    triggers: {},
+    triggers: {
+        user: {
+            onCreate: async (ctx, user) => {
+                await ctx.db.insert("userProfiles", {
+                    userId: user._id,
+                    name: user.name || undefined,
+                    email: user.email || undefined,
+                    emailVerified: user.emailVerified || false,
+                    isAnonymous: user.isAnonymous ?? false,
+                    isPremium: false,
+                    dailySearches: 0,
+                    lastSearchDate: new Date().toISOString().split("T")[0],
+                });
+            },
+        },
+    },
 });
 
 // export the trigger API functions so that triggers work
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
-const siteUrl = process.env.SITE_URL || "https://vibrant-dolphin-871.convex.site";
+const rawSiteUrl =
+    process.env.SITE_URL ||
+    process.env.EXPO_PUBLIC_SITE_URL ||
+    process.env.EXPO_PUBLIC_CONVEX_SITE_URL ||
+    "https://vibrant-dolphin-871.convex.site";
+const siteUrl = rawSiteUrl.includes(".convex.cloud")
+    ? rawSiteUrl.replace(".convex.cloud", ".convex.site")
+    : rawSiteUrl;
+const isDev = process.env.NODE_ENV !== "production";
+const localhostOrigins = isDev
+    ? [
+          ...Array.from({ length: 100 }, (_, i) => `http://localhost:${8000 + i}`),
+          ...Array.from({ length: 100 }, (_, i) => `http://127.0.0.1:${8000 + i}`),
+          ...Array.from({ length: 100 }, (_, i) => `http://localhost:${19000 + i}`),
+          ...Array.from({ length: 100 }, (_, i) => `http://127.0.0.1:${19000 + i}`),
+          "http://localhost:3000",
+          "http://localhost:3001",
+          "http://127.0.0.1:3000",
+          "http://127.0.0.1:3001",
+      ]
+    : [];
+const corsOrigins = isDev ? [siteUrl, ...localhostOrigins] : [siteUrl];
+const fromEmail = process.env.FROM_EMAIL;
+const fromName = process.env.FROM_NAME || "PrHran";
+const resendApiKey = process.env.RESEND_API_KEY;
+
+async function sendEmail(to: string, subject: string, html: string) {
+    if (!fromEmail) {
+        console.warn("Email disabled or FROM_EMAIL not set. Skipping send.");
+        return;
+    }
+    if (!resendApiKey) {
+        console.warn("RESEND_API_KEY not set. Skipping email send.");
+        return;
+    }
+    try {
+        const response = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${resendApiKey}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                from: `${fromName} <${fromEmail}>`,
+                to,
+                subject,
+                html,
+            }),
+        });
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Email send failed: ${response.status} ${errorText}`);
+        }
+    } catch (error) {
+        console.error("Email send error:", error);
+    }
+}
 
 export const createAuth = (
     ctx: GenericCtx<DataModel>,
@@ -30,19 +102,50 @@ export const createAuth = (
         logger: {
             disabled: optionsOnly,
         },
-        trustedOrigins: [siteUrl, "myapp://"],
+        secret: process.env.BETTER_AUTH_SECRET!,
+        trustedOrigins: [siteUrl, "myapp://", ...localhostOrigins],
         database: authComponent.adapter(ctx),
-        // Email/password - email verification DISABLED until email service is set up
         emailAndPassword: {
             enabled: true,
-            requireEmailVerification: false,  // DISABLED - users can login immediately
-            sendVerificationOnSignUp: false,
+            // Enable immediate login to avoid blocking on email verification
+            requireEmailVerification: true,
+            sendVerificationOnSignUp: true,
             autoSignInAfterVerification: true,
+            sendVerificationEmail: async ({ user, url, token }: any) => {
+                const subject = "Potrdi svoj e-naslov";
+                const html = `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+                      <h2 style="margin: 0 0 12px;">Pozdravljeni!</h2>
+                      <p style="margin: 0 0 12px;">Kliknite spodaj, da potrdite svoj e-naslov:</p>
+                      <p style="margin: 0 0 16px;"><a href="${url}" style="color: #7c3aed; font-weight: 700;">Potrdi e-naslov</a></p>
+                      <p style="margin: 0 0 8px;">Če gumb ne deluje, kopirajte povezavo:</p>
+                      <p style="word-break: break-all; color: #0f172a;">${url}</p>
+                      <p style="margin-top: 16px; color: #475569; font-size: 12px;">Če niste zahtevali tega sporočila, ga lahko ignorirate.</p>
+                    </div>
+                `;
+
+                await sendEmail(user.email, subject, html);
+                if (process.env.NODE_ENV !== "production") {
+                    console.log(`Email verification link for ${user.email}: ${url}`);
+                }
+            },
             sendResetPassword: async ({ user, url, token }: any) => {
-                // TODO: Implement email sending (e.g., with Resend, SendGrid, etc.)
-                console.log(`Password reset link for ${user.email}: ${url}`);
-                console.log(`Token: ${token}`);
-                // For now, just log - in production, send actual email
+                const subject = "Ponastavi geslo";
+                const html = `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+                      <h2 style="margin: 0 0 12px;">Pozdravljeni!</h2>
+                      <p style="margin: 0 0 12px;">Za ponastavitev gesla kliknite spodaj:</p>
+                      <p style="margin: 0 0 16px;"><a href="${url}" style="color: #7c3aed; font-weight: 700;">Ponastavi geslo</a></p>
+                      <p style="margin: 0 0 8px;">Če gumb ne deluje, kopirajte povezavo:</p>
+                      <p style="word-break: break-all; color: #0f172a;">${url}</p>
+                      <p style="margin-top: 16px; color: #475569; font-size: 12px;">Če niste zahtevali tega sporočila, ga lahko ignorirate.</p>
+                    </div>
+                `;
+
+                await sendEmail(user.email, subject, html);
+                if (process.env.NODE_ENV !== "production") {
+                    console.log(`Password reset link for ${user.email}: ${url}`);
+                }
             },
         },
         // Session settings - track IP and device
@@ -64,15 +167,17 @@ export const createAuth = (
             crossSubDomainCookies: {
                 enabled: false,
             },
-            disableCSRFCheck: false,
+            disableCSRFCheck: true,
+        },
+        cors: {
+            origin: corsOrigins,
+            credentials: true,
         },
         plugins: [
             // The Expo and Convex plugins are required
             anonymous(),
             expo(),
-            convex({
-                authConfig: {} as any
-            }),
+            convex({ authConfig }),
             crossDomain({ siteUrl }),
             // Multi-session management - max 2 active sessions per user
             multiSession({
@@ -92,15 +197,7 @@ export const createAuth = (
         };
     }
     
-    if (process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET) {
-        config.socialProviders = {
-            ...config.socialProviders,
-            apple: {
-                clientId: process.env.APPLE_CLIENT_ID,
-                clientSecret: process.env.APPLE_CLIENT_SECRET,
-            },
-        };
-    }
+    // Apple provider intentionally disabled to keep only Google sign-in
     
     return betterAuth(config);
 };

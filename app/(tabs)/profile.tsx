@@ -12,22 +12,16 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { PLAN_FREE, PLAN_PLUS, PLAN_FAMILY } from "@/lib/branding";
 import { authClient } from "@/lib/auth-client";
+import { createShadow } from "@/lib/shadow-helper";
 import { useConvexAuth } from "convex/react";
-
-const STORES = [
-  { name: "Spar", emoji: "🟢", color: "#22c55e" },
-  { name: "Mercator", emoji: "🔵", color: "#3b82f6" },
-  { name: "Tus", emoji: "🟡", color: "#eab308" },
-  { name: "Hofer", emoji: "🔴", color: "#ef4444", premium: true },
-  { name: "Lidl", emoji: "🟠", color: "#f97316", premium: true },
-  { name: "Jager", emoji: "🟣", color: "#a855f7", premium: true },
-];
+import AppLogo from "@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -36,7 +30,8 @@ export default function ProfileScreen() {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [favoriteStores, setFavoriteStores] = useState<string[]>(["Spar", "Mercator", "Tus"]);
+  const [signingOut, setSigningOut] = useState(false);
+  const [showSignOutToast, setShowSignOutToast] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -46,12 +41,24 @@ export default function ProfileScreen() {
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
   );
-  const upgradeToPremium = useMutation(api.userProfiles.upgradeToPremium);
+  
+  // Check if user is guest (anonymous)
+  const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
 
   const isPremium = profile?.isPremium ?? false;
-  const searchesToday = profile?.dailySearches ?? 0;
-  const maxSearches = isPremium ? 999 : 3;
-  const searchProgress = isPremium ? 1 : searchesToday / maxSearches;
+  const premiumType = profile?.premiumType ?? "solo";
+  const searchesRemaining = profile?.searchesRemaining ?? (isGuest ? 1 : 3);
+  const maxSearches = isPremium ? 999 : (isGuest ? 1 : 3);
+  const searchProgress = isPremium ? 1 : Math.max(0, Math.min(1, searchesRemaining / maxSearches));
+  const searchResetTime = profile?.searchResetTime;
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
+
+  // Redirect guest to auth
+  useEffect(() => {
+    if (isGuest) {
+      router.replace("/auth");
+    }
+  }, [isGuest]);
 
   useEffect(() => {
     Animated.parallel([
@@ -62,12 +69,26 @@ export default function ProfileScreen() {
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 8,
         useNativeDriver: true,
       }),
     ]).start();
   }, []);
+
+  useEffect(() => {
+    const update = () => {
+      if (!isPremium && searchResetTime && searchesRemaining <= 0) {
+        const diff = Math.max(0, searchResetTime - Date.now());
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+      } else {
+        setTimeRemaining(null);
+      }
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [searchResetTime, isPremium, searchesRemaining, maxSearches]);
 
   useEffect(() => {
     Animated.timing(progressAnim, {
@@ -84,23 +105,25 @@ export default function ProfileScreen() {
     router.push("/premium");
   };
 
-  const toggleFavoriteStore = (storeName: string) => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setFavoriteStores((prev) =>
-      prev.includes(storeName)
-        ? prev.filter((s) => s !== storeName)
-        : [...prev, storeName]
-    );
-  };
-
   const handleSignOut = async () => {
+    setSigningOut(true);
+    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2500));
     try {
-      await authClient.signOut();
-      router.replace("/auth");
+      // Race signOut with a short timeout so UI is responsive even if network/storage hangs
+      await Promise.race([authClient.signOut(), timeout]);
     } catch (error) {
       console.error("Napaka pri odjavi:", error);
+    } finally {
+      // Show a brief toast and haptic feedback before navigating
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      setShowSignOutToast(true);
+      setTimeout(() => {
+        setShowSignOutToast(false);
+        router.replace("/auth");
+        setSigningOut(false);
+      }, 800);
     }
   };
 
@@ -122,8 +145,14 @@ export default function ProfileScreen() {
     if (Platform.OS !== "web") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
-    // Note: Subscription cancellation would require payment provider integration
-    setShowCancelModal(false);
+    try {
+      // Note: Subscription cancellation would require payment provider integration
+      // For now just close modal - backend would handle actual cancellation
+      setShowCancelModal(false);
+    } catch (error) {
+      console.error("Cancel subscription error:", error);
+      setShowCancelModal(false);
+    }
   };
 
   if (!isAuthenticated) {
@@ -132,7 +161,7 @@ export default function ProfileScreen() {
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
         <View style={[styles.authPrompt, { paddingTop: insets.top + 40 }]}>
           <Image
-            source={require("@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png")}
+            source={AppLogo}
             style={styles.authLogo}
             resizeMode="contain"
           />
@@ -171,7 +200,7 @@ export default function ProfileScreen() {
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <Image
-            source={require("@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png")}
+            source={AppLogo}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -183,7 +212,7 @@ export default function ProfileScreen() {
           <LinearGradient
             colors={
               isPremium
-                ? ["rgba(251, 191, 36, 0.2)", "rgba(245, 158, 11, 0.1)"]
+                ? ["rgba(251, 191, 36, 0.26)", "rgba(245, 158, 11, 0.2)"]
                 : ["rgba(139, 92, 246, 0.15)", "rgba(59, 7, 100, 0.3)"]
             }
             start={{ x: 0, y: 0 }}
@@ -191,6 +220,7 @@ export default function ProfileScreen() {
             style={[
               styles.planGradient,
               isPremium && styles.planGradientPremium,
+              isPremium && styles.planPremiumShadow,
             ]}
           >
             <View style={styles.planHeader}>
@@ -202,14 +232,14 @@ export default function ProfileScreen() {
                     <Ionicons name="person" size={16} color="#a78bfa" />
                   )}
                   <Text style={[styles.planBadgeText, isPremium && styles.planBadgeTextPremium]}>
-                    {isPremium ? "PREMIUM" : "BREZPLAČNO"}
+                    {isPremium ? (premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS) : PLAN_FREE}
                   </Text>
                 </View>
                 <Text style={styles.planPrice}>
-                  {isPremium ? "1,99 €/mesec" : "0 €/mesec"}
+                  {isPremium ? (premiumType === "family" ? "2,99 €/mesec" : "1,99 €/mesec") : "Brezplačno"}
                 </Text>
               </View>
-              {!isPremium && (
+              {(!isPremium || (isPremium && premiumType === "solo")) && (
                 <TouchableOpacity
                   style={styles.upgradeButton}
                   onPress={handleUpgrade}
@@ -220,8 +250,10 @@ export default function ProfileScreen() {
                     end={{ x: 1, y: 0 }}
                     style={styles.upgradeGradient}
                   >
-                    <Ionicons name="star" size={14} color="#000" />
-                    <Text style={styles.upgradeText}>Nadgradi</Text>
+                    <Ionicons name="star" size={14} color="#0b0814" />
+                    <Text style={styles.upgradeText}>
+                      {isPremium ? "Nadgradi na Family" : "Nadgradi"}
+                    </Text>
                   </LinearGradient>
                 </TouchableOpacity>
               )}
@@ -230,9 +262,9 @@ export default function ProfileScreen() {
             {/* Search Progress */}
             <View style={styles.searchProgress}>
               <View style={styles.searchProgressHeader}>
-                <Text style={styles.searchProgressLabel}>Dnevna iskanja</Text>
+                <Text style={styles.searchProgressLabel}>Brezplačna iskanja</Text>
                 <Text style={styles.searchProgressValue}>
-                  {isPremium ? "∞" : `${searchesToday}/${maxSearches}`}
+                  {isPremium ? "neomejeno" : `${Math.max(0, searchesRemaining)}/${maxSearches}`}
                 </Text>
               </View>
               <View style={styles.progressBar}>
@@ -249,11 +281,16 @@ export default function ProfileScreen() {
                   ]}
                 />
               </View>
-              {!isPremium && searchesToday >= 2 && (
+              {!isPremium && searchesRemaining <= 0 && timeRemaining ? (
+                <View style={styles.searchTimer}>
+                  <Ionicons name="time-outline" size={14} color="#fbbf24" />
+                  <Text style={styles.searchTimerText}>Novo iskanje čez {timeRemaining}</Text>
+                </View>
+              ) : !isPremium && searchesRemaining === 1 ? (
                 <Text style={styles.searchWarning}>
-                  ⚠️ Skoraj si porabil dnevna iskanja
+                  ⚠️ Še samo 1 brezplačno iskanje
                 </Text>
-              )}
+              ) : null}
             </View>
 
             {/* Plan Features */}
@@ -265,7 +302,9 @@ export default function ProfileScreen() {
                   color={isPremium ? "#10b981" : "#6b7280"}
                 />
                 <Text style={[styles.planFeatureText, !isPremium && styles.planFeatureTextDisabled]}>
-                  {isPremium ? "Neomejeno iskanj" : "3 iskanja na dan"}
+                  {isPremium
+                    ? "Neomejeno iskanj"
+                    : (maxSearches === 1 ? "1 iskanje na dan" : `${maxSearches} iskanja na dan`)}
                 </Text>
               </View>
               <View style={styles.planFeature}>
@@ -285,7 +324,7 @@ export default function ProfileScreen() {
                   color={isPremium ? "#10b981" : "#6b7280"}
                 />
                 <Text style={[styles.planFeatureText, !isPremium && styles.planFeatureTextDisabled]}>
-                  {isPremium ? "Optimizacija košarice" : "Brez optimizacije"}
+                  {isPremium ? "Ekskluzivni kuponi" : "Osnovni kuponi"}
                 </Text>
               </View>
             </View>
@@ -356,13 +395,29 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Sign Out */}
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-          <Text style={styles.signOutText}>Odjava</Text>
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut} disabled={signingOut}>
+          <Ionicons name="log-out-outline" size={20} color={signingOut ? "#9ca3af" : "#ef4444"} />
+          <Text style={[styles.signOutText, signingOut && { color: "#9ca3af" }]}>
+            {signingOut ? "Odjavljam..." : "Odjava"}
+          </Text>
         </TouchableOpacity>
 
         <View style={{ height: 120 }} />
       </ScrollView>
+
+      {showSignOutToast && (
+        <View style={styles.toastOverlay}>
+          <LinearGradient
+            colors={["rgba(16, 185, 129, 0.25)", "rgba(16, 185, 129, 0.15)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.toastContainer}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+            <Text style={styles.toastText}>Uspešno odjavljeno</Text>
+          </LinearGradient>
+        </View>
+      )}
 
       {/* Premium Modal */}
       {showPremiumModal && (
@@ -381,7 +436,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               <Image
-                source={require("@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png")}
+                source={AppLogo}
                 style={styles.modalLogo}
                 resizeMode="contain"
               />
@@ -403,7 +458,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.modalFeature}>
                       <Ionicons name="close" size={16} color="#ef4444" />
-                      <Text style={styles.modalFeatureTextDisabled}>Optimizacija</Text>
+                      <Text style={styles.modalFeatureTextDisabled}>Ekskluzivni kuponi</Text>
                     </View>
                   </View>
                   <View style={styles.modalFeatureDivider} />
@@ -419,7 +474,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.modalFeature}>
                       <Ionicons name="checkmark" size={16} color="#10b981" />
-                      <Text style={styles.modalFeatureText}>Optimizacija</Text>
+                      <Text style={styles.modalFeatureText}>Ekskluzivni kuponi</Text>
                     </View>
                   </View>
                 </View>
@@ -433,7 +488,7 @@ export default function ProfileScreen() {
                   style={styles.modalButtonGradient}
                 >
                   <Ionicons name="star" size={18} color="#000" />
-                  <Text style={styles.modalButtonText}>Nadgradi na Premium</Text>
+                  <Text style={styles.modalButtonText}>Nadgradi na PrHran Plus</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -530,7 +585,7 @@ export default function ProfileScreen() {
                 Ob preklicu boš izgubil dostop do:{"\n"}
                 • Neomejenega iskanja{"\n"}
                 • Vseh trgovin{"\n"}
-                • Optimizacije košarice
+                • Ekskluzivnih kuponov
               </Text>
 
               <View style={styles.deleteButtons}>
@@ -658,6 +713,9 @@ const styles = StyleSheet.create({
   planGradientPremium: {
     borderColor: "rgba(251, 191, 36, 0.3)",
   },
+  planPremiumShadow: {
+    ...createShadow("#fbbf24", 0, 10, 0.35, 18, 10),
+  },
   planHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -735,6 +793,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#fbbf24",
     marginTop: 8,
+  },
+  searchTimer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  searchTimerText: {
+    fontSize: 12,
+    color: "#fbbf24",
+    marginLeft: 6,
   },
   planFeatures: {
     gap: 10,
@@ -845,6 +913,29 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(239, 68, 68, 0.2)",
+  },
+  toastOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 30,
+    alignItems: "center",
+  },
+  toastContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.35)",
+    backgroundColor: "rgba(2, 44, 34, 0.6)",
+  },
+  toastText: {
+    color: "#d1fae5",
+    fontSize: 14,
+    fontWeight: "600",
   },
   signOutText: {
     fontSize: 15,

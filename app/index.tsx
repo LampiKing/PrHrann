@@ -1,4 +1,5 @@
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import Logo from "@/lib/Logo";
 import { useConvexAuth } from "convex/react";
 import { Redirect } from "expo-router";
 
@@ -8,7 +9,7 @@ export default function Index() {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
+        <Logo size={90} />
       </View>
     );
   }

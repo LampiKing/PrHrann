@@ -9,7 +9,6 @@ import {
   Modal,
   Animated,
   Platform,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,6 +18,8 @@ import * as Haptics from "expo-haptics";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { createShadow } from "@/lib/shadow-helper";
+import Logo from "@/lib/Logo";
 
 export default function ShoppingListsScreen() {
   const router = useRouter();
@@ -116,7 +117,9 @@ export default function ShoppingListsScreen() {
         >
           {!lists ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#8b5cf6" />
+              <View style={{ alignItems: "center", justifyContent: "center" }}>
+                <Logo size={80} />
+              </View>
             </View>
           ) : lists.length === 0 ? (
             <Animated.View style={[styles.emptyContainer, { opacity: fadeAnim }]}>
@@ -142,7 +145,7 @@ export default function ShoppingListsScreen() {
             </Animated.View>
           ) : (
             <Animated.View style={{ opacity: fadeAnim }}>
-              {lists.map((list, index) => (
+              {lists.map((list) => (
                 <TouchableOpacity
                   key={list._id}
                   style={styles.listCard}
@@ -311,7 +314,7 @@ export default function ShoppingListsScreen() {
                   style={styles.createButtonGradient}
                 >
                   {creating ? (
-                    <ActivityIndicator color="#fff" />
+                    <Logo size={22} />
                   ) : (
                     <Text style={styles.createButtonText}>Ustvari</Text>
                   )}
@@ -510,11 +513,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    shadowColor: "#8b5cf6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
+    ...createShadow("#8b5cf6", 0, 4, 0.5, 12, 8),
   },
   fabGradient: {
     width: "100%",

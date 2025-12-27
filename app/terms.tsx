@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
+import { PLAN_FREE, PLAN_PLUS, PLAN_FAMILY } from "@/lib/branding";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -41,103 +42,192 @@ export default function TermsScreen() {
           {/* Last Updated */}
           <View style={styles.updateBadge}>
             <Ionicons name="time-outline" size={14} color="#9ca3af" />
-            <Text style={styles.updateText}>Zadnja posodobitev: 13. december 2024</Text>
+            <Text style={styles.updateText}>Zadnja posodobitev: 24. december 2024</Text>
+          </View>
+
+          {/* GDPR Notice */}
+          <View style={[styles.section, { backgroundColor: "rgba(59, 130, 246, 0.1)", padding: 16, borderRadius: 12, borderWidth: 1, borderColor: "rgba(59, 130, 246, 0.3)" }]}>
+            <Text style={[styles.sectionTitle, { fontSize: 14, color: "#60a5fa" }]}>🇪🇺 GDPR - Varstvo podatkov</Text>
+            <Text style={[styles.sectionText, { fontSize: 13 }]}>
+              Ta aplikacija upošteva Splošno uredbo o varstvu podatkov (GDPR) in slovensko Zakon o varstvu osebnih podatkov (ZVOP-2). 
+              Vaše pravice vključujejo dostop, popravek, izbris in prenos podatkov. Več v razdelku 6.
+            </Text>
           </View>
 
           {/* Section 1 */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>1. Splošne določbe</Text>
+            <Text style={styles.sectionTitle}>1. Splošne določbe in identifikacija</Text>
             <Text style={styles.sectionText}>
-              Ti pogoji uporabe ("Pogoji") urejajo uporabo mobilne aplikacije Pr'Hran ("Aplikacija"), ki jo upravlja podjetje Pr'Hran d.o.o. ("Mi", "Nas", "Naš").
+              <Text style={{ fontWeight: "700" }}>1.1 Ponudnik storitve</Text>{"\n"}
+              Pr'Hran je demonstracijska aplikacija za primerjavo cen. 
               {"\n\n"}
-              Z uporabo Aplikacije se strinjate s temi Pogoji. Če se s Pogoji ne strinjate, Aplikacije ne smete uporabljati.
+              <Text style={{ fontWeight: "700" }}>1.2 Sprejemanje pogojev</Text>{"\n"}
+              Z uporabo aplikacije se strinjate s temi pogoji. Če se ne strinjate, aplikacije ne smete uporabljati.
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>1.3 Starostna omejitev</Text>{"\n"}
+              Aplikacija je namenjena uporabnikom, starim 16 let ali več, skladno z GDPR.
             </Text>
           </View>
 
           {/* Section 2 */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>2. Opis storitve</Text>
+            <Text style={styles.sectionTitle}>2. Opis storitve in pravna opozorila</Text>
             <Text style={styles.sectionText}>
-              Pr'Hran je aplikacija za primerjavo cen živilskih izdelkov v slovenskih trgovinah. Storitev vključuje:
-              {"\n\n"}
-              • Primerjavo cen izdelkov med trgovinami{"\n"}
+              <Text style={{ fontWeight: "700" }}>2.1 Storitve</Text>{"\n"}
+              • Primerjava cen živilskih izdelkov{"\n"}
               • Prikaz aktivnih kuponov in akcij{"\n"}
-              • Ustvarjanje nakupovalnih seznamov{"\n"}
+              • Nakupovalni seznami{"\n"}
               • Izračun prihrankov{"\n"}
+              • AI razpoznava izdelkov (Premium){"\n"}
               • Premium funkcije za naročnike
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>2.2 Omejitev odgovornosti za cene</Text>{"\n"}
+              Prikazane cene so informativne narave. Ne odgovarjamo za točnost cen ali njihovo aktualnost. Dejanske cene v trgovinah se lahko razlikujejo. Uporabnik sam preveri ceno pred nakupom.
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>2.3 Blagovne znamke</Text>{"\n"}
+              Vsi logotipi, imena trgovin in izdelkov so last njihovih lastnikov. Uporaba je v informativne namene skladno s členom 52 Zakona o industrijski lastnini (ZIL-1).
             </Text>
           </View>
 
           {/* Section 3 */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. Uporabniški račun</Text>
+            <Text style={styles.sectionTitle}>3. Uporabniški račun in varnost</Text>
             <Text style={styles.sectionText}>
-              Za uporabo določenih funkcij Aplikacije morate ustvariti uporabniški račun. Odgovorni ste za:
-              {"\n\n"}
-              • Varovanje svojih prijavnih podatkov{"\n"}
-              • Vse aktivnosti, ki se izvajajo pod vašim računom{"\n"}
+              <Text style={{ fontWeight: "700" }}>3.1 Registracija</Text>{"\n"}
+              Odgovorni ste za:
+              {"\n"}
+              • Varovanje prijavnih podatkov{"\n"}
+              • Vse aktivnosti pod računom{"\n"}
               • Takojšnje obvestilo o nepooblaščeni uporabi
               {"\n\n"}
-              Pridržujemo si pravico do ukinitve računa v primeru kršitve teh Pogojev.
+              <Text style={{ fontWeight: "700" }}>3.2 Gostovni način</Text>{"\n"}
+              Gostje imajo omejen dostop (1 izdelek, 4-urna omejitev). Za polno funkcionalnost potrebujete račun.
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>3.3 Prepoved zlorabe</Text>{"\n"}
+              Prepovedano je:
+              {"\n"}
+              • Ustvarjanje več računov za izogibanje omejitvam{"\n"}
+              • Avtomatsko pridobivanje podatkov (scraping){"\n"}
+              • Manipulacija z GEO-lock varnostjo{"\n"}
+              • Deljena uporaba PrHran Family izven družine
             </Text>
           </View>
 
           {/* Section 4 */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>4. Premium naročnina</Text>
+            <Text style={styles.sectionTitle}>4. Premium naročnina in plačila</Text>
             <Text style={styles.sectionText}>
-              Premium naročnina je plačljiva storitev, ki vključuje dodatne funkcije. Ponujamo dva plana:
+              <Text style={{ fontWeight: "700" }}>4.1 Cenovna plana</Text>{"\n"}
+              • PrHran Plus: 1,99€/mesec (1 uporabnik){"\n"}
+              • {PLAN_PLUS}: 1,99€/mesec (1 uporabnik){"\n"}
+              • {PLAN_FAMILY}: 2,99€/mesec (do 3 uporabnikov){"\n"}
+              • DDV je vključen v ceno (22% v Sloveniji)
               {"\n\n"}
-              • Premium Solo: 1,99€ na mesec (1 uporabnik){"\n"}
-              • Premium Family: 2,99€ na mesec (do 3 uporabniki){"\n"}
-              • Obračunsko obdobje: mesečno{"\n"}
-              • Preklic: kadarkoli, brez dodatnih stroškov{"\n"}
-              • Po preklicu: dostop do konca obračunskega obdobja
+              <Text style={{ fontWeight: "700" }}>4.2 Obračunavanje</Text>{"\n"}
+              • Mesečno obračunavanje{"\n"}
+              {"\n"}
+              <Text style={{ fontWeight: "700" }}>4.3 Kaj vključujejo paketi</Text>{"\n"}
+              • {PLAN_FREE}: {" "}3 brezplačna iskanja na dan{"\n"}
+              • {PLAN_PLUS}: {" "}neomejeno iskanje, slikanje izdelkov, ekskluzivni kuponi, obvestila o cenah, sledenje prihrankom, prednostna podpora{"\n"}
+              • {PLAN_FAMILY}: {" "}vse iz {PLAN_PLUS} + do 3 uporabniki in deljenje seznamov v živo{"\n"}
+              • Samodejno podaljšanje razen če prekličete{"\n"}
+              • Prvi zaseg ob naročilu, nato mesečno{"\n"}
+              • Račun je dosegljiv v aplikaciji
               {"\n\n"}
-              Plačila se izvajajo preko Apple Pay, Google Pay ali kreditne kartice. Vračilo sredstev je možno v skladu z zakonodajo o varstvu potrošnikov.
+              <Text style={{ fontWeight: "700" }}>4.3 Pravica do odstopa (ZVPS-1)</Text>{"\n"}
+              Skladno z Zakonom o varstvu potrošnikov (ZVPS-1) imate pravico do odstopa od pogodbe v 14 dneh brez navedbe razloga. Za vračilo pošljite zahtevo na support@prhran.si.
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>4.4 Preklic naročnine</Text>{"\n"}
+              Kadarkoli v Nastavitvah {">"} Premium {">"} Prekliči. Dostop ostane do konca obračunskega obdobja.
             </Text>
           </View>
 
           {/* Section 5 */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>5. Točnost podatkov</Text>
+            <Text style={styles.sectionTitle}>5. Točnost podatkov in odgovornost</Text>
             <Text style={styles.sectionText}>
-              Cene in podatke o izdelkih pridobivamo iz javno dostopnih virov trgovin. Čeprav si prizadevamo za točnost:
+              <Text style={{ fontWeight: "700" }}>5.1 Prikazane cene</Text>{"\n"}
+              Cene so informativne narave in pridobljene iz javnih virov. Ne jamčimo za:
+              {"\n"}
+              • Popolno točnost prikazanih cen{"\n"}
+              • Aktualnost podatkov{"\n"}
+              • Razpoložljivost izdelkov
               {"\n\n"}
-              • Ne jamčimo za popolno točnost cen{"\n"}
-              • Cene se lahko razlikujejo od dejanskih cen v trgovini{"\n"}
-              • Priporočamo preverjanje cen pred nakupom{"\n"}
-              • Nismo odgovorni za morebitne razlike v cenah
+              <Text style={{ fontWeight: "700" }}>5.2 Opozorilo potrošnikom</Text>{"\n"}
+              Dejanske cene v trgovinah se lahko razlikujejo. Vedno preverite ceno pred nakupom. Ne prevzemamo odgovornosti za razlike med prikazanimi in dejanskimi cenami.
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>5.3 Kuponi</Text>{"\n"}
+              Veljavnost in pogoji kuponov se lahko spremenijo. Kuponi so last trgovin in podvrženi njihovim pogojem uporabe.
             </Text>
           </View>
 
-          {/* Section 6 */}
+          {/* Section 6 - GDPR Compliant */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>6. Varstvo osebnih podatkov</Text>
+            <Text style={styles.sectionTitle}>6. Varstvo osebnih podatkov (GDPR/ZVOP-2)</Text>
             <Text style={styles.sectionText}>
-              Vaše osebne podatke obdelujemo v skladu z Uredbo (EU) 2016/679 (GDPR) in Zakonom o varstvu osebnih podatkov (ZVOP-2). Zbiramo in obdelujemo:
+              <Text style={{ fontWeight: "700" }}>6.1 Upravljavec podatkov</Text>{"\n"}
+              Za demonstracijske namene - kontakt: support@prhran.si
               {"\n\n"}
-              • E-poštni naslov (za prijavo){"\n"}
-              • Podatke o nakupovalnih seznamih{"\n"}
-              • Številke lojalnostnih kartic (opcijsko){"\n"}
-              • Podatke o uporabi aplikacije
+              <Text style={{ fontWeight: "700" }}>6.2 Zbrani podatki</Text>{"\n"}
+              • E-poštni naslov (prijava){"\n"}
+              • Nakupovalni seznami{"\n"}
+              • Podatki o uporabi (analytics){"\n"}
+              • IP naslov in naprava (varnost){"\n"}
+              • Lojalnostne kartice (opcijsko)
               {"\n\n"}
-              Vaših podatkov ne prodajamo tretjim osebam. Več informacij najdete v naši Politiki zasebnosti.
+              <Text style={{ fontWeight: "700" }}>6.3 Namen obdelave</Text>{"\n"}
+              • Zagotavljanje storitve{"\n"}
+              • Personalizacija izkušnje{"\n"}
+              • Varnostno spremljanje{"\n"}
+              • Premium funkcionalnosti{"\n"}
+              • Pošiljanje obvestil o cenah
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>6.4 Pravna podlaga</Text>{"\n"}
+              • Pogodba (izvajanje storitve){"\n"}
+              • Privolitev (marketing){"\n"}
+              • Zakonite koristi (varnost)
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>6.5 Vaše pravice po GDPR</Text>{"\n"}
+              • Dostop do podatkov (člen 15){"\n"}
+              • Popravek podatkov (člen 16){"\n"}
+              • Izbris podatkov - "pravica do pozabe" (člen 17){"\n"}
+              • Prenos podatkov (člen 20){"\n"}
+              • Ugovor obdelavi (člen 21){"\n"}
+              • Pritožba pri IP RS (Informacijski pooblaščenec)
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>6.6 Hramba podatkov</Text>{"\n"}
+              • Aktivni računi: dokler uporabljate storitev{"\n"}
+              • Izbrisani računi: 30 dni (backup){"\n"}
+              • Plačilni podatki: 5 let (davčna zakonodaja)
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>6.7 Tretje osebe</Text>{"\n"}
+              Podatke delimo samo z:
+              {"\n"}
+              • Convex (backend hosting - EU strežniki){"\n"}
+              • Better Auth (avtentikacija){"\n"}
+              • Plačilni procesorji (Stripe/podobno)
+              {"\n"}
+              Ne prodajamo vaših podatkov.
             </Text>
           </View>
 
           {/* Section 7 */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>7. Intelektualna lastnina</Text>
+            <Text style={styles.sectionTitle}>7. Intelektualna lastnina in blagovne znamke</Text>
             <Text style={styles.sectionText}>
-              Vsa vsebina Aplikacije, vključno z logotipi, besedili, grafiko in programsko kodo, je zaščitena z avtorskimi pravicami in je last Pr'Hran d.o.o.
+              <Text style={{ fontWeight: "700" }}>7.1 Naša vsebina</Text>{"\n"}
+              Aplikacija, logotip Pr'Hran, koda in original grafike so zaščiteni z avtorskimi pravicami.
               {"\n\n"}
-              Brez našega pisnega dovoljenja ni dovoljeno:
+              <Text style={{ fontWeight: "700" }}>7.2 Blagovne znamke trgovin</Text>{"\n"}
+              Vsi logotipi, imena in znamke trgovin (Spar, Mercator, Tuš, Hofer, Lidl, Jager) so last njihovih imetnikov. Uporaba v aplikaciji je:
+              {"\n"}
+              • V informativne namene (primerjava cen){"\n"}
+              • Skladno s členom 52 ZIL-1 (uporaba za identifikacijo){"\n"}
+              • Brez namena zavajanja potrošnikov{"\n"}
+              • Brez trditve o povezavi ali sponzorstvu
               {"\n\n"}
-              • Kopiranje ali reproduciranje vsebine{"\n"}
-              • Spreminjanje ali ustvarjanje izpeljanih del{"\n"}
-              • Distribucija ali javno prikazovanje{"\n"}
-              • Komercialna uporaba vsebine
+              <Text style={{ fontWeight: "700" }}>7.3 Izjava o nepovezanosti</Text>{"\n"}
+              Pr'Hran NI povezan z navedenimi trgovinami in ne zastopa njihovih interesov. Smo neodvisna primerjalna platforma.
             </Text>
           </View>
 
@@ -145,13 +235,24 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>8. Omejitev odgovornosti</Text>
             <Text style={styles.sectionText}>
-              Aplikacija je zagotovljena "takšna kot je". V največji možni meri, ki jo dovoljuje zakon:
-              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>8.1 Zagotovljeno "kot je"</Text>{"\n"}
+              V največji meri dovoljeni z zakonom:
+              {"\n"}
               • Ne jamčimo za neprekinjeno delovanje{"\n"}
+              • Ne odgovarjamo za netočne podatke tretjih oseb{"\n"}
               • Ne odgovarjamo za posredno škodo{"\n"}
-              • Naša odgovornost je omejena na znesek plačane naročnine
+              • Naša odgovornost je omejena na plačano naročnino
               {"\n\n"}
-              Ta omejitev ne vpliva na vaše zakonske pravice kot potrošnika.
+              <Text style={{ fontWeight: "700" }}>8.2 Izključitev odgovornosti</Text>{"\n"}
+              Ne odgovarjamo za:
+              {"\n"}
+              • Razlike med prikazanimi in dejanskimi cenami{"\n"}
+              • Neveljavne kupone ali akcije{"\n"}
+              • Izgubo dobička zaradi uporabe aplikacije{"\n"}
+              • Odločitve o nakupu na podlagi naših podatkov
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>8.3 Varovanje potrošnikov</Text>{"\n"}
+              Ta omejitev ne vpliva na vaše zakonske pravice po ZVPS-1.
             </Text>
           </View>
 
@@ -159,44 +260,81 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>9. Spremembe pogojev</Text>
             <Text style={styles.sectionText}>
-              Pridržujemo si pravico do spremembe teh Pogojev. O bistvenih spremembah vas bomo obvestili:
+              O bistvenih spremembah vas bomo obvestili:
               {"\n\n"}
-              • Preko e-pošte{"\n"}
-              • Z obvestilom v Aplikaciji{"\n"}
-              • Najmanj 30 dni pred uveljavitvijo
+              • Preko e-pošte (30 dni vnaprej){"\n"}
+              • Z obvestilom v aplikaciji{"\n"}
+              • Posodobljen datum na vrhu dokumenta
               {"\n\n"}
-              Nadaljnja uporaba Aplikacije po uveljavitvi sprememb pomeni strinjanje z novimi Pogoji.
+              Nadaljnja uporaba po spremembah pomeni strinjanje. Če se ne strinjate, lahko prekličete račun.
             </Text>
           </View>
 
           {/* Section 10 */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>10. Reševanje sporov</Text>
+            <Text style={styles.sectionTitle}>10. Reševanje sporov in pravo</Text>
             <Text style={styles.sectionText}>
-              Za te Pogoje velja pravo Republike Slovenije. Morebitne spore bomo reševali sporazumno. Če to ni mogoče, je pristojno sodišče v Ljubljani.
+              <Text style={{ fontWeight: "700" }}>10.1 Veljavno pravo</Text>{"\n"}
+              Za te pogoje velja pravo Republike Slovenije in EU direktive (vključno z GDPR).
               {"\n\n"}
-              Kot potrošnik imate pravico do izvensodnega reševanja sporov. Več informacij: https://ec.europa.eu/odr
+              <Text style={{ fontWeight: "700" }}>10.2 Pristojnost</Text>{"\n"}
+              Morebitne spore bomo reševali sporazumno. Če to ni mogoče:
+              {"\n"}
+              • Potrošniki: sodišče po vašem prebivališču (ZVPS-1){"\n"}
+              • Poslovni uporabniki: sodišče v Ljubljani
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>10.3 Izvensodno reševanje</Text>{"\n"}
+              Potrošniki lahko uporabite platformo ODR (Online Dispute Resolution):
+              {"\n"}
+              https://ec.europa.eu/consumers/odr
+              {"\n\n"}
+              Ali kontaktirate Varuh pravic potrošnikov RS:
+              {"\n"}
+              https://www.gov.si/drzavni-organi/organi-v-sestavi/varuh-pravic-potrosnikov/
             </Text>
           </View>
 
           {/* Section 11 */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>11. Kontakt</Text>
+            <Text style={styles.sectionTitle}>11. Kontaktni podatki</Text>
             <Text style={styles.sectionText}>
-              Za vprašanja glede teh Pogojev nas kontaktirajte:
+              <Text style={{ fontWeight: "700" }}>Splošna vprašanja:</Text>{"\n"}
+              E-pošta: podpora@prhran.si
               {"\n\n"}
-              Pr'Hran d.o.o.{"\n"}
-              E-pošta: podpora@prhran.si{"\n"}
+              <Text style={{ fontWeight: "700" }}>GDPR zahteve (dostop, izbris, itd.):</Text>{"\n"}
+              E-pošta: gdpr@prhran.si
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>Plačila in naročnine:</Text>{"\n"}
+              E-pošta: billing@prhran.si
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>Pravne zadeve:</Text>{"\n"}
+              E-pošta: legal@prhran.si
+              {"\n\n"}
+              <Text style={{ fontWeight: "700" }}>Čas odziva:</Text> 48 ur (2 delovna dneva)
+            </Text>
+          </View>
+
+          {/* Section 12 - Compliance Summary */}
+          <View style={[styles.section, { backgroundColor: "rgba(16, 185, 129, 0.1)", borderWidth: 1, borderColor: "rgba(16, 185, 129, 0.3)", borderRadius: 12, padding: 16 }]}>
+            <Text style={[styles.sectionTitle, { fontSize: 14, color: "#10b981" }]}>✅ Skladnost z zakoni</Text>
+            <Text style={[styles.sectionText, { fontSize: 12 }]}>
+              Ta dokument je skladen z:
               {"\n"}
-              Matična številka: 12345678{"\n"}
-              Davčna številka: SI12345678
+              • GDPR (EU 2016/679) - varstvo podatkov{"\n"}
+              • ZVOP-2 - slovenski zakon o varstvu podatkov{"\n"}
+              • ZVPS-1 - zakon o varstvu potrošnikov{"\n"}
+              • ZIL-1 - zakon o industrijski lastnini{"\n"}
+              • ZEKom-1 - zakon o elektronskem poslovanju{"\n"}
+              • Direktiva o pravicah potrošnikov (2011/83/EU)
             </Text>
           </View>
 
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>
-              Z uporabo aplikacije Pr'Hran potrjujete, da ste prebrali, razumeli in se strinjate s temi Pogoji uporabe.
+              ⚖️ Z uporabo aplikacije Pr'Hran potrjujete, da ste prebrali, razumeli in se strinjate s temi Pogoji uporabe.
+              {"\n\n"}
+              Vaše pravice kot potrošnika so zaščitene z zakoni Republike Slovenije in EU.
             </Text>
           </View>
 

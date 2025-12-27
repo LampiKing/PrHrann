@@ -1,5 +1,6 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
+import { internal, api } from "./_generated/api";
 
 // Pridobi vse trgovine
 export const getAll = query({
@@ -28,11 +29,11 @@ export const seedStores = mutation({
     if (existingStores.length > 0) return null;
 
     const stores = [
-      { name: "Spar", color: "#00843D", isPremium: false },
-      { name: "Mercator", color: "#E31E24", isPremium: false },
-      { name: "Tus", color: "#FF6B00", isPremium: false },
-      { name: "Lidl", color: "#0050AA", isPremium: false },
-      { name: "Hofer", color: "#00529B", isPremium: true },
+      { name: "Spar", color: "#FDB913", isPremium: false }, // Rumeno-rdeč
+      { name: "Mercator", color: "#E31E24", isPremium: false }, // Belo-rdeč s pikicami
+      { name: "Tus", color: "#1B5E20", isPremium: false }, // Temno zelen
+      { name: "Lidl", color: "#0050AA", isPremium: false }, // Moder
+      { name: "Hofer", color: "#FFD500", isPremium: true }, // Rumen
       { name: "Jager", color: "#8B4513", isPremium: true },
     ];
 
@@ -40,5 +41,48 @@ export const seedStores = mutation({
       await ctx.db.insert("stores", store);
     }
     return null;
+  },
+});
+
+// Inicializiraj vse podatke iz seedData.ts
+export const initializeAllData = action({
+  args: {},
+  returns: v.object({
+    stores: v.number(),
+    products: v.number(),
+    prices: v.number(),
+    coupons: v.number(),
+  }),
+  handler: async (ctx): Promise<{ stores: number; products: number; prices: number; coupons: number; }> => {
+    // Preverimo če že imamo podatke
+    const existingStores: any[] = await ctx.runQuery(api.stores.getAll);
+    if (existingStores.length > 0) {
+      return {
+        stores: existingStores.length,
+        products: 0,
+        prices: 0,
+        coupons: 0,
+      };
+    }
+    
+    // Kličemo seedDatabase funkcijo
+    const result: { stores: number; products: number; prices: number; coupons: number; } = await ctx.runAction(internal.seedData.seedDatabase);
+    return result;
+  },
+});
+
+// Force reset in ponovno naloži podatke
+export const resetAndSeedData = action({
+  args: {},
+  returns: v.object({
+    stores: v.number(),
+    products: v.number(),
+    prices: v.number(),
+    coupons: v.number(),
+  }),
+  handler: async (ctx): Promise<{ stores: number; products: number; prices: number; coupons: number; }> => {
+    // Vedno resetiraj in ponovno naloži
+    const result: { stores: number; products: number; prices: number; coupons: number; } = await ctx.runAction(internal.seedData.seedDatabase);
+    return result;
   },
 });

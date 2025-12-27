@@ -28,9 +28,12 @@ export const checkSuspiciousActivity = mutation({
       const oldIpParts = profile.lastIpAddress.split('.');
       const newIpParts = args.ipAddress.split('.');
       
-      // If first two octets are different, likely different location
-      if (oldIpParts[0] !== newIpParts[0] || oldIpParts[1] !== newIpParts[1]) {
-        suspicious = true;
+      // Validate IP format before comparison
+      if (oldIpParts.length >= 2 && newIpParts.length >= 2) {
+        // If first two octets are different, likely different location
+        if (oldIpParts[0] !== newIpParts[0] || oldIpParts[1] !== newIpParts[1]) {
+          suspicious = true;
+        }
       }
     }
 

@@ -58,14 +58,32 @@ export default defineSchema({
     canCombine: v.optional(v.boolean()),
     // Kategorije za category_discount tip
     applicableCategories: v.optional(v.array(v.string())),
+    // Dodatni pogoji
+    maxUsesPerUser: v.optional(v.number()), // Koliko krat lahko uporabnik uporabi (npr. 1 za ENKRAT)
+    excludedProducts: v.optional(v.array(v.string())), // Izključeni izdelki (npr. "postreženo meso")
+    additionalNotes: v.optional(v.string()), // Dodatna opozorila
+    weekNumber: v.optional(v.number()), // Za tedenski tracking kuponov
+    isActive: v.optional(v.boolean()), // Ali je kupon aktiven
     isPremiumOnly: v.boolean(),
   }).index("by_store", ["storeId"]),
+
+  // Coupon Usage Tracking - za maxUsesPerUser
+  couponUsage: defineTable({
+    userId: v.string(),
+    couponId: v.id("coupons"),
+    usedAt: v.number(),
+    orderId: v.optional(v.string()), // Za tracking če implementiramo naročila
+    savings: v.number(), // Koliko je uporabnik prihranil
+  }).index("by_user_and_coupon", ["userId", "couponId"])
+    .index("by_user", ["userId"]),
 
   // Uporabniški profili
   userProfiles: defineTable({
     userId: v.string(),
     name: v.optional(v.string()),
     email: v.optional(v.string()),
+    emailVerified: v.optional(v.boolean()),
+    isAnonymous: v.optional(v.boolean()),
     // Datum rojstva
     birthDate: v.optional(v.object({
       day: v.number(),
@@ -94,6 +112,20 @@ export default defineSchema({
     lastSavingsReset: v.optional(v.number()), // Kdaj resetiramo mesečne
   }).index("by_user_id", ["userId"])
     .index("by_family_owner", ["familyOwnerId"]),
+
+  // Email verification records
+  emailVerifications: defineTable({
+    userId: v.string(),
+    email: v.string(),
+    code: v.string(), // 6-mestna koda
+    token: v.string(), // povezava token
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    verified: v.boolean(),
+    verifiedAt: v.optional(v.number()),
+    resendCount: v.optional(v.number()), // koliko krat je bila koda ponovno poslana
+    lastSentAt: v.optional(v.number()), // zadnji čas pošiljanja emaila
+  }).index("by_user", ["userId"]).index("by_token", ["token"]),
 
   // Shopping Lists
   shoppingLists: defineTable({

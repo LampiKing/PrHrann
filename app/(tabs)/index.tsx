@@ -7,14 +7,12 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  Dimensions,
   Platform,
   Animated as RNAnimated,
-  PanResponder,
   Easing,
   Modal,
-  ActivityIndicator,
 } from "react-native";
+import Logo from "@/lib/Logo";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,9 +24,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-import { canGuestViewProduct, recordGuestView, getGuestViewsRemaining, resetGuestData } from "@/lib/guest-mode";
+import { PLAN_PLUS } from "@/lib/branding";
+import { createShadow, createTextShadow } from "@/lib/shadow-helper";
+import AppLogo from "@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface PriceInfo {
   storeId: Id<"stores">;
@@ -50,13 +49,69 @@ interface ProductResult {
   highestPrice: number;
 }
 
-const STORE_LOGOS: Record<string, string> = {
-  "Spar": "🟢",
-  "Mercator": "🔵",
-  "Tus": "🟡",
-  "Hofer": "🔴",
-  "Lidl": "🟠",
-  "Jager": "🟣",
+type BrandAccent = { color: string; position?: "left" | "right"; width?: number };
+type BrandRing = { color: string; width?: number };
+type BrandLogo = "mercator";
+
+type StoreBrand = {
+  bg: string;
+  border: string;
+  text: string;
+  accent?: BrandAccent;
+  ring?: BrandRing;
+  cornerIcon?: { char: string; color: string; top: number; left: number; fontSize: number };
+  logo?: BrandLogo;
+};
+
+const STORE_BRANDS: Record<string, StoreBrand> = {
+  mercator: {
+    bg: "#d3003c",
+    border: "#b60035",
+    text: "#fff",
+    logo: "mercator",
+  },
+  spar: {
+    bg: "#c8102e",
+    border: "#a70e27",
+    text: "#fff",
+  },
+  tuš: {
+    bg: "#0d8a3c",
+    border: "#0b6e30",
+    text: "#fff",
+    cornerIcon: { char: "★", color: "#facc15", top: 2, left: 20, fontSize: 9 },
+  },
+  tus: {
+    bg: "#0d8a3c",
+    border: "#0b6e30",
+    text: "#fff",
+    cornerIcon: { char: "★", color: "#facc15", top: 2, left: 20, fontSize: 9 },
+  },
+  hofer: {
+    bg: "#0b3d7a",
+    border: "#0b3d7a",
+    text: "#fff",
+    ring: { color: "#fbbf24", width: 1.2 },
+  },
+  lidl: {
+    bg: "#0047ba",
+    border: "#0047ba",
+    text: "#fff",
+  },
+  jager: {
+    bg: "#1f8a3c",
+    border: "#b91c1c",
+    text: "#fff",
+    accent: { color: "#b91c1c", position: "left", width: 4 },
+  },
+};
+
+const getStoreBrand = (name?: string, fallbackColor?: string) => {
+  const key = (name || "").toLowerCase();
+  const brand = STORE_BRANDS[key as keyof typeof STORE_BRANDS];
+  if (brand) return brand;
+  const color = fallbackColor || "#8b5cf6";
+  return { bg: color, border: color, text: "#fff" };
 };
 
 export default function SearchScreen() {
@@ -66,15 +121,12 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
-  const [sortAscending, setSortAscending] = useState(true);
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
 
-  // Guest mode state
-  const [isGuestMode, setIsGuestMode] = useState(false);
-  const [guestViewsRemaining, setGuestViewsRemaining] = useState(1);
-  const [guestCooldownTime, setGuestCooldownTime] = useState<string | null>(null);
+  // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
-  const [hasViewedAsGuest, setHasViewedAsGuest] = useState(false);
+  const [guestModalContext, setGuestModalContext] = useState<"search" | "cart">("search");
+  const [approvedQuery, setApprovedQuery] = useState("");
 
   // Camera/Scanner state
   const [showScanner, setShowScanner] = useState(false);
@@ -82,11 +134,17 @@ export default function SearchScreen() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [cartToastMessage, setCartToastMessage] = useState("");
+  const [showCartToast, setShowCartToast] = useState(false);
+  const [showCartPreview, setShowCartPreview] = useState(false);
+  const [recentCartItems, setRecentCartItems] = useState<
+    Array<{ key: string; name: string; store: string; quantity: number }>
+  >([]);
 
   // Animations
   const searchBarScale = useRef(new RNAnimated.Value(1)).current;
   const cardAnimationsRef = useRef<{ [key: string]: RNAnimated.Value }>({});
-  const swipeIndicator = useRef(new RNAnimated.Value(0)).current;
+  // Sorting fixed to cheapest-first; no swipe indicator needed
   
   // Premium button shake animation
   const shakeAnim = useRef(new RNAnimated.Value(0)).current;
@@ -95,36 +153,40 @@ export default function SearchScreen() {
   // Scanner animation
   const scanLineAnim = useRef(new RNAnimated.Value(0)).current;
   const pulseAnim = useRef(new RNAnimated.Value(1)).current;
+  const cartToastAnim = useRef(new RNAnimated.Value(0)).current;
+  const cartPreviewAnim = useRef(new RNAnimated.Value(0)).current;
+  const cartToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cartPreviewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const profile = useQuery(
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
   );
   const isPremium = profile?.isPremium ?? false;
-  const searchesRemaining = profile?.searchesRemaining ?? 3;
+  const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
+  const isGuestMode = !isAuthenticated || isGuest;
+  const maxSearches = isPremium ? 999 : (isGuestMode ? 1 : 3);
+  const searchesRemaining = profile?.searchesRemaining ?? (isGuestMode ? 1 : 3);
   const searchResetTime = profile?.searchResetTime;
-
-  // Check if user is in guest mode (not authenticated)
-  useEffect(() => {
-    setIsGuestMode(!isAuthenticated);
-    
-    // If authenticated and had viewed as guest, reset guest data
-    if (isAuthenticated && hasViewedAsGuest) {
-      resetGuestData();
-      setHasViewedAsGuest(false);
-    }
-    
-    // Load guest view status
-    if (!isAuthenticated) {
-      loadGuestStatus();
-    }
-  }, [isAuthenticated]);
-  
-  const loadGuestStatus = async () => {
-    const status = await getGuestViewsRemaining();
-    setGuestViewsRemaining(status.remaining);
-    setGuestCooldownTime(status.timeUntilReset || null);
-  };
+  const searchLimitRatio = Math.max(0, Math.min(1, searchesRemaining / maxSearches));
+  const searchLimitLabel = maxSearches === 1 ? "gostujoče iskanje" : "brezplačnih iskanj";
+  const isGuestCartContext = guestModalContext === "cart";
+  const guestModalSubtitle = isGuestCartContext
+    ? "Za dodajanje v Košarico se prijavi ali registriraj.\nDobiš 3 iskanja v 24h + dostop do Košarice in Profila."
+    : "Kot gost imaš 1 iskanje na dan. Registriraj se za 3 iskanja v 24h ter dostop do Košarice in Profila.";
+  const cart = useQuery(
+    api.cart.getCart,
+    isAuthenticated && !isGuestMode ? {} : "skip"
+  );
+  const cartPreviewItems = cart?.items?.slice(-3) ?? [];
+  const previewItems = recentCartItems.length
+    ? recentCartItems
+    : cartPreviewItems.map((item) => ({
+        key: item._id,
+        name: item.productName,
+        store: item.storeName,
+        quantity: item.quantity,
+      }));
 
   // Timer state for countdown
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
@@ -165,30 +227,88 @@ export default function SearchScreen() {
   const recordSearch = useMutation(api.userProfiles.recordSearch);
   const addToCart = useMutation(api.cart.addToCart);
   const analyzeImage = useAction(api.ai.analyzeProductImage);
+
+  const handleGuestAuthPress = useCallback(() => {
+    setShowGuestLimitModal(false);
+    setTimeout(() => {
+      router.push({ pathname: "/auth", params: { mode: "register" } });
+    }, 0);
+  }, [router]);
+
+  const handleGuestPremiumPress = useCallback(() => {
+    setShowGuestLimitModal(false);
+    setTimeout(() => {
+      router.push("/premium");
+    }, 0);
+  }, [router]);
+
+  const triggerCartToast = useCallback((message: string) => {
+    if (cartToastTimeoutRef.current) {
+      clearTimeout(cartToastTimeoutRef.current);
+    }
+    setCartToastMessage(message);
+    setShowCartToast(true);
+    RNAnimated.timing(cartToastAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+    cartToastTimeoutRef.current = setTimeout(() => {
+      RNAnimated.timing(cartToastAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }).start(() => setShowCartToast(false));
+    }, 1600);
+  }, [cartToastAnim]);
+
+  const triggerCartPreview = useCallback(() => {
+    if (cartPreviewTimeoutRef.current) {
+      clearTimeout(cartPreviewTimeoutRef.current);
+    }
+    setShowCartPreview(true);
+    RNAnimated.spring(cartPreviewAnim, {
+      toValue: 1,
+      tension: 60,
+      friction: 10,
+      useNativeDriver: true,
+    }).start();
+    cartPreviewTimeoutRef.current = setTimeout(() => {
+      RNAnimated.timing(cartPreviewAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => setShowCartPreview(false));
+    }, 2400);
+  }, [cartPreviewAnim]);
+  
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.length >= 2 && !searching) {
+        handleSearch();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
   
   // Handle search with recordSearch call
   const handleSearch = async () => {
-    if (searchQuery.length < 2) return;
+    const trimmedQuery = searchQuery.trim();
     
-    // GUEST MODE: Check if guest can view
-    if (isGuestMode) {
-      const guestCheck = await canGuestViewProduct();
-      
-      if (!guestCheck.allowed) {
-        setShowGuestLimitModal(true);
-        return;
-      }
-      
-      // Guest can view - proceed with search but don't record in backend
-      setSearching(true);
-      // Search will happen via useQuery below
-      setTimeout(() => setSearching(false), 500);
+    // Validate query
+    if (trimmedQuery.length < 2 || trimmedQuery.length > 100) {
       return;
     }
     
-    // AUTHENTICATED USER: Check search limits
+    // Check search limits
     if (!isPremium && searchesRemaining <= 0) {
-      setShowPremiumModal(true);
+      if (isGuestMode) {
+        setGuestModalContext("search");
+        setShowGuestLimitModal(true);
+      } else {
+        setShowPremiumModal(true);
+      }
       return;
     }
     
@@ -198,10 +318,16 @@ export default function SearchScreen() {
       // Record search first
       const recordResult = await recordSearch();
       if (!recordResult.success) {
-        setShowPremiumModal(true);
+        if (isGuestMode) {
+          setGuestModalContext("search");
+          setShowGuestLimitModal(true);
+        } else {
+          setShowPremiumModal(true);
+        }
         setSearching(false);
         return;
       }
+      setApprovedQuery(trimmedQuery);
       
       // Trigger re-fetch of profile to update searchesRemaining
       // The search results will be fetched by useQuery below
@@ -215,48 +341,15 @@ export default function SearchScreen() {
   // Auto-search when query changes (but only after recordSearch)
   const searchResultsQuery = useQuery(
     api.products.search,
-    searchQuery.length >= 2 && !searching ? { query: searchQuery, isPremium } : "skip"
+    approvedQuery.length >= 2 && !searching ? { query: approvedQuery, isPremium } : "skip"
   ) as ProductResult[] | undefined;
   
   const searchResults = searchResultsQuery || [];
 
   // Sort results based on swipe direction
   const sortedResults = searchResults
-    ? [...searchResults].sort((a, b) =>
-        sortAscending ? a.lowestPrice - b.lowestPrice : b.lowestPrice - a.lowestPrice
-      )
+    ? [...searchResults].sort((a, b) => a.lowestPrice - b.lowestPrice)
     : [];
-
-  // Swipe handler for sorting
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 50;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        swipeIndicator.setValue(gestureState.dx / SCREEN_WIDTH);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -50) {
-          // Swipe left - sort ascending (cheapest first)
-          setSortAscending(true);
-          if (Platform.OS !== "web") {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }
-        } else if (gestureState.dx > 50) {
-          // Swipe right - sort descending (most expensive first)
-          setSortAscending(false);
-          if (Platform.OS !== "web") {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }
-        }
-        RNAnimated.spring(swipeIndicator, {
-          toValue: 0,
-          useNativeDriver: true,
-        }).start();
-      },
-    })
-  ).current;
 
   const handleSearchFocus = () => {
     RNAnimated.spring(searchBarScale, {
@@ -292,7 +385,7 @@ export default function SearchScreen() {
         }).start();
       });
     }
-  }, [sortedResults.length, sortAscending]);
+  }, [sortedResults.length]);
 
   // Premium button shake effect
   useEffect(() => {
@@ -365,6 +458,17 @@ export default function SearchScreen() {
       ])
     ).start();
   }, [isPremium, glowAnim]);
+
+  useEffect(() => {
+    return () => {
+      if (cartToastTimeoutRef.current) {
+        clearTimeout(cartToastTimeoutRef.current);
+      }
+      if (cartPreviewTimeoutRef.current) {
+        clearTimeout(cartPreviewTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handlePremiumPress = () => {
     if (Platform.OS !== "web") {
@@ -546,8 +650,10 @@ export default function SearchScreen() {
 
   const handleAddToCart = useCallback(
     async (product: ProductResult, price: PriceInfo) => {
-      if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (isGuestMode) {
+        setGuestModalContext("cart");
+        setShowGuestLimitModal(true);
+        return;
       }
       try {
         await addToCart({
@@ -555,16 +661,31 @@ export default function SearchScreen() {
           storeId: price.storeId,
           price: price.price,
         });
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
         setAddedToCart(`${product._id}-${price.storeId}`);
+        setRecentCartItems((prev) => [
+          {
+            key: `${product._id}-${price.storeId}-${Date.now()}`,
+            name: product.name,
+            store: price.storeName,
+            quantity: 1,
+          },
+          ...prev,
+        ].slice(0, 3));
+        triggerCartToast(`${product.name} dodan v košarico`);
+        triggerCartPreview();
         setTimeout(() => setAddedToCart(null), 1500);
       } catch (error) {
         console.error("Napaka pri dodajanju:", error);
       }
     },
-    [addToCart]
+    [addToCart, isGuestMode, triggerCartToast, triggerCartPreview]
   );
 
   const formatPrice = (price: number) => {
+    if (!Number.isFinite(price) || price <= 0) return "Ni cene";
     return price.toFixed(2).replace(".", ",") + " €";
   };
 
@@ -582,11 +703,22 @@ export default function SearchScreen() {
     setExpandedProduct(expandedProduct === productId ? null : productId);
   };
 
-  const renderProductCard = (product: ProductResult, _index: number) => {
+  const renderProductCard = (product: ProductResult) => {
     const isExpanded = expandedProduct === product._id;
-    const savings = calculateSavings(product);
-    const lowestPriceStore = product.prices[0];
+    const validPriceStores = product.prices.filter((p) => Number.isFinite(p.price) && p.price > 0);
+    const lowestPriceStore = validPriceStores[0];
+    const displayLowestPrice = lowestPriceStore?.price ?? product.lowestPrice;
+    const lowestBrand = lowestPriceStore
+      ? getStoreBrand(lowestPriceStore.storeName, lowestPriceStore.storeColor)
+      : null;
+    const savings = calculateSavings({
+      ...product,
+      prices: validPriceStores,
+      lowestPrice: displayLowestPrice,
+      highestPrice: product.highestPrice,
+    });
     const cardAnim = getCardAnimation(product._id);
+    const cartLocked = isGuestMode;
 
     return (
       <RNAnimated.View
@@ -651,29 +783,67 @@ export default function SearchScreen() {
 
               {/* Price Display */}
               <View style={styles.priceSection}>
-                <View style={styles.lowestPriceContainer}>
-                  <Text style={styles.lowestPriceLabel}>Najnižja</Text>
-                  <Text style={styles.lowestPrice}>{formatPrice(product.lowestPrice)}</Text>
-                  <View style={styles.storeIndicator}>
-                    <Text style={styles.storeEmoji}>{STORE_LOGOS[lowestPriceStore?.storeName] || "🏪"}</Text>
-                    <Text style={styles.storeName}>{lowestPriceStore?.storeName}</Text>
-                  </View>
+                <View style={styles.priceMetaRow}>
+                  <Text style={styles.lowestPriceLabel}>Najnižja cena</Text>
+                  {lowestBrand && lowestPriceStore && (
+                    <View style={styles.storeChip}>
+                      <View
+                        style={[
+                          styles.storeLogoSmall,
+                          { backgroundColor: lowestBrand.bg, borderColor: lowestBrand.border },
+                        ]}
+                      >
+                        {lowestBrand.ring && (
+                          <View
+                            style={[
+                              styles.brandRingSmall,
+                              { borderColor: lowestBrand.ring.color, borderWidth: lowestBrand.ring.width ?? 1.5 },
+                            ]}
+                          />
+                        )}
+                        {lowestBrand.cornerIcon && (
+                          <Text
+                            style={[
+                              styles.cornerIcon,
+                              {
+                                top: lowestBrand.cornerIcon.top,
+                                left: lowestBrand.cornerIcon.left,
+                                color: lowestBrand.cornerIcon.color,
+                                fontSize: lowestBrand.cornerIcon.fontSize,
+                              },
+                            ]}
+                          >
+                            {lowestBrand.cornerIcon.char}
+                          </Text>
+                        )}
+                        <Text style={[styles.storeLogoSmallText, { color: lowestBrand.text }]}>
+                          {lowestPriceStore.storeName.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={styles.storeChipName}>{lowestPriceStore.storeName}</Text>
+                    </View>
+                  )}
                 </View>
 
-                {savings && (
-                  <View style={styles.savingsBadge}>
-                    <Ionicons name="trending-down" size={12} color="#10b981" />
-                    <Text style={styles.savingsText}>-{savings.percentage}%</Text>
-                  </View>
-                )}
+                <View style={styles.priceValueRow}>
+                  <Text style={styles.lowestPrice}>{formatPrice(displayLowestPrice)}</Text>
+                  {savings && savings.amount > 0 && (
+                    <View style={styles.savingsBadge}>
+                      <Ionicons name="trending-down" size={14} color="#0ea35c" />
+                      <Text style={styles.savingsText}>-{savings.percentage}%</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
+              </View>
 
             {/* Quick Add Button */}
             <TouchableOpacity
               style={[
                 styles.quickAddButton,
                 addedToCart === `${product._id}-${lowestPriceStore?.storeId}` && styles.quickAddButtonSuccess,
+                cartLocked && styles.quickAddButtonLocked,
+                !lowestPriceStore && { opacity: 0.5 },
               ]}
               onPress={(e) => {
                 e.stopPropagation();
@@ -681,24 +851,39 @@ export default function SearchScreen() {
                   handleAddToCart(product, lowestPriceStore);
                 }
               }}
+              disabled={!lowestPriceStore}
             >
               <LinearGradient
                 colors={
-                  addedToCart === `${product._id}-${lowestPriceStore?.storeId}`
-                    ? ["#10b981", "#059669"]
-                    : ["#8b5cf6", "#7c3aed"]
+                  cartLocked
+                    ? ["rgba(148, 163, 184, 0.35)", "rgba(71, 85, 105, 0.45)"]
+                    : addedToCart === `${product._id}-${lowestPriceStore?.storeId}`
+                      ? ["#10b981", "#059669"]
+                      : ["#8b5cf6", "#7c3aed"]
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.quickAddGradient}
               >
                 <Ionicons
-                  name={addedToCart === `${product._id}-${lowestPriceStore?.storeId}` ? "checkmark" : "add"}
+                  name={
+                    cartLocked
+                      ? "lock-closed"
+                      : addedToCart === `${product._id}-${lowestPriceStore?.storeId}`
+                        ? "checkmark"
+                        : "add"
+                  }
                   size={18}
                   color="#fff"
                 />
                 <Text style={styles.quickAddText}>
-                  {addedToCart === `${product._id}-${lowestPriceStore?.storeId}` ? "Dodano!" : "Dodaj najcenejše"}
+                  {cartLocked
+                    ? "Prijava za košarico"
+                    : lowestPriceStore
+                      ? addedToCart === `${product._id}-${lowestPriceStore?.storeId}`
+                        ? "Dodano!"
+                        : "Dodaj najcenejše"
+                      : "Ni cene"}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -723,6 +908,7 @@ export default function SearchScreen() {
               {product.prices.map((price, priceIndex) => {
                 const isLowest = priceIndex === 0;
                 const isAdded = addedToCart === `${product._id}-${price.storeId}`;
+                const storeBrand = getStoreBrand(price.storeName, price.storeColor);
 
                 return (
                   <View
@@ -734,11 +920,39 @@ export default function SearchScreen() {
                     ]}
                   >
                     <View style={styles.storeInfo}>
-                      <View style={[styles.storeLogo, { backgroundColor: price.storeColor + "20" }]}>
-                        <Text style={styles.storeLogoText}>{STORE_LOGOS[price.storeName] || "🏪"}</Text>
+                      <View style={[
+                        styles.storeLogo,
+                        { backgroundColor: storeBrand.bg, borderColor: storeBrand.border }
+                      ]}>
+                        {storeBrand.ring && (
+                          <View
+                            style={[
+                              styles.brandRingLarge,
+                              { borderColor: storeBrand.ring.color, borderWidth: storeBrand.ring.width ?? 1.6 },
+                            ]}
+                          />
+                        )}
+                        {storeBrand.cornerIcon && (
+                          <Text
+                            style={[
+                              styles.cornerIcon,
+                              {
+                                top: storeBrand.cornerIcon.top,
+                                left: storeBrand.cornerIcon.left,
+                                color: storeBrand.cornerIcon.color,
+                                fontSize: storeBrand.cornerIcon.fontSize,
+                              },
+                            ]}
+                          >
+                            {storeBrand.cornerIcon.char}
+                          </Text>
+                        )}
+                        <Text style={[styles.storeLogoText, { color: storeBrand.text }]}>
+                          {price.storeName.charAt(0).toUpperCase()}
+                        </Text>
                       </View>
                       <View>
-                        <Text style={styles.storeRowName}>{price.storeName}</Text>
+                        <Text style={styles.storeRowName}>{price.storeName.toUpperCase()}</Text>
                         {isLowest && (
                           <View style={styles.lowestBadge}>
                             <Text style={styles.lowestBadgeText}>NAJCENEJŠE</Text>
@@ -763,13 +977,17 @@ export default function SearchScreen() {
                       </View>
 
                       <TouchableOpacity
-                        style={[styles.addButton, isAdded && styles.addButtonSuccess]}
+                        style={[
+                          styles.addButton,
+                          isAdded && styles.addButtonSuccess,
+                          cartLocked && styles.addButtonLocked,
+                        ]}
                         onPress={() => handleAddToCart(product, price)}
                       >
                         <Ionicons
-                          name={isAdded ? "checkmark" : "cart-outline"}
+                          name={cartLocked ? "lock-closed" : isAdded ? "checkmark" : "cart-outline"}
                           size={20}
-                          color={isAdded ? "#10b981" : "#a78bfa"}
+                          color={cartLocked ? "#cbd5e1" : isAdded ? "#10b981" : "#a78bfa"}
                         />
                       </TouchableOpacity>
                     </View>
@@ -799,12 +1017,12 @@ export default function SearchScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        {...panResponder.panHandlers}
+        stickyHeaderIndices={[1]}
       >
         {/* Header */}
         <View style={styles.header}>
           <Image
-            source={require("@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png")}
+            source={AppLogo}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -812,50 +1030,87 @@ export default function SearchScreen() {
           <Text style={styles.subtitle}>Pametno nakupovanje</Text>
         </View>
 
-        {/* Search Bar with Camera Button */}
-        <View style={styles.searchRow}>
-          <RNAnimated.View style={[styles.searchContainer, { transform: [{ scale: searchBarScale }], flex: 1 }]}>
-            <BlurView intensity={40} tint="dark" style={styles.searchBlur}>
-              <LinearGradient
-                colors={["rgba(139, 92, 246, 0.2)", "rgba(59, 7, 100, 0.3)"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.searchGradient}
-              >
-                <Ionicons name="search" size={22} color="#a78bfa" style={styles.searchIcon} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Išči izdelke..."
-                  placeholderTextColor="#6b7280"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  onFocus={handleSearchFocus}
-                  onBlur={handleSearchBlur}
-                  onSubmitEditing={handleSearch}
-                  returnKeyType="search"
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => { setSearchQuery(""); setSearchResults([]); }} style={styles.clearButton}>
-                    <Ionicons name="close-circle" size={20} color="#6b7280" />
-                  </TouchableOpacity>
-                )}
-              </LinearGradient>
-            </BlurView>
-          </RNAnimated.View>
-
-          {/* Camera Button */}
-          <TouchableOpacity
-            style={styles.cameraButton}
-            onPress={handleOpenCamera}
-            activeOpacity={0.8}
-          >
+        <View style={styles.stickyHeader}>
+          {isGuestMode && (
             <LinearGradient
-              colors={["#fbbf24", "#f59e0b"]}
-              style={styles.cameraButtonGradient}
+              colors={["rgba(139, 92, 246, 0.18)", "rgba(88, 28, 135, 0.28)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.guestBanner}
             >
-              <Ionicons name="camera" size={24} color="#000" />
+              <View style={styles.guestBannerRow}>
+                <View style={styles.guestBannerBadge}>
+                  <Ionicons name="lock-closed" size={14} color="#c4b5fd" />
+                  <Text style={styles.guestBannerBadgeText}>GOST</Text>
+                </View>
+                <Text style={styles.guestBannerTitle}>Odkleni Košarico in Profil</Text>
+                <Text style={styles.guestBannerText}>
+                  Registracija odklene 3 iskanja/24h + Košarico + Profil.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.guestBannerCta}
+                onPress={handleGuestAuthPress}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={["#8b5cf6", "#7c3aed"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.guestBannerCtaGradient}
+                >
+                  <Ionicons name="person-add" size={16} color="#fff" />
+                  <Text style={styles.guestBannerCtaText}>Prijava / Registracija</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </LinearGradient>
-          </TouchableOpacity>
+          )}
+
+          {/* Search Bar with Camera Button */}
+          <View style={styles.searchRow}>
+            <RNAnimated.View style={[styles.searchContainer, { transform: [{ scale: searchBarScale }], flex: 1 }]}>
+              <BlurView intensity={40} tint="dark" style={styles.searchBlur}>
+                <LinearGradient
+                  colors={["rgba(139, 92, 246, 0.2)", "rgba(59, 7, 100, 0.3)"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.searchGradient}
+                >
+                  <Ionicons name="search" size={22} color="#a78bfa" style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Išči izdelke..."
+                    placeholderTextColor="#6b7280"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onFocus={handleSearchFocus}
+                    onBlur={handleSearchBlur}
+                    onSubmitEditing={handleSearch}
+                    returnKeyType="search"
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.clearButton}>
+                      <Ionicons name="close-circle" size={20} color="#6b7280" />
+                    </TouchableOpacity>
+                  )}
+                </LinearGradient>
+              </BlurView>
+            </RNAnimated.View>
+
+            {/* Camera Button */}
+            <TouchableOpacity
+              style={styles.cameraButton}
+              onPress={handleOpenCamera}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={["#fbbf24", "#f59e0b"]}
+                style={styles.cameraButtonGradient}
+              >
+                <Ionicons name="camera" size={24} color="#000" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Limit Indicator */}
@@ -865,59 +1120,30 @@ export default function SearchScreen() {
               <View
                 style={[
                   styles.searchLimitFill,
-                  { width: `${(searchesRemaining / 3) * 100}%` },
+                  { width: `${searchLimitRatio * 100}%` },
                   searchesRemaining === 0 && styles.searchLimitFillEmpty,
                 ]}
               />
             </View>
             {searchesRemaining > 0 ? (
               <Text style={styles.searchLimitText}>
-                {searchesRemaining}/3 iskanj danes
+                {searchesRemaining}/{maxSearches} {searchLimitLabel}
               </Text>
             ) : timeRemaining ? (
               <View style={styles.timerContainer}>
                 <Ionicons name="time-outline" size={14} color="#fbbf24" />
                 <Text style={styles.timerText}>
-                  Nova iskanja čez {timeRemaining}
+                  Novo iskanje čez {timeRemaining}
                 </Text>
               </View>
             ) : (
               <Text style={styles.searchLimitTextEmpty}>
-                0/3 iskanj - nadgradi na Premium!
+                {isGuestMode
+                  ? "Kot gost imaš 1 iskanje na dan. Registriraj se za 3 iskanja in dostop do Košarice ter Profila."
+                  : "Nimaš več brezplačnih iskanj. Nadgradi na PrHran Plus!"}
               </Text>
             )}
           </View>
-        )}
-
-        {/* Swipe Hint */}
-        {sortedResults.length > 1 && (
-          <RNAnimated.View
-            style={[
-              styles.swipeHint,
-              {
-                transform: [
-                  {
-                    translateX: swipeIndicator.interpolate({
-                      inputRange: [-1, 0, 1],
-                      outputRange: [-20, 0, 20],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <Ionicons name="swap-horizontal" size={16} color="#a78bfa" />
-            <Text style={styles.swipeHintText}>
-              {sortAscending ? "Najcenejše → Najdražje" : "Najdražje → Najcenejše"}
-            </Text>
-            <View style={styles.sortIndicator}>
-              <Ionicons
-                name={sortAscending ? "arrow-up" : "arrow-down"}
-                size={14}
-                color="#10b981"
-              />
-            </View>
-          </RNAnimated.View>
         )}
 
         {/* Results */}
@@ -935,41 +1161,6 @@ export default function SearchScreen() {
             <Text style={styles.emptyText}>
               Vpiši ime izdelka in takoj primerjaj cene{"\n"}iz vseh slovenskih trgovin
             </Text>
-
-            {/* Quick Categories */}
-            <View style={styles.quickCategories}>
-              <Text style={styles.quickCategoriesTitle}>🔥 Priljubljene kategorije</Text>
-              <View style={styles.categoryChips}>
-                <TouchableOpacity 
-                  style={styles.categoryChip}
-                  onPress={() => setSearchQuery("mleko")}
-                >
-                  <Text style={styles.categoryChipEmoji}>🥛</Text>
-                  <Text style={styles.categoryChipText}>Mleko</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.categoryChip}
-                  onPress={() => setSearchQuery("kruh")}
-                >
-                  <Text style={styles.categoryChipEmoji}>🍞</Text>
-                  <Text style={styles.categoryChipText}>Kruh</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.categoryChip}
-                  onPress={() => setSearchQuery("jajca")}
-                >
-                  <Text style={styles.categoryChipEmoji}>🥚</Text>
-                  <Text style={styles.categoryChipText}>Jajca</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.categoryChip}
-                  onPress={() => setSearchQuery("maslo")}
-                >
-                  <Text style={styles.categoryChipEmoji}>🧈</Text>
-                  <Text style={styles.categoryChipText}>Maslo</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
 
             {/* Fun Fact Card */}
             <View style={styles.funFactCard}>
@@ -1074,46 +1265,129 @@ export default function SearchScreen() {
             <Text style={styles.resultsCount}>
               {sortedResults.length} {sortedResults.length === 1 ? "rezultat" : "rezultatov"}
             </Text>
-            {/* GUEST MODE: Show only 1 product */}
-            {isGuestMode ? (
-              <>
-                {sortedResults.slice(0, 1).map((product, index) => renderProductCard(product, index))}
-                {sortedResults.length > 1 && (
-                  <TouchableOpacity
-                    style={styles.guestLimitCard}
-                    onPress={() => {
-                      recordGuestView(sortedResults[0]._id);
-                      setHasViewedAsGuest(true);
-                      loadGuestStatus();
-                      setShowGuestLimitModal(true);
-                    }}
-                  >
-                    <LinearGradient
-                      colors={["rgba(139, 92, 246, 0.15)", "rgba(88, 28, 135, 0.15)"]}
-                      style={styles.guestLimitGradient}
-                    >
-                      <Ionicons name="lock-closed" size={48} color="rgba(139, 92, 246, 0.6)" />
-                      <Text style={styles.guestLimitTitle}>Registriraj se za več!</Text>
-                      <Text style={styles.guestLimitText}>
-                        Prikazujemo samo 1 izdelek.{"\n"}
-                        Registriraj se za dostop do vseh {sortedResults.length - 1} izdelkov!
-                      </Text>
-                      <View style={styles.guestLimitButton}>
-                        <Text style={styles.guestLimitButtonText}>Brezplačna registracija</Text>
-                        <Ionicons name="arrow-forward" size={16} color="#fff" />
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-              </>
-            ) : (
-              sortedResults.map((product, index) => renderProductCard(product, index))
+            {sortedResults.map((product) => renderProductCard(product))}
+            {isGuestMode && searchesRemaining <= 0 && sortedResults.length > 0 && (
+              <TouchableOpacity
+                style={styles.guestLimitCard}
+                onPress={() => {
+                  setGuestModalContext("search");
+                  setShowGuestLimitModal(true);
+                }}
+              >
+                <LinearGradient
+                  colors={["rgba(139, 92, 246, 0.15)", "rgba(88, 28, 135, 0.15)"]}
+                  style={styles.guestLimitGradient}
+                >
+                  <Ionicons name="lock-closed" size={48} color="rgba(139, 92, 246, 0.6)" />
+                  <Text style={styles.guestLimitTitle}>Odkleni več možnosti</Text>
+                  <Text style={styles.guestLimitText}>
+                    Kot gost imaš 1 iskanje na dan.{"\n"}
+                    Registriraj se za 3 iskanja v 24h, Košarico in Profil.
+                  </Text>
+                  <View style={styles.guestLimitButton}>
+                    <Text style={styles.guestLimitButtonText}>Prijava / Registracija</Text>
+                    <Ionicons name="arrow-forward" size={16} color="#fff" />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
             )}
           </View>
         )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {showCartToast && (
+        <RNAnimated.View
+          pointerEvents="none"
+          style={[
+            styles.cartToast,
+            {
+              opacity: cartToastAnim,
+              transform: [
+                {
+                  translateY: cartToastAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={["rgba(16, 185, 129, 0.25)", "rgba(16, 185, 129, 0.15)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.cartToastGradient}
+          >
+            <Ionicons name="checkmark-circle" size={18} color="#10b981" />
+            <Text style={styles.cartToastText}>{cartToastMessage}</Text>
+          </LinearGradient>
+        </RNAnimated.View>
+      )}
+
+      {showCartPreview && previewItems.length > 0 && (
+        <RNAnimated.View
+          style={[
+            styles.cartPreview,
+            {
+              transform: [
+                {
+                  translateY: cartPreviewAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [140, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={["rgba(15, 23, 42, 0.95)", "rgba(30, 27, 75, 0.95)"]}
+            style={styles.cartPreviewGradient}
+          >
+            <View style={styles.cartPreviewHeader}>
+              <View style={styles.cartPreviewTitleRow}>
+                <Ionicons name="cart-outline" size={18} color="#a78bfa" />
+                <Text style={styles.cartPreviewTitle}>Košarica posodobljena</Text>
+              </View>
+              <Text style={styles.cartPreviewCount}>
+                {cart?.itemCount ?? previewItems.length} izdelkov
+              </Text>
+            </View>
+
+            <View style={styles.cartPreviewList}>
+              {previewItems.map((item) => (
+                <View key={item.key} style={styles.cartPreviewItem}>
+                  <Text style={styles.cartPreviewItemName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.cartPreviewItemMeta}>
+                    {item.store} · {item.quantity}x
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.cartPreviewButton}
+              onPress={() => router.push("/cart")}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={["#8b5cf6", "#7c3aed"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.cartPreviewButtonGradient}
+              >
+                <Text style={styles.cartPreviewButtonText}>Poglej košarico</Text>
+                <Ionicons name="arrow-forward" size={16} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </LinearGradient>
+        </RNAnimated.View>
+      )}
 
       {/* Scanner Modal */}
       <Modal
@@ -1162,7 +1436,7 @@ export default function SearchScreen() {
                         ]}
                       />
                       <View style={styles.analyzingContent}>
-                        <ActivityIndicator size="large" color="#fbbf24" />
+                        <Logo size={80} />
                         <Text style={styles.analyzingText}>Analiziram sliko...</Text>
                       </View>
                     </View>
@@ -1239,7 +1513,7 @@ export default function SearchScreen() {
         </View>
       </Modal>
 
-      {/* Guest Limit Modal */}
+      {/* Guest Limit Modal - Polished Design */}
       <Modal
         transparent
         visible={showGuestLimitModal}
@@ -1250,7 +1524,7 @@ export default function SearchScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.premiumModal}>
             <LinearGradient
-              colors={["rgba(139, 92, 246, 0.95)", "rgba(88, 28, 135, 0.98)"]}
+              colors={["rgba(139, 92, 246, 0.98)", "rgba(88, 28, 135, 0.99)"]}
               style={styles.premiumModalGradient}
             >
               <TouchableOpacity
@@ -1262,86 +1536,87 @@ export default function SearchScreen() {
 
               <View style={styles.premiumIconContainer}>
                 <LinearGradient
-                  colors={["#ef4444", "#dc2626"]}
+                  colors={isGuestCartContext ? ["#8b5cf6", "#7c3aed"] : ["#ef4444", "#dc2626"]}
                   style={styles.premiumIconGradient}
                 >
-                  <Ionicons name="lock-closed" size={40} color="#fff" />
+                  <Ionicons name={isGuestCartContext ? "cart-outline" : "time"} size={44} color="#fff" />
                 </LinearGradient>
               </View>
 
-              <Text style={styles.premiumModalTitle}>🚫 Brezplačni limit dosežen</Text>
-              <Text style={styles.premiumModalSubtitle}>
-                Pregledate lahko samo 1 izdelek na 24 ur brez prijave
+              <Text style={styles.premiumModalTitle}>
+                {isGuestCartContext ? "Košarica je za prijavljene" : "⏰ Dnevni limit dosežen"}
               </Text>
+              
+              {!isGuestCartContext && timeRemaining ? (
+                <View style={styles.guestTimerBox}>
+                  <Text style={styles.guestTimerLabel}>Naslednje iskanje čez:</Text>
+                  <Text style={styles.guestTimerValue}>{timeRemaining}</Text>
+                </View>
+              ) : (
+                <Text style={styles.premiumModalSubtitle}>
+                  {guestModalSubtitle}
+                </Text>
+              )}
 
-              <View style={styles.guestLimitInfo}>
-                {guestCooldownTime && (
-                  <View style={styles.guestCooldownBox}>
-                    <Ionicons name="time" size={24} color="#fbbf24" />
-                    <Text style={styles.guestCooldownText}>
-                      Naslednji pregled čez: {guestCooldownTime}
-                    </Text>
+              <View style={styles.guestOptionsContainer}>
+                {/* Option 1: FREE Registration */}
+                <View style={styles.guestOptionCard}>
+                  <View style={styles.guestOptionBadge}>
+                    <Text style={styles.guestOptionBadgeText}>BREZPLAČNO</Text>
                   </View>
-                )}
-                <Text style={styles.guestLimitDescription}>
-                  Ta omejitev velja na napravo, da preprečimo zlorabe sistema.
-                </Text>
+                  <Text style={styles.guestOptionTitle}>Registracija</Text>
+                  <Text style={styles.guestOptionDesc}>3 iskanja v 24h + Košarica + Profil</Text>
+                  <TouchableOpacity
+                    style={styles.guestOptionBtn}
+                    onPress={handleGuestAuthPress}
+                  >
+                    <LinearGradient
+                      colors={["#8b5cf6", "#7c3aed"]}
+                      style={styles.guestOptionBtnGradient}
+                    >
+                      <Ionicons name="person-add" size={18} color="#fff" />
+                      <Text style={styles.guestOptionBtnText}>REGISTRIRAJ SE</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Option 2: Premium */}
+                <View style={[styles.guestOptionCard, styles.guestOptionCardPremium]}>
+                  <View style={[styles.guestOptionBadge, styles.guestOptionBadgePremium]}>
+                    <Text style={styles.guestOptionBadgeTextPremium}>PRIPOROČENO</Text>
+                  </View>
+                  <Text style={styles.guestOptionTitle}>{PLAN_PLUS}</Text>
+                  <Text style={styles.guestOptionDesc}>Neomejeno iskanje</Text>
+                  <Text style={styles.guestOptionPrice}>1,99 €/mesec</Text>
+                  <TouchableOpacity
+                    style={styles.guestOptionBtn}
+                    onPress={handleGuestPremiumPress}
+                  >
+                    <LinearGradient
+                      colors={["#fbbf24", "#f59e0b"]}
+                      style={styles.guestOptionBtnGradient}
+                    >
+                      <Ionicons name="diamond" size={18} color="#000" />
+                      <Text style={[styles.guestOptionBtnText, { color: "#000" }]}>NADGRADI</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
               </View>
 
-              <View style={styles.premiumFeatures}>
-                <View style={styles.premiumFeatureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Neomejeno iskanje izdelkov</Text>
-                </View>
-                <View style={styles.premiumFeatureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Dostop do vseh cen in trgovin</Text>
-                </View>
-                <View style={styles.premiumFeatureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Shranjuj najljubše izdelke</Text>
-                </View>
-                <View style={styles.premiumFeatureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Brezplačno - za vedno!</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.premiumCtaBtn}
-                onPress={() => {
-                  setShowGuestLimitModal(false);
-                  router.push("/auth");
-                }}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={["#8b5cf6", "#7c3aed", "#6d28d9"]}
-                  style={styles.premiumCtaBtnGradient}
+              {!isGuestCartContext && (
+                <TouchableOpacity
+                  style={styles.guestWaitBtn}
+                  onPress={() => setShowGuestLimitModal(false)}
                 >
-                  <Ionicons name="person-add" size={20} color="#fff" />
-                  <Text style={styles.premiumCtaBtnText}>BREZPLAČNA REGISTRACIJA</Text>
-                  <Ionicons name="arrow-forward" size={20} color="#fff" />
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.guestLoginLink}
-                onPress={() => {
-                  setShowGuestLimitModal(false);
-                  router.push("/auth");
-                }}
-              >
-                <Text style={styles.guestLoginLinkText}>
-                  Že imaš račun? <Text style={styles.guestLoginLinkBold}>Prijavi se →</Text>
-                </Text>
-              </TouchableOpacity>
+                  <Text style={styles.guestWaitBtnText}>Počakam do jutri →</Text>
+                </TouchableOpacity>
+              )}
             </LinearGradient>
           </View>
         </View>
       </Modal>
 
-      {/* Premium Modal */}
+      {/* Premium Modal - Search Limit */}
       <Modal
         transparent
         visible={showPremiumModal}
@@ -1367,36 +1642,50 @@ export default function SearchScreen() {
                   colors={["#fbbf24", "#f59e0b"]}
                   style={styles.premiumIconGradient}
                 >
-                  <Ionicons name="camera" size={40} color="#000" />
+                  <Ionicons name="search" size={40} color="#000" />
                 </LinearGradient>
               </View>
 
-              <Text style={styles.premiumModalTitle}>📸 Premium funkcija</Text>
+              <Text style={styles.premiumModalTitle}>🔍 PrHran FREE limit dosežen</Text>
               <Text style={styles.premiumModalSubtitle}>
-                Slikaj izdelek in takoj najdi najnižjo ceno!
+                {searchesRemaining <= 0 && timeRemaining
+                  ? `Novo iskanje čez ${timeRemaining}`
+                  : "Nadgradi se na PrHran Plus za neomejeno iskanje!"}
               </Text>
+
+              {searchesRemaining <= 0 && timeRemaining && (
+                <View style={styles.modalTimerContainer}>
+                  <Text style={styles.timerKicker}>⏱️ Počakaj trenutek</Text>
+                  <Text style={styles.timerExplanation}>
+                    Porabil si vsa dnevna brezplačna iskanja. Naslednje iskanje bo na voljo čez:
+                  </Text>
+                  <View style={styles.timerDisplay}>
+                    <Text style={styles.timerValue}>{timeRemaining}</Text>
+                  </View>
+                  <Text style={styles.timerHint}>
+                    💡 Ali nadgradi na PrHran Plus za neomejeno iskanje!
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.premiumFeatures}>
                 <View style={styles.premiumFeatureItem}>
                   <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Neomejeno slikanje izdelkov</Text>
+                  <Text style={styles.premiumFeatureText}>Neomejeno iskanje izdelkov</Text>
                 </View>
                 <View style={styles.premiumFeatureItem}>
                   <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Neomejeno iskanje</Text>
+                  <Text style={styles.premiumFeatureText}>Slikaj in najdi najnižjo ceno</Text>
                 </View>
                 <View style={styles.premiumFeatureItem}>
                   <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Ekskluzivni kuponi</Text>
+                  <Text style={styles.premiumFeatureText}>Ekskluzivni kuponi do 30%</Text>
                 </View>
-                <View style={styles.premiumFeatureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Brez oglasov</Text>
-                </View>
+                {/* Removed "Brez oglasov" – oglasi niso prisotni v nobenem planu */}
               </View>
 
               <View style={styles.premiumPriceContainer}>
-                <Text style={styles.premiumPriceLabel}>Samo</Text>
+                <Text style={styles.premiumPriceLabel}>{PLAN_PLUS}</Text>
                 <Text style={styles.premiumPrice}>1,99 €</Text>
                 <Text style={styles.premiumPricePeriod}>/ mesec</Text>
               </View>
@@ -1447,28 +1736,30 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   glowOrb1: {
-    width: 300,
-    height: 300,
+    width: 350,
+    height: 350,
     backgroundColor: "#8b5cf6",
-    top: -100,
-    left: -100,
-    opacity: 0.15,
+    top: -120,
+    left: -120,
+    opacity: 0.2,
+    ...createShadow("#8b5cf6", 0, 0, 0.5, 50, 10),
   },
   glowOrb2: {
-    width: 250,
-    height: 250,
+    width: 300,
+    height: 300,
     backgroundColor: "#d946ef",
-    bottom: 100,
-    right: -80,
-    opacity: 0.1,
+    bottom: 80,
+    right: -100,
+    opacity: 0.15,
+    ...createShadow("#d946ef", 0, 0, 0.4, 40, 8),
   },
   header: {
     alignItems: "center",
     marginBottom: 24,
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 110,
+    height: 110,
     marginBottom: 8,
   },
   title: {
@@ -1497,8 +1788,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderWidth: 1.5,
+    borderColor: "rgba(139, 92, 246, 0.4)",
+    ...createShadow("#8b5cf6", 0, 2, 0.2, 8, 4),
   },
   searchIcon: {
     marginRight: 12,
@@ -1536,12 +1828,13 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   searchLimitText: {
-    fontSize: 12,
-    color: "#9ca3af",
+    fontSize: 13,
+    color: "#d1d5db",
+    fontWeight: "500",
   },
   searchLimitTextEmpty: {
-    fontSize: 12,
-    color: "#fbbf24",
+    fontSize: 13,
+    color: "#ef4444",
     fontWeight: "600",
   },
   timerContainer: {
@@ -1602,42 +1895,6 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     textAlign: "center",
     lineHeight: 22,
-  },
-  quickCategories: {
-    marginTop: 32,
-    width: "100%",
-  },
-  quickCategoriesTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#9ca3af",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  categoryChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 10,
-  },
-  categoryChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-    gap: 6,
-  },
-  categoryChipEmoji: {
-    fontSize: 16,
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: "#a78bfa",
-    fontWeight: "500",
   },
   funFactCard: {
     marginTop: 24,
@@ -1722,8 +1979,9 @@ const styles = StyleSheet.create({
   },
   cardGradient: {
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
+    borderWidth: 1.5,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    ...createShadow("#8b5cf6", 0, 4, 0.3, 12, 6),
   },
   cardContent: {
     padding: 16,
@@ -1776,45 +2034,84 @@ const styles = StyleSheet.create({
   lowestPriceContainer: {
     alignItems: "flex-end",
   },
+  priceMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
   lowestPriceLabel: {
-    fontSize: 10,
-    color: "#10b981",
-    fontWeight: "600",
+    fontSize: 11,
+    color: "#9ca3af",
+    fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+  },
+  priceValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   lowestPrice: {
-    fontSize: 22,
-    fontWeight: "800",
+    fontSize: 24,
+    fontWeight: "900",
     color: "#fff",
+    letterSpacing: -0.2,
   },
   storeIndicator: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 2,
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+    alignSelf: "flex-start",
   },
   storeEmoji: {
-    fontSize: 12,
-    marginRight: 4,
+    fontSize: 14,
+    marginRight: 6,
   },
   storeName: {
-    fontSize: 11,
-    color: "#9ca3af",
+    fontSize: 10,
+    color: "#a78bfa",
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  storeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  storeChipName: {
+    marginLeft: 8,
+    color: "#e5e7eb",
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.4,
   },
   savingsBadge: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: "rgba(16, 185, 129, 0.14)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.25)",
   },
   savingsText: {
     fontSize: 12,
-    fontWeight: "700",
-    color: "#10b981",
-    marginLeft: 8,
+    fontWeight: "800",
+    color: "#0ea35c",
+    marginLeft: 6,
   },
   quickAddButton: {
     marginTop: 14,
@@ -1822,6 +2119,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   quickAddButtonSuccess: {},
+  quickAddButtonLocked: {
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.35)",
+  },
   quickAddGradient: {
     flexDirection: "row",
     alignItems: "center",
@@ -1882,20 +2183,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   storeLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    borderWidth: 2.5,
+    position: "relative",
   },
   storeLogoText: {
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#fff",
+    ...createTextShadow("rgba(0, 0, 0, 0.3)", 0, 1, 2),
   },
   storeRowName: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
     color: "#fff",
+    letterSpacing: 0.5,
   },
   lowestBadge: {
     marginTop: 2,
@@ -1909,6 +2216,50 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#10b981",
     letterSpacing: 0.5,
+  },
+  storeLogoSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+    borderWidth: 2,
+    position: "relative",
+  },
+  storeLogoSmallText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  patternDot: {
+    position: "absolute",
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    opacity: 0.9,
+  },
+  brandRingSmall: {
+    position: "absolute",
+    top: -1,
+    left: -1,
+    right: -1,
+    bottom: -1,
+    borderRadius: 11,
+    opacity: 0.9,
+  },
+  brandRingLarge: {
+    position: "absolute",
+    top: -1.5,
+    left: -1.5,
+    right: -1.5,
+    bottom: -1.5,
+    borderRadius: 16,
+    opacity: 0.9,
+  },
+  cornerIcon: {
+    position: "absolute",
+    fontWeight: "900",
+    opacity: 0.95,
   },
   storePriceSection: {
     flexDirection: "row",
@@ -1959,6 +2310,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(16, 185, 129, 0.15)",
     borderColor: "rgba(16, 185, 129, 0.3)",
   },
+  addButtonLocked: {
+    backgroundColor: "rgba(148, 163, 184, 0.12)",
+    borderColor: "rgba(148, 163, 184, 0.35)",
+  },
   premiumCtaContainer: {
     marginTop: 40,
     alignItems: "center",
@@ -1971,20 +2326,12 @@ const styles = StyleSheet.create({
     height: 56,
     backgroundColor: "#fbbf24",
     borderRadius: 28,
-    shadowColor: "#fbbf24",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 40,
-    elevation: 20,
+    ...createShadow("#fbbf24", 0, 0, 1, 40, 20),
   },
   premiumCtaButton: {
     borderRadius: 28,
     overflow: "hidden",
-    shadowColor: "#fbbf24",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 15,
+    ...createShadow("#fbbf24", 0, 8, 0.6, 20, 15),
   },
   premiumCtaGradient: {
     flexDirection: "row",
@@ -2000,6 +2347,101 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#000",
     letterSpacing: 1,
+  },
+  cartToast: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    bottom: 110,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  cartToastGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.35)",
+    borderRadius: 14,
+  },
+  cartToastText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#d1fae5",
+  },
+  cartPreview: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 16,
+    borderRadius: 20,
+    overflow: "hidden",
+    ...createShadow("#000", 0, 10, 0.4, 18, 12),
+  },
+  cartPreviewGradient: {
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  cartPreviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  cartPreviewTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  cartPreviewTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  cartPreviewCount: {
+    fontSize: 12,
+    color: "#a78bfa",
+    fontWeight: "600",
+  },
+  cartPreviewList: {
+    gap: 8,
+    marginBottom: 14,
+  },
+  cartPreviewItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cartPreviewItemName: {
+    flex: 1,
+    fontSize: 13,
+    color: "#e5e7eb",
+    fontWeight: "600",
+    marginRight: 10,
+  },
+  cartPreviewItemMeta: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  cartPreviewButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  cartPreviewButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+  },
+  cartPreviewButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
   },
   // Modal Overlay
   modalOverlay: {
@@ -2068,10 +2510,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: 3,
     backgroundColor: "#fbbf24",
-    shadowColor: "#fbbf24",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
+    ...createShadow("#fbbf24", 0, 0, 1, 10, 5),
   },
   analyzingContent: {
     alignItems: "center",
@@ -2201,11 +2640,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#fbbf24",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 15,
+    ...createShadow("#fbbf24", 0, 8, 0.6, 20, 15),
   },
   premiumModalTitle: {
     fontSize: 26,
@@ -2220,6 +2655,56 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 24,
     lineHeight: 22,
+  },
+  modalTimerContainer: {
+    width: "100%",
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    alignItems: "center",
+  },
+  timerKicker: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#ef4444",
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
+    marginBottom: 12,
+  },
+  timerExplanation: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#d1d5db",
+    textAlign: "center",
+    lineHeight: 21,
+    marginBottom: 16,
+  },
+  timerDisplay: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.4)",
+  },
+  timerValue: {
+    fontSize: 56,
+    fontWeight: "900",
+    color: "#ef4444",
+    fontFamily: "monospace",
+    letterSpacing: 3,
+    textAlign: "center",
+  },
+  timerHint: {
+    fontSize: 13,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 20,
+    fontWeight: "500",
   },
   premiumFeatures: {
     width: "100%",
@@ -2263,11 +2748,7 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#fbbf24",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 12,
+    ...createShadow("#fbbf24", 0, 8, 0.5, 16, 12),
   },
   premiumCtaBtnGradient: {
     flexDirection: "row",
@@ -2290,6 +2771,71 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   // Search Row
+  stickyHeader: {
+    backgroundColor: "rgba(15, 10, 30, 0.96)",
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    marginHorizontal: -20,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(139, 92, 246, 0.12)",
+  },
+  guestBanner: {
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.28)",
+    ...createShadow("#8b5cf6", 0, 6, 0.25, 12, 8),
+  },
+  guestBannerRow: {
+    gap: 6,
+  },
+  guestBannerBadge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(139, 92, 246, 0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.4)",
+  },
+  guestBannerBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#c4b5fd",
+    letterSpacing: 0.6,
+  },
+  guestBannerTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  guestBannerText: {
+    fontSize: 12,
+    color: "#cbd5e1",
+    lineHeight: 18,
+  },
+  guestBannerCta: {
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  guestBannerCtaGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+  },
+  guestBannerCtaText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -2301,22 +2847,19 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   cameraButtonGradient: {
-    width: 52,
-    height: 52,
+    width: 56,
+    height: 56,
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+    ...createShadow("#fbbf24", 0, 4, 0.4, 12, 8),
   },
   // Guest Mode Styles
   guestLimitCard: {
     marginTop: 16,
     borderRadius: 20,
     overflow: "hidden",
-    shadowColor: "#8b5cf6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    ...createShadow("#8b5cf6", 0, 4, 0.3, 12, 6),
   },
   guestLimitGradient: {
     padding: 24,
@@ -2392,5 +2935,110 @@ const styles = StyleSheet.create({
   guestLoginLinkBold: {
     fontWeight: "700",
     color: "#fff",
+  },
+  // Guest Modal - Polished Styles
+  guestTimerBox: {
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.4)",
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginBottom: 24,
+    alignItems: "center",
+  },
+  guestTimerLabel: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginBottom: 6,
+  },
+  guestTimerValue: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#fbbf24",
+    letterSpacing: 1,
+  },
+  guestOptionsContainer: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+    width: "100%",
+  },
+  guestOptionCard: {
+    flex: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 16,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  guestOptionCardPremium: {
+    borderColor: "rgba(251, 191, 36, 0.4)",
+    backgroundColor: "rgba(251, 191, 36, 0.08)",
+  },
+  guestOptionBadge: {
+    backgroundColor: "rgba(139, 92, 246, 0.3)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  guestOptionBadgePremium: {
+    backgroundColor: "rgba(251, 191, 36, 0.3)",
+  },
+  guestOptionBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#a78bfa",
+    letterSpacing: 0.5,
+  },
+  guestOptionBadgeTextPremium: {
+    color: "#fbbf24",
+  },
+  guestOptionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 4,
+  },
+  guestOptionDesc: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.7)",
+    marginBottom: 8,
+  },
+  guestOptionPrice: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fbbf24",
+    marginBottom: 8,
+  },
+  guestOptionBtn: {
+    width: "100%",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginTop: 4,
+  },
+  guestOptionBtnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  guestOptionBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  guestWaitBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  guestWaitBtnText: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.5)",
+    textAlign: "center",
   },
 });
