@@ -1252,6 +1252,7 @@ const styles = StyleSheet.create({
   },
   cardInner: {
     padding: 24,
+    paddingBottom: 32,
   },
   title: {
     fontSize: 26,
@@ -1511,7 +1512,7 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   primaryButton: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: "hidden",
     marginBottom: 16,
     ...createShadow("#a78bfa", 0, 10, 0.55, 20, 12),
@@ -1520,19 +1521,21 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   primaryButtonFlex: {
-    flex: 1,
+    width: "100%",
     marginBottom: 0,
   },
   buttonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 18,
+    paddingVertical: 20,
+    paddingHorizontal: 18,
+    minHeight: 56,
     gap: 12,
   },
   primaryButtonText: {
     color: "#0b0814",
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: "800",
     letterSpacing: -0.2,
   },
@@ -1547,7 +1550,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   actionsRowSingle: {
-    alignItems: "center",
+    width: "100%",
+    alignItems: "stretch",
     marginTop: 16,
     marginBottom: 16,
   },
@@ -1558,12 +1562,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   anonymousButton: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 14,
+    paddingVertical: 16,
     gap: 8,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(139, 92, 246, 0.3)",
     backgroundColor: "rgba(139, 92, 246, 0.1)",
