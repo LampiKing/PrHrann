@@ -9,8 +9,11 @@ import { View, Text, StyleSheet, Platform } from "react-native";
 import { Asset } from "expo-asset";
 import { getSeasonalLogoSource } from "@/lib/Logo";
 
-const convexUrl =
-  process.env.EXPO_PUBLIC_CONVEX_SITE_URL || process.env.EXPO_PUBLIC_CONVEX_URL;
+const rawConvexUrl =
+  process.env.EXPO_PUBLIC_CONVEX_URL || process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
+const convexUrl = rawConvexUrl
+  ? rawConvexUrl.replace(".convex.site", ".convex.cloud")
+  : undefined;
 
 const convexClient = convexUrl
   ? new ConvexReactClient(convexUrl, {
@@ -64,7 +67,7 @@ export default function RootLayout() {
         <View style={styles.missingConfig}>
           <Text style={styles.missingTitle}>Missing Convex URL</Text>
           <Text style={styles.missingText}>
-            Set EXPO_PUBLIC_CONVEX_SITE_URL in your environment.
+            Set EXPO_PUBLIC_CONVEX_URL in your environment.
           </Text>
         </View>
       </SafeAreaProvider>
