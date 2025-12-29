@@ -21,15 +21,26 @@ import { Id } from "@/convex/_generated/dataModel";
 import { createShadow } from "@/lib/shadow-helper";
 import Logo from "@/lib/Logo";
 
+const ICONS: Array<keyof typeof Ionicons.glyphMap> = [
+  "cart",
+  "bag",
+  "pizza",
+  "home",
+  "briefcase",
+  "gift",
+  "star",
+  "list",
+];
+
 export default function ShoppingListsScreen() {
   const router = useRouter();
   const lists = useQuery(api.shoppingLists.getLists);
   const createList = useMutation(api.shoppingLists.createList);
   const deleteList = useMutation(api.shoppingLists.deleteList);
-  
+
   const [showNewListModal, setShowNewListModal] = useState(false);
   const [newListName, setNewListName] = useState("");
-  const [selectedIcon, setSelectedIcon] = useState("🛒");
+  const [selectedIcon, setSelectedIcon] = useState<keyof typeof Ionicons.glyphMap>("cart");
   const [creating, setCreating] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -42,11 +53,9 @@ export default function ShoppingListsScreen() {
     }).start();
   }, []);
 
-  const ICONS = ["🛒", "🛍️", "🎉", "🍕", "🏠", "💼", "🎁", "🌟"];
-
   const handleCreateList = async () => {
     if (!newListName.trim()) return;
-    
+
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -59,7 +68,7 @@ export default function ShoppingListsScreen() {
       });
 
       setNewListName("");
-      setSelectedIcon("🛒");
+      setSelectedIcon("cart");
       setShowNewListModal(false);
 
       if (Platform.OS !== "web") {
@@ -92,7 +101,6 @@ export default function ShoppingListsScreen() {
       />
 
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -109,7 +117,6 @@ export default function ShoppingListsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Lists */}
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -126,9 +133,9 @@ export default function ShoppingListsScreen() {
               <View style={styles.emptyIcon}>
                 <Ionicons name="list" size={64} color="#6b7280" />
               </View>
-              <Text style={styles.emptyTitle}>Še ni seznamov</Text>
+              <Text style={styles.emptyTitle}>Se ni seznamov</Text>
               <Text style={styles.emptyText}>
-                Ustvari svoj prvi nakupovalni seznam in začni varčevati!
+                Ustvari svoj prvi nakupovalni seznam in zacni varcevati.
               </Text>
               <TouchableOpacity
                 style={styles.emptyButton}
@@ -150,8 +157,7 @@ export default function ShoppingListsScreen() {
                   key={list._id}
                   style={styles.listCard}
                   onPress={() => {
-                    // TODO: Navigate to list detail screen when implemented
-                    console.log('Navigate to list:', list._id);
+                    console.log("Navigate to list:", list._id);
                   }}
                   activeOpacity={0.8}
                 >
@@ -165,7 +171,11 @@ export default function ShoppingListsScreen() {
                   >
                     <View style={styles.listHeader}>
                       <View style={styles.listIconContainer}>
-                        <Text style={styles.listIcon}>{list.icon || "🛒"}</Text>
+                        <Ionicons
+                          name={(list.icon as keyof typeof Ionicons.glyphMap) || "cart"}
+                          size={26}
+                          color="#e5e7eb"
+                        />
                       </View>
                       <View style={styles.listInfo}>
                         <Text style={styles.listName}>{list.name}</Text>
@@ -176,7 +186,7 @@ export default function ShoppingListsScreen() {
                           </Text>
                           {list.checkedItems > 0 && (
                             <>
-                              <Text style={styles.listMetaSeparator}>•</Text>
+                              <Text style={styles.listMetaSeparator}>-</Text>
                               <Ionicons
                                 name="checkmark-circle"
                                 size={14}
@@ -211,7 +221,6 @@ export default function ShoppingListsScreen() {
                       </View>
                     </View>
 
-                    {/* Progress bar */}
                     {list.totalItems > 0 && (
                       <View style={styles.progressContainer}>
                         <View style={styles.progressBar}>
@@ -233,7 +242,6 @@ export default function ShoppingListsScreen() {
           )}
         </ScrollView>
 
-        {/* Floating Add Button */}
         {lists && lists.length > 0 && (
           <TouchableOpacity
             style={styles.fab}
@@ -250,7 +258,6 @@ export default function ShoppingListsScreen() {
         )}
       </SafeAreaView>
 
-      {/* New List Modal */}
       <Modal
         visible={showNewListModal}
         transparent
@@ -296,7 +303,7 @@ export default function ShoppingListsScreen() {
                       }
                     }}
                   >
-                    <Text style={styles.iconButtonText}>{icon}</Text>
+                    <Ionicons name={icon} size={24} color="#e2e8f0" />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -444,9 +451,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 16,
   },
-  listIcon: {
-    fontSize: 28,
-  },
   listInfo: {
     flex: 1,
   },
@@ -522,7 +526,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.8)",
@@ -590,9 +593,6 @@ const styles = StyleSheet.create({
   iconButtonSelected: {
     backgroundColor: "rgba(139, 92, 246, 0.3)",
     borderColor: "#8b5cf6",
-  },
-  iconButtonText: {
-    fontSize: 28,
   },
   createButton: {
     borderRadius: 16,

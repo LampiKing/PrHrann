@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   View,
   Text,
@@ -20,7 +20,7 @@ import Svg, { Rect } from "react-native-svg";
 import { createShadow } from "@/lib/shadow-helper";
 import Logo from "@/lib/Logo";
 
-// Brezplačne kartice - dostopne vsem
+// Brezplacne kartice - dostopne vsem
 const FREE_LOYALTY_CARDS = [
   {
     id: "spar",
@@ -28,7 +28,7 @@ const FREE_LOYALTY_CARDS = [
     store: "Spar",
     color: "#c8102e",
     icon: "card",
-    description: "Priljubljena kartica za zbiranje točk in popuste",
+    description: "Priljubljena kartica za zbiranje tock in popuste",
     perks: "Tedenske akcije in kuponi",
   },
   {
@@ -38,15 +38,15 @@ const FREE_LOYALTY_CARDS = [
     color: "#d3003c",
     icon: "card",
     description: "Zbiraj pike in prihrani pri vsakem nakupu",
-    perks: "Pika popusti in točke",
+    perks: "Pika popusti in tocke",
   },
   {
     id: "tus",
-    name: "Tuš Klub",
-    store: "Tuš",
+    name: "Tus Klub",
+    store: "Tus",
     color: "#0d8a3c",
     icon: "card",
-    description: "Družinske ugodnosti in posebni popusti",
+    description: "Druzinske ugodnosti in posebni popusti",
     perks: "Klubski kuponi in bonusi",
   },
 ];
@@ -79,8 +79,8 @@ const PREMIUM_LOYALTY_CARDS = [
     store: "Jager",
     color: "#1f8a3c",
     icon: "leaf",
-    description: "Točke zvestobe in klub popusti",
-    perks: "Klubski popusti in točke",
+    description: "Tocke zvestobe in klub popusti",
+    perks: "Klubski popusti in tocke",
     isPremium: true,
   },
 ];
@@ -174,12 +174,12 @@ export default function LoyaltyCardsScreen() {
   const activeNumber = showBarcodeModal?.number;
 
   const handleSaveCard = (cardId: string) => {
-    // Validacija - kartica mora imeti vsaj 8 številk
+    // Validacija - kartica mora imeti vsaj 8 stevilk
     if (inputValue.length < 8) {
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
-      alert("Številka kartice mora imeti vsaj 8 številk!");
+      alert("Stevilka kartice mora imeti vsaj 8 stevilk!");
       return;
     }
     
@@ -274,10 +274,10 @@ export default function LoyaltyCardsScreen() {
           {/* Card Input or Saved State */}
           {editingCard === card.id ? (
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Številka kartice (min. 8 številk)</Text>
+              <Text style={styles.inputLabel}>Stevilka kartice (min. 8 stevilk)</Text>
               <TextInput
                 style={[styles.input, { borderColor: `${card.color}70`, backgroundColor: `${card.color}12` }]}
-                placeholder={`Vnesi številke kartice ${card.name}...`}
+                placeholder={`Vnesi stevilke kartice ${card.name}...`}
                 placeholderTextColor="#cbd5e1"
                 value={inputValue}
                 onChangeText={setInputValue}
@@ -301,7 +301,7 @@ export default function LoyaltyCardsScreen() {
                     setLabelInput("");
                   }}
                 >
-                  <Text style={styles.cancelButtonText}>Prekliči</Text>
+                  <Text style={styles.cancelButtonText}>Preklici</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.saveButton, { backgroundColor: card.color }]}
@@ -323,7 +323,7 @@ export default function LoyaltyCardsScreen() {
                     <Ionicons name="card-outline" size={20} color={card.color} />
                     <View>
                       <Text style={styles.cardNumberText}>
-                        •••• •••• •••• {entry.number.slice(-4)}
+                        - - - -  - - - -  - - - -  {entry.number.slice(-4)}
                       </Text>
                       {entry.label ? (
                         <Text style={styles.cardNumberLabel}>{entry.label}</Text>
@@ -354,7 +354,7 @@ export default function LoyaltyCardsScreen() {
               >
                 <Ionicons name="add-circle-outline" size={22} color={card.color} />
                 <Text style={[styles.addButtonText, { color: card.color }]}> 
-                  Dodaj še eno kartico
+                  Dodaj se eno kartico
                 </Text>
               </TouchableOpacity>
             </View>
@@ -422,12 +422,21 @@ export default function LoyaltyCardsScreen() {
 
           {/* All Cards */}
           <View style={styles.section}>
-            {/* Always show free cards */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Brezplacne kartice</Text>
+              <Text style={styles.sectionTag}>Vkljuceno</Text>
+            </View>
             {FREE_LOYALTY_CARDS.map(renderCard)}
 
             {/* Premium cards: show real cards if premium, otherwise gentle unlock callout */}
             {isPremium ? (
-              PREMIUM_LOYALTY_CARDS.map(renderCard)
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Premium kartice</Text>
+                  <Text style={styles.sectionTag}>Plus / Family</Text>
+                </View>
+                {PREMIUM_LOYALTY_CARDS.map(renderCard)}
+              </>
             ) : (
               <View style={styles.premiumLockedContainer}>
                 <LinearGradient
@@ -439,7 +448,7 @@ export default function LoyaltyCardsScreen() {
                   </View>
                   <Text style={styles.premiumLockedTitle}>Odkleni Hofer, Lidl, Jager</Text>
                   <Text style={styles.premiumLockedText}>
-                    Nadgradi na Premium (1,99€/mesec) in dodaj kartice Hofer, Lidl Plus in Jager klub.
+                    Nadgradi na Premium (1,99 EUR/mesec) in dodaj kartice Hofer, Lidl Plus in Jager klub.
                   </Text>
 
                   <View style={styles.lockedCardsPreview}>
@@ -465,7 +474,7 @@ export default function LoyaltyCardsScreen() {
                       style={styles.premiumButtonGradient}
                     >
                       <Ionicons name="star" size={18} color="#000" />
-                      <Text style={styles.premiumButtonText}>Nadgradi na Premium - 1,99€/mesec</Text>
+                      <Text style={styles.premiumButtonText}>Nadgradi na Premium - 1,99 EUR/mesec</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </LinearGradient>
@@ -514,7 +523,7 @@ export default function LoyaltyCardsScreen() {
                   <View style={styles.barcodeInstructionBox}>
                     <Ionicons name="scan-outline" size={20} color="#a78bfa" />
                     <Text style={styles.barcodeModalHint}>
-                      Črtna koda pripravljena
+                      Crtna koda pripravljena
                     </Text>
                   </View>
                   
@@ -734,7 +743,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   cardLeft: {
-    alignItems: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   cardIcon: {
@@ -1343,3 +1353,4 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
 });
+

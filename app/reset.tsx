@@ -45,7 +45,7 @@ export default function ResetScreen() {
   const passwordStrengthLevel =
     newPassword.length === 0 ? 0 : passwordStrengthScore <= 1 ? 1 : passwordStrengthScore <= 3 ? 2 : 3;
   const passwordStrengthLabel =
-    passwordStrengthLevel === 1 ? "Šibko" : passwordStrengthLevel === 2 ? "Dobro" : "Močno";
+    passwordStrengthLevel === 1 ? "Sibko" : passwordStrengthLevel === 2 ? "Dobro" : "Mocno";
   const passwordStrengthColor =
     passwordStrengthLevel === 1 ? "#f97316" : passwordStrengthLevel === 2 ? "#fbbf24" : "#22c55e";
 
@@ -114,7 +114,7 @@ export default function ResetScreen() {
           <View style={styles.card}>
             <Text style={styles.title}>Ponastavi geslo</Text>
             <Text style={styles.subtitle}>
-              Vnesi novo geslo za svoj račun.
+              Vnesi novo geslo za svoj racun.
             </Text>
 
             {error ? (

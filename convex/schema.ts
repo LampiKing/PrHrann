@@ -1,8 +1,7 @@
-import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // Trgovine (Spar, Mercator, Tu≈°, Lidl, Hofer, Jager)
+  // Trgovine (Spar, Mercator, Tuö, Lidl, Hofer, Jager)
   stores: defineTable({
     name: v.string(),
     logo: v.optional(v.string()),
@@ -16,7 +15,8 @@ export default defineSchema({
     category: v.string(),
     unit: v.string(), // npr. "1L", "500g", "1kg"
     imageUrl: v.optional(v.string()),
-  }).index("by_name", ["name"])
+  })
+    .index("by_name", ["name"])
     .index("by_category", ["category"]),
 
   // Cene izdelkov po trgovinah
@@ -24,10 +24,11 @@ export default defineSchema({
     productId: v.id("products"),
     storeId: v.id("stores"),
     price: v.number(),
-    originalPrice: v.optional(v.number()), // ƒåe je na akciji
+    originalPrice: v.optional(v.number()), // »e je na akciji
     isOnSale: v.boolean(),
     lastUpdated: v.number(),
-  }).index("by_product", ["productId"])
+  })
+    .index("by_product", ["productId"])
     .index("by_store", ["storeId"])
     .index("by_product_and_store", ["productId", "storeId"]),
 
@@ -37,12 +38,14 @@ export default defineSchema({
     code: v.string(),
     description: v.string(),
     // Tip kupona: percentage_total, percentage_single_item, fixed, category_discount
-    couponType: v.optional(v.union(
-      v.literal("percentage_total"),
-      v.literal("percentage_single_item"),
-      v.literal("fixed"),
-      v.literal("category_discount")
-    )),
+    couponType: v.optional(
+      v.union(
+        v.literal("percentage_total"),
+        v.literal("percentage_single_item"),
+        v.literal("fixed"),
+        v.literal("category_discount")
+      )
+    ),
     discountType: v.optional(v.string()), // Legacy field for backwards compatibility
     discountValue: v.number(),
     minPurchase: v.optional(v.number()),
@@ -60,7 +63,7 @@ export default defineSchema({
     applicableCategories: v.optional(v.array(v.string())),
     // Dodatni pogoji
     maxUsesPerUser: v.optional(v.number()), // Koliko krat lahko uporabnik uporabi (npr. 1 za ENKRAT)
-    excludedProducts: v.optional(v.array(v.string())), // Izkljuƒçeni izdelki (npr. "postre≈æeno meso")
+    excludedProducts: v.optional(v.array(v.string())), // IzkljuËeni izdelki (npr. "postreûeno meso")
     additionalNotes: v.optional(v.string()), // Dodatna opozorila
     weekNumber: v.optional(v.number()), // Za tedenski tracking kuponov
     isActive: v.optional(v.boolean()), // Ali je kupon aktiven
@@ -72,28 +75,35 @@ export default defineSchema({
     userId: v.string(),
     couponId: v.id("coupons"),
     usedAt: v.number(),
-    orderId: v.optional(v.string()), // Za tracking ƒçe implementiramo naroƒçila
+    orderId: v.optional(v.string()), // Za tracking ûe implementiramo naroËila
     savings: v.number(), // Koliko je uporabnik prihranil
-  }).index("by_user_and_coupon", ["userId", "couponId"])
+  })
+    .index("by_user_and_coupon", ["userId", "couponId"])
     .index("by_user", ["userId"]),
 
-  // Uporabni≈°ki profili
+  // Uporabniöki profili
   userProfiles: defineTable({
     userId: v.string(),
     name: v.optional(v.string()),
+    nickname: v.optional(v.string()),
+    nicknameLower: v.optional(v.string()),
+    nicknameUpdatedAt: v.optional(v.number()),
+    nicknameChangeAvailableAt: v.optional(v.number()),
     email: v.optional(v.string()),
     emailVerified: v.optional(v.boolean()),
     isAnonymous: v.optional(v.boolean()),
     // Datum rojstva
-    birthDate: v.optional(v.object({
-      day: v.number(),
-      month: v.number(),
-      year: v.number(),
-    })),
+    birthDate: v.optional(
+      v.object({
+        day: v.number(),
+        month: v.number(),
+        year: v.number(),
+      })
+    ),
     isPremium: v.boolean(),
     premiumUntil: v.optional(v.number()),
-    premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))), // solo: 1.99‚Ç¨, family: 2.99‚Ç¨
-    familyOwnerId: v.optional(v.string()), // ƒåe je ƒçlan family plana
+    premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))), // solo: 1.99Ä, family: 2.99Ä
+    familyOwnerId: v.optional(v.string()), // »e je Ëlan family plana
     familyMembers: v.optional(v.array(v.string())), // Max 3 osebe za family plan
     dailySearches: v.number(),
     lastSearchDate: v.string(), // YYYY-MM-DD format
@@ -109,9 +119,11 @@ export default defineSchema({
     // Savings tracker
     totalSavings: v.optional(v.number()), // Skupni prihranki
     monthlySavings: v.optional(v.number()), // Prihranki ta mesec
-    lastSavingsReset: v.optional(v.number()), // Kdaj resetiramo meseƒçne
-  }).index("by_user_id", ["userId"])
-    .index("by_family_owner", ["familyOwnerId"]),
+    lastSavingsReset: v.optional(v.number()), // Kdaj resetiramo meseËne
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_family_owner", ["familyOwnerId"])
+    .index("by_nickname", ["nicknameLower"]),
 
   // Email verification records
   emailVerifications: defineTable({
@@ -124,20 +136,23 @@ export default defineSchema({
     verified: v.boolean(),
     verifiedAt: v.optional(v.number()),
     resendCount: v.optional(v.number()), // koliko krat je bila koda ponovno poslana
-    lastSentAt: v.optional(v.number()), // zadnji ƒças po≈°iljanja emaila
-  }).index("by_user", ["userId"]).index("by_token", ["token"]),
+    lastSentAt: v.optional(v.number()), // zadnji Ëas poöiljanja emaila
+  })
+    .index("by_user", ["userId"])
+    .index("by_token", ["token"]),
 
   // Shopping Lists
   shoppingLists: defineTable({
     userId: v.string(),
-    name: v.string(), // "Tedenski nakup", "Za ≈æur"...
+    name: v.string(), // "Tedenski nakup", "Za ûur"...
     icon: v.optional(v.string()), // Emoji ikona
     createdAt: v.number(),
     updatedAt: v.number(),
     // Family sharing
-    sharedWith: v.optional(v.array(v.string())), // userId-ji dru≈æinskih ƒçlanov
+    sharedWith: v.optional(v.array(v.string())), // userId-ji druûinskih Ëlanov
     isShared: v.optional(v.boolean()),
-  }).index("by_user_id", ["userId"])
+  })
+    .index("by_user_id", ["userId"])
     .index("by_created_at", ["userId", "createdAt"]),
 
   // Shopping List Items
@@ -145,24 +160,26 @@ export default defineSchema({
     listId: v.id("shoppingLists"),
     productId: v.id("products"),
     quantity: v.number(),
-    checked: v.boolean(), // Ali je ≈æe kupljeno
+    checked: v.boolean(), // Ali je ûe kupljeno
     addedBy: v.optional(v.string()), // Kdo je dodal (za family)
     addedAt: v.number(),
-  }).index("by_list", ["listId"])
+  })
+    .index("by_list", ["listId"])
     .index("by_product", ["productId"]),
 
   // Price Alerts
   priceAlerts: defineTable({
     userId: v.string(),
     productId: v.id("products"),
-    storeId: v.optional(v.id("stores")), // ƒåe ≈æeli spremljati specifiƒçno trgovino
-    targetPrice: v.number(), // ≈Ωelena cena
-    currentPrice: v.number(), // Trenutna najni≈æja cena
+    storeId: v.optional(v.id("stores")), // »e ûeli spremljati specifiËno trgovino
+    targetPrice: v.number(), // éelena cena
+    currentPrice: v.number(), // Trenutna najniûja cena
     isActive: v.boolean(),
-    triggered: v.boolean(), // Ali je bil alert ≈æe spro≈æen
+    triggered: v.boolean(), // Ali je bil alert ûe sproûen
     triggeredAt: v.optional(v.number()),
     createdAt: v.number(),
-  }).index("by_user", ["userId"])
+  })
+    .index("by_user", ["userId"])
     .index("by_product", ["productId"])
     .index("by_active", ["isActive"]),
 
@@ -172,12 +189,80 @@ export default defineSchema({
     productId: v.id("products"),
     storeId: v.id("stores"),
     quantity: v.number(),
-    pricePaid: v.number(), // Cena ki jo je plaƒçal
+    pricePaid: v.number(), // Cena ki jo je plaËal
     regularPrice: v.number(), // Redna cena (brez akcije)
     savedAmount: v.number(), // Prihranek
     purchaseDate: v.number(),
-  }).index("by_user", ["userId"])
+  })
+    .index("by_user", ["userId"])
     .index("by_date", ["userId", "purchaseDate"]),
+
+  // RaËuni (OCR + prihranki)
+  receipts: defineTable({
+    userId: v.string(),
+    groupId: v.string(),
+    storeName: v.optional(v.string()),
+    storeNameLower: v.optional(v.string()),
+    purchaseDate: v.number(),
+    purchaseDateKey: v.string(),
+    purchaseTime: v.optional(v.string()),
+    totalPaid: v.number(),
+    currency: v.optional(v.string()),
+    referenceTotal: v.optional(v.number()),
+    savedAmount: v.number(),
+    isValid: v.boolean(),
+    invalidReason: v.optional(v.string()),
+    confirmed: v.boolean(),
+    source: v.string(),
+    receiptFingerprint: v.string(),
+    seasonYear: v.optional(v.number()),
+    seasonEligible: v.boolean(),
+    items: v.array(
+      v.object({
+        name: v.string(),
+        quantity: v.optional(v.number()),
+        unitPrice: v.optional(v.number()),
+        lineTotal: v.optional(v.number()),
+        matchedProductId: v.optional(v.id("products")),
+        matchScore: v.optional(v.number()),
+        referenceUnitPrice: v.optional(v.number()),
+      })
+    ),
+  })
+    .index("by_user", ["userId"])
+    .index("by_group_and_date", ["groupId", "purchaseDateKey"])
+    .index("by_group_and_fingerprint", ["groupId", "receiptFingerprint"]),
+
+  // Letni prihranki po sezoni
+  yearlySavings: defineTable({
+    userId: v.string(),
+    year: v.number(),
+    savings: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_year", ["year", "savings"])
+    .index("by_user_year", ["userId", "year"]),
+
+  // Sezonsko stanje
+  seasonState: defineTable({
+    year: v.number(),
+    startAt: v.number(),
+    endAt: v.number(),
+    lockedAt: v.optional(v.number()),
+    awardsAssignedAt: v.optional(v.number()),
+  }).index("by_year", ["year"]),
+
+  // Sezonske nagrade
+  seasonAwards: defineTable({
+    userId: v.string(),
+    year: v.number(),
+    leaderboard: v.union(v.literal("standard"), v.literal("family")),
+    rank: v.number(),
+    award: v.string(),
+    assignedAt: v.number(),
+  })
+    .index("by_user_year", ["userId", "year"])
+    .index("by_year", ["year"]),
 
   // Active sessions tracking
   activeSessions: defineTable({
@@ -185,29 +270,35 @@ export default defineSchema({
     sessionToken: v.string(),
     ipAddress: v.string(),
     deviceInfo: v.optional(v.string()),
-    location: v.optional(v.object({
-      country: v.optional(v.string()),
-      city: v.optional(v.string()),
-      coordinates: v.optional(v.object({
-        lat: v.number(),
-        lon: v.number(),
-      })),
-    })),
+    location: v.optional(
+      v.object({
+        country: v.optional(v.string()),
+        city: v.optional(v.string()),
+        coordinates: v.optional(
+          v.object({
+            lat: v.number(),
+            lon: v.number(),
+          })
+        ),
+      })
+    ),
     createdAt: v.number(),
     lastActiveAt: v.number(),
     expiresAt: v.number(),
-  }).index("by_user_id", ["userId"])
+  })
+    .index("by_user_id", ["userId"])
     .index("by_session_token", ["sessionToken"])
     .index("by_expires_at", ["expiresAt"]),
 
-  // Ko≈°arica
+  // Koöarica
   cartItems: defineTable({
     userId: v.string(),
     productId: v.id("products"),
     storeId: v.id("stores"),
     quantity: v.number(),
     priceAtAdd: v.number(),
-  }).index("by_user", ["userId"])
+  })
+    .index("by_user", ["userId"])
     .index("by_user_and_product", ["userId", "productId"]),
 
   // Zgodovina iskanj

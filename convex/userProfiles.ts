@@ -1,10 +1,15 @@
 import { v } from "convex/values";
 import { authQuery, authMutation } from "./functions";
+import { query } from "./_generated/server";
+import { getDateKey, getNextMidnightTimestamp } from "./time";
 
-const MAX_FREE_SEARCHES = 3; // Maksimalno število brezplačnih iskanj na dan
-const MAX_GUEST_SEARCHES = 1; // Gost ima 1 iskanje na dan
+const MAX_FREE_SEARCHES = 3; // Max free searches per day
+const MAX_GUEST_SEARCHES = 1; // Guest has 1 search per day
+const NICKNAME_MIN_LENGTH = 3;
+const NICKNAME_MAX_LENGTH = 20;
+const NICKNAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
 
-// Pridobi profil uporabnika
+// Get user profile
 export const getProfile = authQuery({
   args: {},
   returns: v.union(
@@ -13,14 +18,19 @@ export const getProfile = authQuery({
       _creationTime: v.number(),
       userId: v.string(),
       name: v.optional(v.string()),
+      nickname: v.optional(v.string()),
+      nicknameUpdatedAt: v.optional(v.number()),
+      nicknameChangeAvailableAt: v.optional(v.number()),
       email: v.optional(v.string()),
       emailVerified: v.optional(v.boolean()),
       isAnonymous: v.optional(v.boolean()),
-      birthDate: v.optional(v.object({
-        day: v.number(),
-        month: v.number(),
-        year: v.number(),
-      })),
+      birthDate: v.optional(
+        v.object({
+          day: v.number(),
+          month: v.number(),
+          year: v.number(),
+        })
+      ),
       isPremium: v.boolean(),
       premiumUntil: v.optional(v.number()),
       premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))),
@@ -31,12 +41,13 @@ export const getProfile = authQuery({
       searchResetTime: v.optional(v.number()),
       canSearch: v.boolean(),
       searchesRemaining: v.number(),
+      totalSavings: v.optional(v.number()),
     }),
     v.null()
   ),
   handler: async (ctx) => {
     const userId = ctx.user._id;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getDateKey(Date.now());
 
     const profile = await ctx.db
       .query("userProfiles")
@@ -47,20 +58,20 @@ export const getProfile = authQuery({
       return null;
     }
 
-    // Ponastavi dnevna iskanja, če je nov dan
     let dailySearches = profile.dailySearches;
     let searchResetTime = profile.searchResetTime;
-    
+
     if (profile.lastSearchDate !== today) {
       dailySearches = 0;
       searchResetTime = undefined;
     }
 
-    // Preveri ali je gost (anonymous user)
     const isGuest = profile.isAnonymous || !profile.email;
     const maxSearches = profile.isPremium
       ? Infinity
-      : (isGuest ? MAX_GUEST_SEARCHES : MAX_FREE_SEARCHES);
+      : isGuest
+      ? MAX_GUEST_SEARCHES
+      : MAX_FREE_SEARCHES;
     const searchesRemaining = profile.isPremium
       ? 999
       : Math.max(0, maxSearches - dailySearches);
@@ -70,6 +81,9 @@ export const getProfile = authQuery({
       _creationTime: profile._creationTime,
       userId: profile.userId,
       name: profile.name,
+      nickname: profile.nickname ?? profile.name,
+      nicknameUpdatedAt: profile.nicknameUpdatedAt,
+      nicknameChangeAvailableAt: profile.nicknameChangeAvailableAt,
       email: profile.email,
       emailVerified: profile.emailVerified ?? false,
       isAnonymous: profile.isAnonymous ?? false,
@@ -84,17 +98,41 @@ export const getProfile = authQuery({
       searchResetTime,
       canSearch: profile.isPremium || dailySearches < maxSearches,
       searchesRemaining,
+      totalSavings: profile.totalSavings,
     };
   },
 });
 
-// Ustvari ali posodobi profil
+// Check nickname availability (public)
+export const isNicknameAvailable = query({
+  args: {
+    nickname: v.string(),
+  },
+  returns: v.object({
+    available: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const normalized = args.nickname.trim().toLowerCase();
+    if (!normalized) {
+      return { available: false };
+    }
+    const existing = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_nickname", (q) => q.eq("nicknameLower", normalized))
+      .first();
+    return { available: !existing };
+  },
+});
+
+// Create or update profile
 export const ensureProfile = authMutation({
   args: {},
   returns: v.id("userProfiles"),
   handler: async (ctx) => {
     const userId = ctx.user._id;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getDateKey(Date.now());
+    const nickname = ctx.user.name ? ctx.user.name.trim() : undefined;
+    const nicknameLower = nickname ? nickname.toLowerCase() : undefined;
 
     const existing = await ctx.db
       .query("userProfiles")
@@ -105,9 +143,14 @@ export const ensureProfile = authMutation({
       return existing._id;
     }
 
+    const now = Date.now();
     return await ctx.db.insert("userProfiles", {
       userId,
       name: ctx.user.name || undefined,
+      nickname,
+      nicknameLower,
+      nicknameUpdatedAt: nickname ? now : undefined,
+      nicknameChangeAvailableAt: nickname ? now + NICKNAME_COOLDOWN_MS : undefined,
       email: ctx.user.email || undefined,
       emailVerified: ctx.user.emailVerified ?? false,
       isAnonymous: ctx.user.isAnonymous ?? false,
@@ -118,7 +161,7 @@ export const ensureProfile = authMutation({
   },
 });
 
-// Posodobi datum rojstva
+// Update birth date (legacy)
 export const updateBirthDate = authMutation({
   args: {
     day: v.number(),
@@ -148,7 +191,7 @@ export const updateBirthDate = authMutation({
   },
 });
 
-// Zabeleži iskanje
+// Record search usage
 export const recordSearch = authMutation({
   args: {},
   returns: v.object({
@@ -159,7 +202,7 @@ export const recordSearch = authMutation({
   }),
   handler: async (ctx) => {
     const userId = ctx.user._id;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getDateKey(Date.now());
     const now = Date.now();
     const isAnonymous = ctx.user.isAnonymous ?? false;
     const isGuestUser = isAnonymous || !ctx.user.email;
@@ -171,10 +214,14 @@ export const recordSearch = authMutation({
       .first();
 
     if (!profile) {
-      const resetTime = guestMaxSearches <= 1 ? now + 24 * 60 * 60 * 1000 : undefined;
+      const resetTime = guestMaxSearches <= 1 ? getNextMidnightTimestamp(now) : undefined;
       await ctx.db.insert("userProfiles", {
         userId,
         name: ctx.user.name || undefined,
+        nickname: ctx.user.name || undefined,
+        nicknameLower: ctx.user.name ? ctx.user.name.toLowerCase() : undefined,
+        nicknameUpdatedAt: ctx.user.name ? now : undefined,
+        nicknameChangeAvailableAt: ctx.user.name ? now + NICKNAME_COOLDOWN_MS : undefined,
         email: ctx.user.email || undefined,
         emailVerified: ctx.user.emailVerified ?? false,
         isAnonymous: isAnonymous,
@@ -183,8 +230,8 @@ export const recordSearch = authMutation({
         lastSearchDate: today,
         searchResetTime: resetTime,
       });
-      return { 
-        success: true, 
+      return {
+        success: true,
         searchesRemaining: Math.max(0, guestMaxSearches - 1),
         resetTime,
       };
@@ -193,77 +240,133 @@ export const recordSearch = authMutation({
     const isGuest = profile.isAnonymous || !profile.email;
     const maxSearches = profile.isPremium
       ? Infinity
-      : (isGuest ? MAX_GUEST_SEARCHES : MAX_FREE_SEARCHES);
+      : isGuest
+      ? MAX_GUEST_SEARCHES
+      : MAX_FREE_SEARCHES;
 
-    // Ponastavi, če je nov dan
     if (profile.lastSearchDate !== today) {
-      const resetTime = (!profile.isPremium && 1 >= maxSearches)
-        ? now + 24 * 60 * 60 * 1000
-        : undefined;
+      const resetTime = !profile.isPremium && 1 >= maxSearches ? getNextMidnightTimestamp(now) : undefined;
       await ctx.db.patch(profile._id, {
         dailySearches: 1,
         lastSearchDate: today,
         searchResetTime: resetTime,
       });
-      return { 
-        success: true, 
+      return {
+        success: true,
         searchesRemaining: profile.isPremium ? 999 : Math.max(0, maxSearches - 1),
         resetTime,
       };
     }
 
-    // Preveri omejitev (MAX_FREE_SEARCHES iskanja za brezplačne uporabnike)
     if (!profile.isPremium && profile.dailySearches >= maxSearches) {
       const guestError =
-        "Dnevna limita gostujočih iskanj dosežena. Prijavi se za 3 iskanja na dan in dostop do Košarice ter Profila.";
+        "Daily guest limit reached. Register to unlock 3 searches per day and access Cart + Profile.";
       const premiumError =
-        "Dnevna limita iskanj dosežena. Nadgradite na Premium (1,99ƒ'ª/mesec)!";
-      // Nastavi reset time če še ni nastavljen
+        "Daily search limit reached. Upgrade to PrHran Plus for unlimited search.";
       if (!profile.searchResetTime) {
-        const resetTime = now + 24 * 60 * 60 * 1000; // 24 ur od zdaj
+        const resetTime = getNextMidnightTimestamp(now);
         await ctx.db.patch(profile._id, {
           searchResetTime: resetTime,
         });
-        return { 
-          success: false, 
-          searchesRemaining: 0, 
+        return {
+          success: false,
+          searchesRemaining: 0,
           resetTime,
           error: isGuest ? guestError : premiumError,
         };
       }
-      return { 
-        success: false, 
-        searchesRemaining: 0, 
+      return {
+        success: false,
+        searchesRemaining: 0,
         resetTime: profile.searchResetTime,
-        error: isGuest ? guestError : "Dnevna limita iskanj dosežena. Nadgradite na Premium!",
+        error: isGuest ? guestError : premiumError,
       };
     }
 
     const newSearchCount = profile.dailySearches + 1;
-    const remaining = profile.isPremium
-      ? 999
-      : Math.max(0, maxSearches - newSearchCount);
+    const remaining = profile.isPremium ? 999 : Math.max(0, maxSearches - newSearchCount);
 
-    // Če je to zadnje iskanje, nastavi reset time
     const updateData: { dailySearches: number; searchResetTime?: number } = {
       dailySearches: newSearchCount,
     };
-    
+
     if (!profile.isPremium && newSearchCount >= maxSearches) {
-      updateData.searchResetTime = now + 24 * 60 * 60 * 1000;
+      updateData.searchResetTime = getNextMidnightTimestamp(now);
     }
 
     await ctx.db.patch(profile._id, updateData);
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       searchesRemaining: remaining,
       resetTime: updateData.searchResetTime,
     };
   },
 });
 
-// Nadgradi na premium (simulacija)
+// Update nickname (1x per 30 days)
+export const updateNickname = authMutation({
+  args: {
+    nickname: v.string(),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    availableAt: v.optional(v.number()),
+  }),
+  handler: async (ctx, args) => {
+    const userId = ctx.user._id;
+    const trimmed = args.nickname.trim();
+    const normalized = trimmed.toLowerCase();
+    const now = Date.now();
+
+    if (trimmed.length < NICKNAME_MIN_LENGTH || trimmed.length > NICKNAME_MAX_LENGTH) {
+      return { success: false, error: "Nickname must be 3-20 characters." };
+    }
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      return { success: false, error: "Profile not found." };
+    }
+
+    const isGuest = profile.isAnonymous || !profile.email;
+    if (isGuest) {
+      return { success: false, error: "Register before setting a nickname." };
+    }
+
+    if (profile.nicknameChangeAvailableAt && now < profile.nicknameChangeAvailableAt) {
+      return {
+        success: false,
+        error: "Nickname can be changed once every 30 days.",
+        availableAt: profile.nicknameChangeAvailableAt,
+      };
+    }
+
+    const existing = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_nickname", (q) => q.eq("nicknameLower", normalized))
+      .first();
+
+    if (existing && existing.userId !== userId) {
+      return { success: false, error: "Nickname is already taken." };
+    }
+
+    await ctx.db.patch(profile._id, {
+      nickname: trimmed,
+      nicknameLower: normalized,
+      nicknameUpdatedAt: now,
+      nicknameChangeAvailableAt: now + NICKNAME_COOLDOWN_MS,
+    });
+
+    return { success: true };
+  },
+});
+
+// Upgrade to premium (simulation)
 export const upgradeToPremium = authMutation({
   args: {
     planType: v.optional(v.union(v.literal("solo"), v.literal("family"))),

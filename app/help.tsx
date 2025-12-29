@@ -21,32 +21,32 @@ const FAQ_ITEMS = [
   {
     question: "Kako deluje primerjava cen?",
     answer:
-      "Pr'Hran avtomatsko primerja cene izdelkov v vseh slovenskih trgovinah (Spar, Mercator, TuĹˇ, Hofer, Lidl, Jager). Cene se posodabljajo dnevno ob 22:00, da ti vedno prikaĹľemo najnovejĹˇe podatke.",
+      "Pr'Hran avtomatsko primerja cene izdelkov v trgovinah (Spar, Mercator, Tus, Hofer, Lidl, Jager). Cene se posodabljajo dnevno ob 22:00, da vedno vidis najnovejse podatke.",
   },
   {
     question: "Kako delujejo kuponi?",
     answer:
-      "NaĹˇ sistem avtomatsko upoĹˇteva vse aktivne kupone in akcije v trgovinah. Pri izraÄŤunu konÄŤne cene ti pokaĹľemo, koliko lahko prihranite z uporabo kuponov. Premium uporabniki imajo dostop do ekskluzivnih kuponov.",
+      "Sistem uposteva aktivne kupone in akcije v trgovinah. Pri izracunu koncne cene ti pokazemo, koliko lahko prihranis z uporabo kuponov. Premium uporabniki imajo dostop do ekskluzivnih kuponov.",
   },
   {
-    question: "Kaj vkljuÄŤuje Premium naroÄŤnina?",
+    question: "Kaj vkljucuje Premium narocnina?",
     answer:
-      "Premium naroÄŤnina (1,99 â‚¬/mesec) vkljuÄŤuje: neomejeno iskanje izdelkov, dostop do vseh trgovin (vkljuÄŤno s Hofer, Lidl, Jager), obvestila o padcih cen in ekskluzivne kupone.",
+      "Premium narocnina (1.99 EUR/mesec) vkljucuje: neomejeno iskanje izdelkov, dostop do vseh trgovin, obvestila o padcih cen in ekskluzivne kupone.",
   },
   {
-    question: "Kako dodam izdelek v koĹˇarico?",
+    question: "Kako dodam izdelek v kosarico?",
     answer:
-      "Ko najdeĹˇ izdelek, preprosto klikni na gumb 'Dodaj v koĹˇarico' pri Ĺľeleni trgovini. V koĹˇarici lahko nato vidiĹˇ skupno ceno in prihranke za vsako trgovino posebej.",
+      "Ko najdes izdelek, klikni na gumb 'Dodaj v kosarico' pri izbrani trgovini. V kosarici potem vidis skupno ceno in prihranke za vsako trgovino posebej.",
   },
   {
-    question: "Ali so cene vedno toÄŤne?",
+    question: "Ali so cene vedno tocne?",
     answer:
-      "Cene posodabljamo dnevno iz uradnih virov trgovin. ObÄŤasno lahko pride do manjĹˇih odstopanj zaradi lokalnih akcij ali zakasnitev pri posodabljanju. PriporoÄŤamo, da ceno preverite tudi v trgovini.",
+      "Cene posodabljamo dnevno iz uradnih virov trgovin. Obcasno lahko pride do manjsih odstopanj zaradi lokalnih akcij ali zakasnitev. Priporocamo, da ceno preveris tudi v trgovini.",
   },
   {
-    question: "Kako prekliÄŤem Premium naroÄŤnino?",
+    question: "Kako preklicem Premium narocnino?",
     answer:
-      "Premium naroÄŤnino lahko kadarkoli prekliÄŤeĹˇ v nastavitvah profila. Po preklicu boĹˇ imel dostop do Premium funkcij do konca obraÄŤunskega obdobja.",
+      "Premium narocnino lahko kadarkoli preklices v nastavitvah profila. Po preklicu imas dostop do Premium funkcij do konca obracunskega obdobja.",
   },
 ];
 
@@ -70,9 +70,9 @@ export default function HelpScreen() {
     
     Alert.alert(
       "Resetiraj podatke",
-      "Ali si prepriÄŤan da ĹľeliĹˇ resetirati in ponovno naloĹľiti vse podatke? To bo izbrisalo vse obstojeÄŤe podatke.",
+      "Ali si preprican, da zelis resetirati in ponovno naloziti vse podatke? To bo izbrisalo vse obstojece podatke.",
       [
-        { text: "PrekliÄŤi", style: "cancel" },
+        { text: "Preklici", style: "cancel" },
         {
           text: "Resetiraj",
           style: "destructive",
@@ -81,11 +81,11 @@ export default function HelpScreen() {
             try {
               const result = await resetData({});
               Alert.alert(
-                "UspeĹˇno!",
-                `NaloĹľenih:\n${result.stores} trgovin\n${result.products} izdelkov\n${result.prices} cen\n${result.coupons} kuponov`
+                "Uspesno!",
+                `Nalozenih:\n${result.stores} trgovin\n${result.products} izdelkov\n${result.prices} cen\n${result.coupons} kuponov`
               );
             } catch {
-              Alert.alert("Napaka", "Ni bilo mogoÄŤe resetirati podatkov.");
+              Alert.alert("Napaka", "Ni bilo mogoce resetirati podatkov.");
             } finally {
               setIsResetting(false);
             }
@@ -120,7 +120,7 @@ export default function HelpScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>PomoÄŤ</Text>
+          <Text style={styles.headerTitle}>Pomoc</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -138,9 +138,9 @@ export default function HelpScreen() {
               <View style={styles.contactIcon}>
                 <Ionicons name="headset" size={32} color="#a78bfa" />
               </View>
-              <Text style={styles.contactTitle}>PotrebujeĹˇ pomoÄŤ?</Text>
+              <Text style={styles.contactTitle}>Potrebujes pomoc?</Text>
               <Text style={styles.contactText}>
-                NaĹˇa ekipa ti je na voljo za vsa vpraĹˇanja in teĹľave.
+                Nasa ekipa ti je na voljo za vsa vprasanja in tezave.
               </Text>
               <TouchableOpacity
                 style={styles.contactButton}
@@ -159,7 +159,7 @@ export default function HelpScreen() {
 
           {/* FAQ Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pogosta vpraĹˇanja</Text>
+            <Text style={styles.sectionTitle}>Pogosta vprasanja</Text>
 
             {FAQ_ITEMS.map((item, index) => (
               <TouchableOpacity
@@ -186,7 +186,7 @@ export default function HelpScreen() {
           {/* App Info */}
           <View style={styles.appInfo}>
             <Text style={styles.appVersion}>Pr'Hran verzija 1.0.0</Text>
-            <Text style={styles.appCopyright}>Â© 2024 Pr'Hran. Vse pravice pridrĹľane.</Text>
+            <Text style={styles.appCopyright}>(c) 2024 Pr'Hran. Vse pravice pridrzane.</Text>
           </View>
 
           {/* Debug Reset Button */}
@@ -201,7 +201,7 @@ export default function HelpScreen() {
             >
               <Ionicons name="refresh" size={20} color="#ef4444" />
               <Text style={styles.debugButtonText}>
-                {isResetting ? "Resetiranje..." : "đź”§ Resetiraj podatke (Debug)"}
+                {isResetting ? "Resetiranje..." : "Resetiraj podatke (debug)"}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -369,4 +369,5 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
 });
+
 

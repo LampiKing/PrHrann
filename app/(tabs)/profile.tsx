@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,11 +8,13 @@ import {
   Platform,
   Animated,
   Image,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,7 +23,21 @@ import { PLAN_FREE, PLAN_PLUS, PLAN_FAMILY } from "@/lib/branding";
 import { authClient } from "@/lib/auth-client";
 import { createShadow } from "@/lib/shadow-helper";
 import { useConvexAuth } from "convex/react";
-import AppLogo from "@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png";
+import { getSeasonalLogoSource } from "@/lib/Logo";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
+import BADGE_TOP_100 from "@/assets/images/Top 100 badge 2026.png";
+import BADGE_TOP_10 from "@/assets/images/Top 10 badge 2026.png";
+import BADGE_GOLD from "@/assets/images/Zlati badge 2026.png";
+import BADGE_SILVER from "@/assets/images/Srebrni badge 2026.png";
+import BADGE_BRONZE from "@/assets/images/Bronasti badge 2026.png";
+
+type AwardEntry = {
+  year: number;
+  award: string;
+  rank: number;
+  leaderboard: "standard" | "family";
+};
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -32,6 +48,16 @@ export default function ProfileScreen() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [showSignOutToast, setShowSignOutToast] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [receiptConfirmed, setReceiptConfirmed] = useState(false);
+  const [receiptSubmitting, setReceiptSubmitting] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
+  const [receiptSuccess, setReceiptSuccess] = useState("");
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [nicknameSaving, setNicknameSaving] = useState(false);
+  const [nicknameError, setNicknameError] = useState("");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -40,6 +66,22 @@ export default function ProfileScreen() {
   const profile = useQuery(
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
+  );
+  const receipts = useQuery(
+    api.receipts.getReceipts,
+    isAuthenticated ? { limit: 20 } : "skip"
+  );
+  const awards = useQuery(
+    api.awards.getMyAwards,
+    isAuthenticated ? {} : "skip"
+  );
+  const updateNickname = useMutation(api.userProfiles.updateNickname);
+  const submitReceipt = useAction(api.receipts.submitReceipt);
+  const nicknameAvailability = useQuery(
+    api.userProfiles.isNicknameAvailable,
+    isAuthenticated && nicknameInput.trim().length >= 3
+      ? { nickname: nicknameInput.trim() }
+      : "skip"
   );
   
   // Check if user is guest (anonymous)
@@ -52,13 +94,52 @@ export default function ProfileScreen() {
   const searchProgress = isPremium ? 1 : Math.max(0, Math.min(1, searchesRemaining / maxSearches));
   const searchResetTime = profile?.searchResetTime;
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
-
-  // Redirect guest to auth
-  useEffect(() => {
-    if (isGuest) {
-      router.replace("/auth");
+  const getLocalDateKey = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = `${now.getMonth() + 1}`.padStart(2, "0");
+    const day = `${now.getDate()}`.padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const displayNickname =
+    profile?.nickname ??
+    profile?.name ??
+    (profile?.email ? profile.email.split("@")[0] : "Uporabnik");
+  const canChangeNickname =
+    !profile?.nicknameChangeAvailableAt || profile.nicknameChangeAvailableAt <= Date.now();
+  const nextNicknameChangeLabel = profile?.nicknameChangeAvailableAt
+    ? new Date(profile.nicknameChangeAvailableAt).toLocaleDateString()
+    : null;
+  const receiptLimit = premiumType === "family" ? 4 : 2;
+  const todayKey = getLocalDateKey();
+  const receiptsToday = receipts?.filter((receipt) => receipt.purchaseDateKey === todayKey) ?? [];
+  const receiptsRemaining = Math.max(0, receiptLimit - receiptsToday.length);
+  const awardsByYear = (awards ?? []).reduce<Record<string, AwardEntry[]>>((acc, award) => {
+    const key = `${award.year}`;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(award);
+    return acc;
+  }, {});
+  const awardYears = Object.keys(awardsByYear).sort((a, b) => Number(b) - Number(a));
+  const getAwardBadge = (award: AwardEntry) => {
+    const label = award.award.toLowerCase();
+    if (label.includes("zlati")) {
+      return { image: BADGE_GOLD, title: award.award };
     }
-  }, [isGuest]);
+    if (label.includes("srebrni")) {
+      return { image: BADGE_SILVER, title: award.award };
+    }
+    if (label.includes("bronasti")) {
+      return { image: BADGE_BRONZE, title: award.award };
+    }
+    if (label.includes("top 10")) {
+      return { image: BADGE_TOP_10, title: award.award };
+    }
+    if (label.includes("top 100")) {
+      return { image: BADGE_TOP_100, title: award.award };
+    }
+    return { image: BADGE_TOP_100, title: award.award };
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -98,11 +179,156 @@ export default function ProfileScreen() {
     }).start();
   }, [searchProgress]);
 
+  useEffect(() => {
+    if (profile?.nickname && !nicknameInput) {
+      setNicknameInput(profile.nickname);
+    }
+  }, [profile?.nickname, nicknameInput]);
+
   const handleUpgrade = async () => {
     if (Platform.OS !== "web") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     router.push("/premium");
+  };
+
+  const formatCurrency = (value: number) => {
+    if (!Number.isFinite(value)) return "0.00 EUR";
+    return value.toFixed(2).replace(".", ",") + " EUR";
+  };
+
+  const handleCaptureReceipt = async () => {
+    if (receiptsRemaining <= 0) {
+      setReceiptError("Dosezen dnevni limit racunov.");
+      return;
+    }
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      setReceiptError("Dostop do kamere ni dovoljen.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setReceiptImage(result.assets[0].uri);
+      setReceiptConfirmed(false);
+      setReceiptError("");
+      setReceiptSuccess("");
+    }
+  };
+
+  const resetReceiptState = () => {
+    setReceiptImage(null);
+    setReceiptConfirmed(false);
+    setReceiptError("");
+    setReceiptSuccess("");
+  };
+
+  const handleSubmitReceipt = async () => {
+    if (!receiptImage) {
+      setReceiptError("Najprej posnemi racun.");
+      return;
+    }
+    if (!receiptConfirmed) {
+      setReceiptError("Potrdi, da je racun tvoj in danasnji.");
+      return;
+    }
+
+    setReceiptSubmitting(true);
+    setReceiptError("");
+    setReceiptSuccess("");
+
+    try {
+      let base64Image = "";
+      if (Platform.OS === "web") {
+        const response = await fetch(receiptImage);
+        const blob = await response.blob();
+        base64Image = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        const base64 = await FileSystem.readAsStringAsync(receiptImage, {
+          encoding: "base64",
+        });
+        base64Image = `data:image/jpeg;base64,${base64}`;
+      }
+
+      const result = await submitReceipt({
+        imageBase64: base64Image,
+        confirmed: receiptConfirmed,
+      });
+
+      if (!result.success) {
+        setReceiptError(result.error ?? "Oddaja racuna ni uspela.");
+        return;
+      }
+
+      if (result.invalidReason) {
+        setReceiptSuccess(`Racun shranjen, a neveljaven: ${result.invalidReason}`);
+      } else {
+        setReceiptSuccess("Racun potrjen in upostevan.");
+      }
+
+      setTimeout(() => {
+        setShowReceiptModal(false);
+        resetReceiptState();
+      }, 1200);
+    } catch (error) {
+      console.error("Receipt error:", error);
+      setReceiptError("Oddaja racuna ni uspela.");
+    } finally {
+      setReceiptSubmitting(false);
+    }
+  };
+
+  const handleNicknameSave = async () => {
+    if (!canChangeNickname) {
+      setNicknameError(
+        nextNicknameChangeLabel
+          ? `Vzdevek lahko spremenis po ${nextNicknameChangeLabel}.`
+          : "Vzdevek lahko spremenis enkrat na 30 dni."
+      );
+      return;
+    }
+
+    const trimmed = nicknameInput.trim();
+    if (trimmed.length < 3 || trimmed.length > 20) {
+      setNicknameError("Vzdevek mora imeti 3-20 znakov.");
+      return;
+    }
+
+    if (nicknameAvailability && !nicknameAvailability.available) {
+      setNicknameError("Vzdevek je ze zaseden.");
+      return;
+    }
+
+    setNicknameSaving(true);
+    setNicknameError("");
+    try {
+      const result = await updateNickname({ nickname: trimmed });
+      if (!result.success) {
+        setNicknameError(result.error ?? "Sprememba vzdevka ni uspela.");
+        return;
+      }
+      setShowNicknameModal(false);
+    } catch (error) {
+      console.error("Nickname error:", error);
+      setNicknameError("Sprememba vzdevka ni uspela.");
+    } finally {
+      setNicknameSaving(false);
+    }
   };
 
   const handleSignOut = async () => {
@@ -155,21 +381,24 @@ export default function ProfileScreen() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isGuest) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
         <View style={[styles.authPrompt, { paddingTop: insets.top + 40 }]}>
           <Image
-            source={AppLogo}
+            source={getSeasonalLogoSource()}
             style={styles.authLogo}
             resizeMode="contain"
           />
-          <Text style={styles.authTitle}>Prijavi se</Text>
+          <Text style={styles.authTitle}>Prijava je potrebna</Text>
           <Text style={styles.authText}>
-            Za dostop do profila in shranjevanje{"\n"}nastavitev se prijavi v svoj račun
+            Za dostop do profila in shranjevanje{"\n"}nastavitev se prijavi ali registriraj
           </Text>
-          <TouchableOpacity style={styles.authButton} onPress={() => router.push("/auth")}>
+          <TouchableOpacity
+            style={styles.authButton}
+            onPress={() => router.push({ pathname: "/auth", params: { mode: "register" } })}
+          >
             <LinearGradient
               colors={["#8b5cf6", "#7c3aed"]}
               start={{ x: 0, y: 0 }}
@@ -200,11 +429,24 @@ export default function ProfileScreen() {
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <Image
-            source={AppLogo}
+            source={getSeasonalLogoSource()}
             style={styles.logo}
             resizeMode="contain"
           />
           <Text style={styles.title}>Moj profil</Text>
+          <View style={styles.nicknameRow}>
+            <Text style={styles.nicknameText}>{displayNickname}</Text>
+            <TouchableOpacity
+              style={[styles.nicknameEditButton, !canChangeNickname && styles.nicknameEditButtonDisabled]}
+              onPress={() => setShowNicknameModal(true)}
+              disabled={!canChangeNickname}
+            >
+              <Ionicons name="create-outline" size={16} color={canChangeNickname ? "#fff" : "#9ca3af"} />
+            </TouchableOpacity>
+          </View>
+          {!canChangeNickname && nextNicknameChangeLabel && (
+            <Text style={styles.nicknameHint}>Naslednja sprememba: {nextNicknameChangeLabel}</Text>
+          )}
         </Animated.View>
 
         {/* Plan Card */}
@@ -236,7 +478,7 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 <Text style={styles.planPrice}>
-                  {isPremium ? (premiumType === "family" ? "2,99 €/mesec" : "1,99 €/mesec") : "Brezplačno"}
+                  {isPremium ? (premiumType === "family" ? "2,99  EUR/mesec" : "1,99  EUR/mesec") : "Brezplacno"}
                 </Text>
               </View>
               {(!isPremium || (isPremium && premiumType === "solo")) && (
@@ -262,7 +504,7 @@ export default function ProfileScreen() {
             {/* Search Progress */}
             <View style={styles.searchProgress}>
               <View style={styles.searchProgressHeader}>
-                <Text style={styles.searchProgressLabel}>Brezplačna iskanja</Text>
+                <Text style={styles.searchProgressLabel}>Brezplacna iskanja</Text>
                 <Text style={styles.searchProgressValue}>
                   {isPremium ? "neomejeno" : `${Math.max(0, searchesRemaining)}/${maxSearches}`}
                 </Text>
@@ -284,11 +526,11 @@ export default function ProfileScreen() {
               {!isPremium && searchesRemaining <= 0 && timeRemaining ? (
                 <View style={styles.searchTimer}>
                   <Ionicons name="time-outline" size={14} color="#fbbf24" />
-                  <Text style={styles.searchTimerText}>Novo iskanje čez {timeRemaining}</Text>
+                  <Text style={styles.searchTimerText}>Novo iskanje cez {timeRemaining}</Text>
                 </View>
               ) : !isPremium && searchesRemaining === 1 ? (
                 <Text style={styles.searchWarning}>
-                  ⚠️ Še samo 1 brezplačno iskanje
+                  Se samo 1 brezplacno iskanje.
                 </Text>
               ) : null}
             </View>
@@ -303,7 +545,7 @@ export default function ProfileScreen() {
                 />
                 <Text style={[styles.planFeatureText, !isPremium && styles.planFeatureTextDisabled]}>
                   {isPremium
-                    ? "Neomejeno iskanj"
+                    ? "Neomejeno iskanje"
                     : (maxSearches === 1 ? "1 iskanje na dan" : `${maxSearches} iskanja na dan`)}
                 </Text>
               </View>
@@ -331,6 +573,109 @@ export default function ProfileScreen() {
           </LinearGradient>
         </Animated.View>
 
+        {/* Achievements */}
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionTitle}>Dosezki</Text>
+          <Text style={styles.sectionSubtitle}>Letni dosezki iz varcevanja</Text>
+          {awardYears.length === 0 ? (
+            <View style={styles.emptyAwards}>
+              <Ionicons name="trophy-outline" size={26} color="#a78bfa" />
+              <Text style={styles.emptyAwardsText}>
+                Se ni dosezkov. Dodaj racune in zacni varcevati.
+              </Text>
+            </View>
+          ) : (
+            awardYears.map((year) => (
+              <View key={year} style={styles.awardYearCard}>
+                <Text style={styles.awardYearTitle}>{year}</Text>
+                <View style={styles.awardList}>
+                  {awardsByYear[year].map((award, index) => {
+                    const badge = getAwardBadge(award);
+                    const leaderboardLabel =
+                      award.leaderboard === "family" ? "Family lestvica" : "Skupna lestvica";
+                    return (
+                      <View key={`${year}-${award.rank}-${index}`} style={styles.awardBadgeCard}>
+                        <Image source={badge.image} style={styles.awardBadgeImage} />
+                        <View style={styles.awardBadgeInfo}>
+                          <Text style={styles.awardBadgeTitle}>{badge.title}</Text>
+                          <Text style={styles.awardBadgeMeta}>
+                            {leaderboardLabel} - #{award.rank}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            ))
+          )}
+        </Animated.View>
+
+        {/* Receipts */}
+        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+          <Text style={styles.sectionTitle}>Racuni</Text>
+          <Text style={styles.sectionSubtitle}>
+            Prihranek se racuna iz potrjenih racunov (max {receiptLimit}/dan).
+          </Text>
+          <View style={styles.receiptCard}>
+            <View style={styles.receiptHeader}>
+              <View>
+                <Text style={styles.receiptTitle}>Racuni danes</Text>
+                <Text style={styles.receiptMeta}>
+                  {receiptsToday.length}/{receiptLimit} uporabljeno
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.receiptButton, receiptsRemaining <= 0 && styles.receiptButtonDisabled]}
+                onPress={() => {
+                  setShowReceiptModal(true);
+                  resetReceiptState();
+                }}
+                disabled={receiptsRemaining <= 0}
+              >
+                <LinearGradient
+                  colors={receiptsRemaining <= 0 ? ["#475569", "#334155"] : ["#22c55e", "#16a34a"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.receiptButtonGradient}
+                >
+                  <Ionicons name="camera" size={16} color="#fff" />
+                  <Text style={styles.receiptButtonText}>Dodaj racun</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.receiptHint}>
+              Racun velja samo danes do 23:00. Brez potrditve se ne uposteva.
+            </Text>
+          </View>
+
+          <View style={styles.receiptList}>
+            {receipts && receipts.length > 0 ? (
+              receipts.map((receipt) => (
+                <View key={receipt._id} style={styles.receiptItem}>
+                  <View style={styles.receiptItemRow}>
+                    <Text style={styles.receiptStore}>{receipt.storeName ?? "Neznana trgovina"}</Text>
+                    <Text style={styles.receiptDate}>{receipt.purchaseDateKey}</Text>
+                  </View>
+                  <View style={styles.receiptItemRow}>
+                    <Text style={styles.receiptTotal}>Placano: {formatCurrency(receipt.totalPaid)}</Text>
+                    <Text style={styles.receiptSaved}>
+                      Prihranek: {formatCurrency(receipt.savedAmount)}
+                    </Text>
+                  </View>
+                  {!receipt.isValid && (
+                    <Text style={styles.receiptInvalid}>
+                      Neveljaven racun: {receipt.invalidReason ?? "Ni potrjen"}
+                    </Text>
+                  )}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.receiptEmpty}>Ni racunov.</Text>
+            )}
+          </View>
+        </Animated.View>
+
         {/* Settings */}
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>Nastavitve</Text>
@@ -356,7 +701,7 @@ export default function ProfileScreen() {
               <View style={styles.settingIcon}>
                 <Ionicons name="help-circle-outline" size={20} color="#a78bfa" />
               </View>
-              <Text style={styles.settingText}>Pomoč</Text>
+              <Text style={styles.settingText}>Pomoc</Text>
               <Ionicons name="chevron-forward" size={20} color="#6b7280" />
             </TouchableOpacity>
 
@@ -376,7 +721,7 @@ export default function ProfileScreen() {
                 <View style={[styles.settingIcon, { backgroundColor: "rgba(251, 191, 36, 0.15)" }]}>
                   <Ionicons name="close-circle-outline" size={20} color="#fbbf24" />
                 </View>
-                <Text style={styles.settingText}>Prekliči naročnino</Text>
+                <Text style={styles.settingText}>Preklici narocnino</Text>
                 <Ionicons name="chevron-forward" size={20} color="#6b7280" />
               </TouchableOpacity>
             )}
@@ -388,7 +733,7 @@ export default function ProfileScreen() {
               <View style={[styles.settingIcon, { backgroundColor: "rgba(239, 68, 68, 0.15)" }]}>
                 <Ionicons name="trash-outline" size={20} color="#ef4444" />
               </View>
-              <Text style={styles.settingTextDanger}>Izbriši račun</Text>
+              <Text style={styles.settingTextDanger}>Izbrisi racun</Text>
               <Ionicons name="chevron-forward" size={20} color="#ef4444" />
             </TouchableOpacity>
           </View>
@@ -405,6 +750,171 @@ export default function ProfileScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
+      {showReceiptModal && (
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.receiptModal}>
+            <LinearGradient
+              colors={["rgba(34, 197, 94, 0.18)", "rgba(15, 23, 42, 0.9)"]}
+              style={styles.receiptModalGradient}
+            >
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => {
+                  setShowReceiptModal(false);
+                  resetReceiptState();
+                }}
+              >
+                <Ionicons name="close" size={22} color="#9ca3af" />
+              </TouchableOpacity>
+
+              <Text style={styles.receiptModalTitle}>Dodaj racun</Text>
+
+              {receiptImage ? (
+                <Image source={{ uri: receiptImage }} style={styles.receiptPreview} />
+              ) : (
+                <View style={styles.receiptPlaceholder}>
+                  <Ionicons name="receipt-outline" size={42} color="#a78bfa" />
+                  <Text style={styles.receiptPlaceholderText}>Posnemi racun s kamero.</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.receiptCheckRow}
+                onPress={() => setReceiptConfirmed((value) => !value)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.receiptCheckBox, receiptConfirmed && styles.receiptCheckBoxChecked]}>
+                  {receiptConfirmed && <Ionicons name="checkmark" size={14} color="#fff" />}
+                </View>
+                <Text style={styles.receiptCheckText}>Potrjujem, da je racun moj in danasnji.</Text>
+              </TouchableOpacity>
+
+              {receiptError ? <Text style={styles.receiptErrorText}>{receiptError}</Text> : null}
+              {receiptSuccess ? <Text style={styles.receiptSuccessText}>{receiptSuccess}</Text> : null}
+
+              <View style={styles.receiptModalActions}>
+                <TouchableOpacity
+                  style={[styles.receiptActionButton, receiptsRemaining <= 0 && styles.receiptActionDisabled]}
+                  onPress={handleCaptureReceipt}
+                  disabled={receiptsRemaining <= 0 || receiptSubmitting}
+                >
+                  <LinearGradient
+                    colors={receiptsRemaining <= 0 ? ["#475569", "#334155"] : ["#8b5cf6", "#7c3aed"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.receiptActionGradient}
+                  >
+                    <Ionicons name="camera" size={18} color="#fff" />
+                    <Text style={styles.receiptActionText}>Odpri kamero</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.receiptActionButton,
+                    styles.receiptActionSecondary,
+                    (!receiptImage || receiptSubmitting) && styles.receiptActionDisabled,
+                  ]}
+                  onPress={handleSubmitReceipt}
+                  disabled={!receiptImage || receiptSubmitting}
+                >
+                  <LinearGradient
+                    colors={!receiptImage || receiptSubmitting ? ["#475569", "#334155"] : ["#22c55e", "#16a34a"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.receiptActionGradient}
+                  >
+                    {receiptSubmitting ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                        <Text style={styles.receiptActionText}>Oddaj racun</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      )}
+
+      {showNicknameModal && (
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.nicknameModal}>
+            <LinearGradient
+              colors={["rgba(139, 92, 246, 0.18)", "rgba(15, 23, 42, 0.9)"]}
+              style={styles.nicknameModalGradient}
+            >
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => {
+                  setShowNicknameModal(false);
+                  setNicknameError("");
+                }}
+              >
+                <Ionicons name="close" size={22} color="#9ca3af" />
+              </TouchableOpacity>
+
+              <Text style={styles.nicknameModalTitle}>Spremeni vzdevek</Text>
+              <View style={styles.nicknameInputContainer}>
+                <TextInput
+                  style={styles.nicknameInput}
+                  value={nicknameInput}
+                  onChangeText={setNicknameInput}
+                  placeholder="Nov vzdevek"
+                  placeholderTextColor="#6b7280"
+                  autoCapitalize="none"
+                />
+              </View>
+              {nicknameAvailability && nicknameInput.trim().length >= 3 && (
+                <Text
+                  style={[
+                    styles.nicknameAvailabilityText,
+                    nicknameAvailability.available
+                      ? styles.nicknameAvailable
+                      : styles.nicknameUnavailable,
+                  ]}
+                >
+                  {nicknameAvailability.available ? "Vzdevek je na voljo" : "Vzdevek je zaseden"}
+                </Text>
+              )}
+              {nicknameError ? <Text style={styles.nicknameErrorText}>{nicknameError}</Text> : null}
+
+              <View style={styles.nicknameActionRow}>
+                <TouchableOpacity
+                  style={styles.nicknameCancelButton}
+                  onPress={() => setShowNicknameModal(false)}
+                >
+                  <Text style={styles.nicknameCancelText}>Preklici</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.nicknameSaveButton}
+                  onPress={handleNicknameSave}
+                  disabled={nicknameSaving}
+                >
+                  <LinearGradient
+                    colors={["#8b5cf6", "#7c3aed"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.nicknameSaveGradient}
+                  >
+                    {nicknameSaving ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.nicknameSaveText}>Shrani</Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      )}
+
       {showSignOutToast && (
         <View style={styles.toastOverlay}>
           <LinearGradient
@@ -414,7 +924,7 @@ export default function ProfileScreen() {
             style={styles.toastContainer}
           >
             <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-            <Text style={styles.toastText}>Uspešno odjavljeno</Text>
+            <Text style={styles.toastText}>Uspesno odjavljeno</Text>
           </LinearGradient>
         </View>
       )}
@@ -436,13 +946,13 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               <Image
-                source={AppLogo}
+                source={getSeasonalLogoSource()}
                 style={styles.modalLogo}
                 resizeMode="contain"
               />
 
               <Text style={styles.modalTitle}>Pr'Hran Premium</Text>
-              <Text style={styles.modalPrice}>1,99 €/mesec</Text>
+              <Text style={styles.modalPrice}>1,99  EUR/mesec</Text>
 
               <View style={styles.modalFeatures}>
                 <View style={styles.modalFeatureRow}>
@@ -493,7 +1003,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               <Text style={styles.modalDisclaimer}>
-                Prekliči kadarkoli. Brez skritih stroškov.
+                Preklici kadarkoli. Brez skritih stroskov.
               </Text>
             </LinearGradient>
           </View>
@@ -525,9 +1035,9 @@ export default function ProfileScreen() {
                 </LinearGradient>
               </View>
 
-              <Text style={styles.deleteTitle}>Izbriši račun?</Text>
+              <Text style={styles.deleteTitle}>Izbrisi racun?</Text>
               <Text style={styles.deleteDescription}>
-                Ta dejanje je nepovratno. Vsi tvoji podatki, košarica in nastavitve bodo trajno izbrisani.
+                Ta dejanje je nepovratno. Vsi tvoji podatki, kosarica in nastavitve bodo trajno izbrisani.
               </Text>
 
               <View style={styles.deleteButtons}>
@@ -535,7 +1045,7 @@ export default function ProfileScreen() {
                   style={styles.cancelDeleteButton}
                   onPress={() => setShowDeleteModal(false)}
                 >
-                  <Text style={styles.cancelDeleteText}>Prekliči</Text>
+                  <Text style={styles.cancelDeleteText}>Preklici</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -546,7 +1056,7 @@ export default function ProfileScreen() {
                     colors={["#ef4444", "#dc2626"]}
                     style={styles.confirmDeleteGradient}
                   >
-                    <Text style={styles.confirmDeleteText}>Izbriši</Text>
+                    <Text style={styles.confirmDeleteText}>Izbrisi</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -580,12 +1090,12 @@ export default function ProfileScreen() {
                 </LinearGradient>
               </View>
 
-              <Text style={styles.cancelTitle}>Prekliči Premium?</Text>
+              <Text style={styles.cancelTitle}>Preklici Premium?</Text>
               <Text style={styles.cancelDescription}>
-                Ob preklicu boš izgubil dostop do:{"\n"}
-                • Neomejenega iskanja{"\n"}
-                • Vseh trgovin{"\n"}
-                • Ekskluzivnih kuponov
+                Ob preklicu bos izgubil dostop do:{"\n"}
+                -  Neomejenega iskanja{"\n"}
+                -  Vseh trgovin{"\n"}
+                -  Ekskluzivnih kuponov
               </Text>
 
               <View style={styles.deleteButtons}>
@@ -597,7 +1107,7 @@ export default function ProfileScreen() {
                     colors={["#fbbf24", "#f59e0b"]}
                     style={styles.keepPremiumGradient}
                   >
-                    <Text style={styles.keepPremiumText}>Obdrži Premium</Text>
+                    <Text style={styles.keepPremiumText}>Obdrzi Premium</Text>
                   </LinearGradient>
                 </TouchableOpacity>
 
@@ -605,7 +1115,7 @@ export default function ProfileScreen() {
                   style={styles.confirmCancelButton}
                   onPress={handleCancelSubscription}
                 >
-                  <Text style={styles.confirmCancelText}>Prekliči naročnino</Text>
+                  <Text style={styles.confirmCancelText}>Preklici narocnino</Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -661,6 +1171,33 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#fff",
     letterSpacing: -0.5,
+  },
+  nicknameRow: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  nicknameText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#a78bfa",
+  },
+  nicknameEditButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(139, 92, 246, 0.2)",
+  },
+  nicknameEditButtonDisabled: {
+    backgroundColor: "rgba(148, 163, 184, 0.2)",
+  },
+  nicknameHint: {
+    fontSize: 12,
+    color: "#9ca3af",
+    marginTop: 4,
   },
   authPrompt: {
     flex: 1,
@@ -832,6 +1369,158 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9ca3af",
     marginBottom: 16,
+  },
+  emptyAwards: {
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(139, 92, 246, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+    alignItems: "center",
+    gap: 10,
+  },
+  emptyAwardsText: {
+    fontSize: 13,
+    color: "#cbd5e1",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  awardYearCard: {
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(15, 23, 42, 0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+    marginBottom: 12,
+  },
+  awardYearTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#fff",
+    marginBottom: 10,
+  },
+  awardList: {
+    gap: 8,
+  },
+  awardBadgeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.25)",
+  },
+  awardBadgeImage: {
+    width: 52,
+    height: 52,
+    resizeMode: "contain",
+  },
+  awardBadgeInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  awardBadgeTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  awardBadgeMeta: {
+    fontSize: 12,
+    color: "#cbd5e1",
+  },
+  receiptCard: {
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: "rgba(34, 197, 94, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.25)",
+    marginBottom: 16,
+  },
+  receiptHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  receiptTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  receiptMeta: {
+    fontSize: 12,
+    color: "#9ca3af",
+    marginTop: 2,
+  },
+  receiptButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  receiptButtonDisabled: {
+    opacity: 0.7,
+  },
+  receiptButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  receiptButtonText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  receiptHint: {
+    fontSize: 12,
+    color: "#d1fae5",
+    lineHeight: 18,
+  },
+  receiptList: {
+    gap: 10,
+  },
+  receiptItem: {
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+    gap: 6,
+  },
+  receiptItemRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  receiptStore: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  receiptDate: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  receiptTotal: {
+    fontSize: 12,
+    color: "#e5e7eb",
+  },
+  receiptSaved: {
+    fontSize: 12,
+    color: "#10b981",
+    fontWeight: "700",
+  },
+  receiptInvalid: {
+    fontSize: 11,
+    color: "#fca5a5",
+  },
+  receiptEmpty: {
+    fontSize: 12,
+    color: "#9ca3af",
+    textAlign: "center",
+    paddingVertical: 8,
   },
   storesGrid: {
     flexDirection: "row",
@@ -1057,6 +1746,184 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#9ca3af",
   },
+  receiptModal: {
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  receiptModalGradient: {
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.3)",
+  },
+  receiptModalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  receiptPreview: {
+    width: "100%",
+    height: 220,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  receiptPlaceholder: {
+    width: "100%",
+    height: 220,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  receiptPlaceholderText: {
+    fontSize: 13,
+    color: "#cbd5e1",
+  },
+  receiptCheckRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  receiptCheckBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#22c55e",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  receiptCheckBoxChecked: {
+    backgroundColor: "#22c55e",
+  },
+  receiptCheckText: {
+    fontSize: 13,
+    color: "#d1fae5",
+    flex: 1,
+    lineHeight: 18,
+  },
+  receiptErrorText: {
+    fontSize: 12,
+    color: "#fca5a5",
+    marginBottom: 8,
+  },
+  receiptSuccessText: {
+    fontSize: 12,
+    color: "#86efac",
+    marginBottom: 8,
+  },
+  receiptModalActions: {
+    gap: 10,
+  },
+  receiptActionButton: {
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  receiptActionDisabled: {
+    opacity: 0.7,
+  },
+  receiptActionGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+  },
+  receiptActionText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  receiptActionSecondary: {
+    marginTop: 2,
+  },
+  nicknameModal: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  nicknameModalGradient: {
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+  },
+  nicknameModalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  nicknameInputContainer: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.4)",
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    marginBottom: 10,
+  },
+  nicknameInput: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    color: "#fff",
+    fontSize: 15,
+  },
+  nicknameAvailabilityText: {
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  nicknameAvailable: {
+    color: "#10b981",
+  },
+  nicknameUnavailable: {
+    color: "#f87171",
+  },
+  nicknameErrorText: {
+    fontSize: 12,
+    color: "#fca5a5",
+    marginBottom: 8,
+  },
+  nicknameActionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 6,
+  },
+  nicknameCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(148, 163, 184, 0.2)",
+  },
+  nicknameCancelText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#cbd5e1",
+  },
+  nicknameSaveButton: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  nicknameSaveGradient: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  nicknameSaveText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#fff",
+  },
   modalOverlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
@@ -1166,3 +2033,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+

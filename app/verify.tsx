@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import Logo from "@/lib/Logo";
 import { useMutation, useAction } from "convex/react";
@@ -20,7 +20,7 @@ export default function VerifyEmailScreen() {
     try {
       const res = await verifyByCode({ code: code.trim() });
       if (res.success) {
-        setSuccess("E-naslov potrjen! ✅");
+        setSuccess("E-naslov potrjen! ");
         setTimeout(() => router.replace("/(tabs)"), 800);
       }
     } catch (e: unknown) {
@@ -38,7 +38,7 @@ export default function VerifyEmailScreen() {
       await requestEmailVerification({});
       setSuccess("Email ponovno poslan.");
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Napaka pri pošiljanju";
+      const message = e instanceof Error ? e.message : "Napaka pri posiljanju";
       setError(message);
     } finally {
       setLoading(false);
@@ -67,7 +67,7 @@ export default function VerifyEmailScreen() {
         </TouchableOpacity>
       )}
       <TouchableOpacity style={[styles.button, styles.secondary]} onPress={handleResend}>
-        <Text style={styles.buttonText}>Pošlji email ponovno</Text>
+        <Text style={styles.buttonText}>Poslji email ponovno</Text>
       </TouchableOpacity>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {success ? <Text style={styles.success}>{success}</Text> : null}
@@ -86,3 +86,4 @@ const styles = StyleSheet.create({
   error: { color: "#ef4444", marginTop: 8 },
   success: { color: "#10b981", marginTop: 8 },
 });
+

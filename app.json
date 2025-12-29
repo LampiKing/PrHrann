@@ -4,7 +4,7 @@
     "slug": "prhran",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/Logo Default.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -15,7 +15,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/Logo Default.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.prhran.app",
@@ -28,7 +28,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png",
+      "favicon": "./assets/images/Logo Default.png",
       "build": {
         "babel": {
           "include": ["@expo/vector-icons"]
@@ -40,7 +40,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/icon.png",
+          "image": "./assets/images/Logo Default.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#FAFAFA"

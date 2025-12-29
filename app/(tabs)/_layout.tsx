@@ -1,4 +1,4 @@
-import { Tabs, Redirect } from "expo-router";
+﻿import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { View, StyleSheet, Platform } from "react-native";
 import Logo from "@/lib/Logo";
@@ -30,11 +30,11 @@ export default function TabsLayout() {
     const initializeData = async () => {
       if (isAuthenticated && stores && stores.length === 0) {
         try {
-          console.log('🔄 Inicializacija podatkov...');
+          console.log("Inicializacija podatkov...");
           const result = await initializeAllData({});
-          console.log('✅ Podatki inicializirani:', result);
+          console.log("Podatki inicializirani:", result);
         } catch (error) {
-          console.error('❌ Napaka pri inicializaciji:', error);
+          console.error("Napaka pri inicializaciji:", error);
         }
       }
     };
@@ -87,10 +87,20 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="cart"
           options={{
-            title: "Košarica",
+            title: "Kosarica",
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="cart" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="leaderboard"
+          options={{
+            title: "Lestvica",
+            href: isGuest ? null : undefined,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="trophy" size={size} color={color} />
             ),
           }}
         />
@@ -136,3 +146,4 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
 });
+

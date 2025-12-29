@@ -16,9 +16,18 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
     triggers: {
         user: {
             onCreate: async (ctx, user) => {
+                const now = Date.now();
+                const nickname = user.name ? user.name.trim() : undefined;
+                const nicknameLower = nickname ? nickname.toLowerCase() : undefined;
                 await ctx.db.insert("userProfiles", {
                     userId: user._id,
                     name: user.name || undefined,
+                    nickname,
+                    nicknameLower,
+                    nicknameUpdatedAt: nickname ? now : undefined,
+                    nicknameChangeAvailableAt: nickname
+                        ? now + 30 * 24 * 60 * 60 * 1000
+                        : undefined,
                     email: user.email || undefined,
                     emailVerified: user.emailVerified || false,
                     isAnonymous: user.isAnonymous ?? false,

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -23,19 +23,17 @@ import { createShadow } from "@/lib/shadow-helper";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const INDIVIDUAL_FEATURES = [
-  { icon: "camera", title: "📸 Slikaj izdelek", description: "Takoj najde najnižjo ceno" },
   { icon: "infinite", title: "Neomejeno iskanje", description: "Brez dnevnih omejitev" },
-  { icon: "list", title: "Nakupovalni seznami", description: "Ustvari in organiziraj" },
-  { icon: "notifications", title: "Obvestila o cenah", description: "Ko pade cena izdelka" },
-  { icon: "analytics", title: "Sledenje prihrankom", description: "Mesečna statistika" },
-  { icon: "pricetag", title: "Ekskluzivni kuponi", description: "Do 30% dodatni popusti" },
-  { icon: "star", title: "Prednostna podpora", description: "24/7 pomoč" },
+  { icon: "camera", title: "Slikaj izdelek", description: "Takoj najde najnizjo ceno" },
+  { icon: "pricetag", title: "Pametni kuponi", description: "Najboljse akcije na enem mestu" },
+  { icon: "analytics", title: "Letni prihranek", description: "Sledenje prihrankom po racunih" },
+  { icon: "trophy", title: "Lestvice in bedzi", description: "Letna sezona varcevanja" },
 ];
 
 const FAMILY_BONUS_FEATURES = [
-  { icon: "people", title: "Do 3 uporabniki", description: "Deli Premium z družino" },
-  { icon: "sync", title: "Deljenje seznamov", description: "Sinhronizacija v živo" },
-  { icon: "shield-checkmark", title: "Varnostni nadzor", description: "GEO-lock zaščita" },
+  { icon: "people", title: "Do 3 uporabniki", description: "Family paket za en dom" },
+  { icon: "trophy", title: "Family lestvica", description: "Lozena lestvica za druzino" },
+  { icon: "document-text", title: "4 racuni na dan", description: "Skupni family limit" },
 ];
 
 export default function PremiumScreen() {
@@ -53,7 +51,7 @@ export default function PremiumScreen() {
   const currentPremiumType = profile?.premiumType ?? "solo";
   
   const [selectedPlan, setSelectedPlan] = useState<"individual" | "family">(
-    isAlreadyPremium && currentPremiumType === "solo" ? "family" : "family"
+    isAlreadyPremium && currentPremiumType === "solo" ? "family" : "individual"
   );
   const [processing, setProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -164,12 +162,12 @@ export default function PremiumScreen() {
             >
               <Ionicons name="checkmark-circle" size={80} color="#fff" />
             </LinearGradient>
-            <Text style={styles.successTitle}>Čestitamo! 🎉</Text>
+            <Text style={styles.successTitle}>Cestitamo!</Text>
             <Text style={styles.successText}>
               Zdaj ste {selectedPlan === "family" ? "PrHran Family" : "PrHran Plus"} uporabnik!
             </Text>
             <Text style={styles.successSubtext}>
-              Uživajte v vseh funkcijah brez omejitev.
+              Uzivajte v vseh funkcijah brez omejitev.
             </Text>
           </Animated.View>
         </View>
@@ -224,12 +222,12 @@ export default function PremiumScreen() {
                 <Text style={styles.premiumBadgeText}>PREMIUM</Text>
               </LinearGradient>
               <Text style={styles.mainTitle}>
-                {isAlreadyPremium && currentPremiumType === "solo" ? "Nadgradite na Family" : "Nadgradite na Premium"}
+                {isAlreadyPremium && currentPremiumType === "solo" ? "Nadgradi na Family" : "Nadgradi na Premium"}
               </Text>
               <Text style={styles.subtitle}>
                 {isAlreadyPremium && currentPremiumType === "solo" 
-                  ? "Deli Premium z družino in prihrani še več"
-                  : "Odklenite vse funkcije in privarčujte več kot kdaj koli prej"
+                  ? "Deli Premium z druzino in prihrani se vec"
+                  : "Odkleni vse funkcije in varcuj vec kot kdaj koli prej"
                 }
               </Text>
             </View>
@@ -261,7 +259,7 @@ export default function PremiumScreen() {
                     <Ionicons name="person" size={32} color="#8b5cf6" />
                     <Text style={styles.planName}>{PLAN_PLUS}</Text>
                   </View>
-                  <Text style={styles.planPrice}>1,99€</Text>
+                  <Text style={styles.planPrice}>1,99 EUR</Text>
                   <Text style={styles.planPeriod}>/ mesec</Text>
                   <Text style={styles.planDescription}>{MARKETING.blurbs.plusShort}</Text>
                 </TouchableOpacity>
@@ -288,7 +286,7 @@ export default function PremiumScreen() {
                     end={{ x: 1, y: 0 }}
                     style={styles.popularBadgeGradient}
                   >
-                    <Text style={styles.popularBadgeText}>NAJBOLJŠE</Text>
+                    <Text style={styles.popularBadgeText}>NAJBOLJSE</Text>
                   </LinearGradient>
                 </View>
                 {selectedPlan === "family" && (
@@ -302,14 +300,14 @@ export default function PremiumScreen() {
                   <Text style={styles.planName}>{PLAN_FAMILY}</Text>
                 </View>
                 <Text style={styles.planPrice}>
-                  {isAlreadyPremium && currentPremiumType === "solo" ? "+1€" : "2,99€"}
+                  {isAlreadyPremium && currentPremiumType === "solo" ? "+1 EUR" : "2,99 EUR"}
                 </Text>
                 <Text style={styles.planPeriod}>
                   {isAlreadyPremium && currentPremiumType === "solo" ? "dodatek" : "/ mesec"}
                 </Text>
                 <Text style={styles.planDescription}>{MARKETING.blurbs.familyShort}</Text>
                 <View style={styles.savingsBadge}>
-                  <Text style={styles.savingsText}>Prihraniš 3€/mesec</Text>
+                  <Text style={styles.savingsText}>Skupni paket za 3</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -338,7 +336,7 @@ export default function PremiumScreen() {
                 {/* Comparison Items */}
                 <View style={styles.comparisonRow}>
                   <View style={[styles.comparisonCell, styles.featureNameCell]}>
-                    <Text style={styles.comparisonItemText}>Brezplačna iskanja</Text>
+                    <Text style={styles.comparisonItemText}>Iskanja na dan</Text>
                   </View>
                   <View style={[styles.comparisonCell, styles.basicCell]}>
                     <Text style={styles.comparisonValue}>3/dan</Text>
@@ -368,10 +366,10 @@ export default function PremiumScreen() {
 
                 <View style={styles.comparisonRow}>
                   <View style={[styles.comparisonCell, styles.featureNameCell]}>
-                    <Text style={styles.comparisonItemText}>Ekskluzivni kuponi</Text>
+                    <Text style={styles.comparisonItemText}>Kamera za racune</Text>
                   </View>
                   <View style={[styles.comparisonCell, styles.basicCell]}>
-                    <Ionicons name="close" size={20} color="#ef4444" />
+                    <Ionicons name="checkmark" size={20} color="#22c55e" />
                   </View>
                   <View style={[styles.comparisonCell, styles.premiumCell]}>
                     <Ionicons name="checkmark" size={20} color="#22c55e" />
@@ -383,37 +381,7 @@ export default function PremiumScreen() {
 
                 <View style={styles.comparisonRow}>
                   <View style={[styles.comparisonCell, styles.featureNameCell]}>
-                    <Text style={styles.comparisonItemText}>Obvestila o cenah</Text>
-                  </View>
-                  <View style={[styles.comparisonCell, styles.basicCell]}>
-                    <Ionicons name="close" size={20} color="#ef4444" />
-                  </View>
-                  <View style={[styles.comparisonCell, styles.premiumCell]}>
-                    <Ionicons name="checkmark" size={20} color="#22c55e" />
-                  </View>
-                  <View style={[styles.comparisonCell, styles.familyCell]}>
-                    <Ionicons name="checkmark" size={20} color="#22c55e" />
-                  </View>
-                </View>
-
-                <View style={styles.comparisonRow}>
-                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
-                    <Text style={styles.comparisonItemText}>Sledenje prihrankom</Text>
-                  </View>
-                  <View style={[styles.comparisonCell, styles.basicCell]}>
-                    <Ionicons name="close" size={20} color="#ef4444" />
-                  </View>
-                  <View style={[styles.comparisonCell, styles.premiumCell]}>
-                    <Ionicons name="checkmark" size={20} color="#22c55e" />
-                  </View>
-                  <View style={[styles.comparisonCell, styles.familyCell]}>
-                    <Ionicons name="checkmark" size={20} color="#22c55e" />
-                  </View>
-                </View>
-
-                <View style={styles.comparisonRow}>
-                  <View style={[styles.comparisonCell, styles.featureNameCell]}>
-                    <Text style={styles.comparisonItemText}>Deljenje seznamov</Text>
+                    <Text style={styles.comparisonItemText}>Family lestvica</Text>
                   </View>
                   <View style={[styles.comparisonCell, styles.basicCell]}>
                     <Ionicons name="close" size={20} color="#ef4444" />
@@ -519,7 +487,7 @@ export default function PremiumScreen() {
                 ) : (
                   <>
                     <Text style={styles.ctaText}>
-                      Izbran paket: {selectedPlan === "family" ? "Family" : "Plus"} — {price}€/mesec
+                      Izbran paket: {selectedPlan === "family" ? "Family" : "Plus"} - {price} EUR/mesec
                     </Text>
                     <Ionicons name="arrow-forward" size={24} color="#fff" />
                   </>
@@ -531,21 +499,21 @@ export default function PremiumScreen() {
             <View style={styles.trustBadges}>
               <View style={styles.trustBadge}>
                 <Ionicons name="shield-checkmark" size={16} color="#10b981" />
-                <Text style={styles.trustText}>Varno plačilo</Text>
+                <Text style={styles.trustText}>Varno placilo</Text>
               </View>
               <View style={styles.trustBadge}>
                 <Ionicons name="refresh" size={16} color="#10b981" />
-                <Text style={styles.trustText}>Prekliči kadarkoli</Text>
+                <Text style={styles.trustText}>Preklici kadarkoli</Text>
               </View>
               <View style={styles.trustBadge}>
                 <Ionicons name="lock-closed" size={16} color="#10b981" />
-                <Text style={styles.trustText}>SSL zaščita</Text>
+                <Text style={styles.trustText}>SSL zascita</Text>
               </View>
             </View>
 
             <Text style={styles.disclaimer}>
-              Mesečna naročnina z avtomatskim podaljšanjem. Prekličete lahko kadarkoli
-              brez dodatnih stroškov. Vse cene vključujejo DDV.
+              Mesecna narocnina z avtomatskim podaljsanjem. Preklicete lahko kadarkoli
+              brez dodatnih stroskov. Vse cene vkljucujejo DDV.
             </Text>
           </Animated.View>
         </ScrollView>
@@ -581,15 +549,15 @@ export default function PremiumScreen() {
                 </LinearGradient>
               </View>
 
-              <Text style={styles.authModalTitle}>🔐 Prijava potrebna</Text>
+              <Text style={styles.authModalTitle}>Prijava potrebna</Text>
               <Text style={styles.authModalSubtitle}>
-                Za nakup Premium naročnine se moraš najprej prijaviti ali registrirati.
+                Za nakup Premium narocnine se moras najprej prijaviti ali registrirati.
               </Text>
 
               <View style={styles.authBenefits}>
                 <View style={styles.authBenefitItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
-                  <Text style={styles.authBenefitText}>Brezplačna registracija</Text>
+                  <Text style={styles.authBenefitText}>Brezplacna registracija</Text>
                 </View>
                 <View style={styles.authBenefitItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
@@ -597,7 +565,7 @@ export default function PremiumScreen() {
                 </View>
                 <View style={styles.authBenefitItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
-                  <Text style={styles.authBenefitText}>Možnost nadgradnje kadarkoli</Text>
+                  <Text style={styles.authBenefitText}>Moznost nadgradnje kadarkoli</Text>
                 </View>
               </View>
 
@@ -1114,3 +1082,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+

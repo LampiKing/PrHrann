@@ -36,7 +36,6 @@ export default function NotificationsScreen() {
       />
 
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
@@ -53,7 +52,6 @@ export default function NotificationsScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Info Card */}
           <View style={styles.infoCard}>
             <LinearGradient
               colors={["rgba(139, 92, 246, 0.15)", "rgba(59, 7, 100, 0.2)"]}
@@ -61,12 +59,11 @@ export default function NotificationsScreen() {
             >
               <Ionicons name="notifications" size={24} color="#a78bfa" />
               <Text style={styles.infoText}>
-                Nastavi obvestila, da ne zamudis najboljših ponudb in prihrankov.
+                Nastavi obvestila, da ne zamudis najboljsih ponudb in prihrankov.
               </Text>
             </LinearGradient>
           </View>
 
-          {/* Notification Settings */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Vrste obvestil</Text>
 
@@ -119,7 +116,7 @@ export default function NotificationsScreen() {
                   <View style={styles.settingInfo}>
                     <Text style={styles.settingTitle}>Tedenske ponudbe</Text>
                     <Text style={styles.settingDescription}>
-                      Povzetek najboljših tedenskih akcij
+                      Povzetek najboljsih tedenskih akcij
                     </Text>
                   </View>
                 </View>
@@ -137,9 +134,9 @@ export default function NotificationsScreen() {
                     <Ionicons name="cart" size={20} color="#ef4444" />
                   </View>
                   <View style={styles.settingInfo}>
-                    <Text style={styles.settingTitle}>Opomniki košarice</Text>
+                    <Text style={styles.settingTitle}>Opomniki kosarice</Text>
                     <Text style={styles.settingDescription}>
-                      Opomnik, če imaš izdelke v košarici
+                      Opomnik, ce imas izdelke v kosarici
                     </Text>
                   </View>
                 </View>
@@ -153,11 +150,10 @@ export default function NotificationsScreen() {
             </View>
           </View>
 
-          {/* Note */}
           <View style={styles.noteContainer}>
             <Ionicons name="information-circle" size={18} color="#6b7280" />
             <Text style={styles.noteText}>
-              Obvestila lahko kadarkoli izklopiš. Tvoji podatki so varni in jih ne delimo s tretjimi osebami.
+              Obvestila lahko kadarkoli izklopis. Tvoji podatki so varni in jih ne delimo s tretjimi osebami.
             </Text>
           </View>
 

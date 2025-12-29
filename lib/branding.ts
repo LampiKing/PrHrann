@@ -1,10 +1,10 @@
-export const PLAN_FREE = "PrHran FREE";
+﻿export const PLAN_FREE = "PrHran FREE";
 export const PLAN_PLUS = "PrHran Plus";
 export const PLAN_FAMILY = "PrHran Family";
 
 export const PRICING = {
-  plusMonthly: "1,99 €",
-  familyMonthly: "2,99 €",
+  plusMonthly: "1.99 EUR",
+  familyMonthly: "2.99 EUR",
   currencySuffix: "/ mesec",
 };
 
@@ -13,9 +13,9 @@ export const FREE_LIMITS = {
 };
 
 export const MARKETING = {
-  ctaPlus: "Začni z 1,99 €/mesec",
-  ctaFamily: "Začni z 2,99 €/mesec",
-  footerLine: "Prekliči kadarkoli • DDV vključen • Varno plačilo",
+  ctaPlus: "Zacni z 1.99 EUR/mesec",
+  ctaFamily: "Zacni z 2.99 EUR/mesec",
+  footerLine: "Preklici kadarkoli - DDV vkljucen - Varno placilo",
   labels: {
     unlimited: "neomejeno",
     perDaySuffix: "/dan",
@@ -25,3 +25,4 @@ export const MARKETING = {
     familyShort: "Do 3 uporabnikov + deljenje seznamov",
   },
 };
+

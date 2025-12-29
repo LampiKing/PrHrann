@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,45 +14,45 @@ import {
   Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AppLogo from "@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png";
 import { authClient } from "@/lib/auth-client";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { createShadow } from "@/lib/shadow-helper";
-import { useConvexAuth } from "convex/react";
-import Logo from "@/lib/Logo";
+import { useConvexAuth, useQuery } from "convex/react";
+import Logo, { getSeasonalLogoSource } from "@/lib/Logo";
+import { api } from "@/convex/_generated/api";
 
 const FACTS = [
-  "💡 Povprečna slovenska družina lahko prihrani do 150€ mesečno!",
-  "🛒 Cene istega izdelka se razlikujejo do 40% med trgovinami!",
-  "📊 Primerjamo cene iz 6 največjih slovenskih trgovin.",
-  "⏰ Prihranite do 2 uri tedensko z avtomatskim iskanjem!",
-  "🏆 Več kot 10.000 Slovencev že prihrani s Pr'Hran!",
-  "📸 Premium: Slikaj izdelek → takoj najde najnižjo ceno!",
+  "Povprecna slovenska druzina lahko prihrani do 150 EUR mesecno.",
+  "Cene istega izdelka se razlikujejo do 40% med trgovinami.",
+  "Primerjamo cene iz 6 najvecjih slovenskih trgovin.",
+  "Prihranis do 2 uri tedensko z avtomatskim iskanjem.",
+  "Vec kot 10.000 uporabnikov ze prihranjuje s Pr'Hran.",
+  "Plus: Slikaj izdelek in takoj najdi najnizjo ceno.",
 ];
+
 
 export default function AuthScreen() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const [isLogin, setIsLogin] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [name, setName] = useState("");
-  const [birthDay, setBirthDay] = useState("");
-  const [birthMonth, setBirthMonth] = useState("");
-  const [birthYear, setBirthYear] = useState("");
+  const [nickname, setNickname] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [anonymousLoading, setAnonymousLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [currentFact, setCurrentFact] = useState(0);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const nicknameAvailability = useQuery(
+    api.userProfiles.isNicknameAvailable,
+    !isLogin && nickname.trim().length >= 3 ? { nickname: nickname.trim() } : "skip"
+  );
 
   const switchMode = (login: boolean) => {
     triggerHaptic();
@@ -241,14 +241,16 @@ export default function AuthScreen() {
   };
 
   const trimmedEmail = email.trim().toLowerCase();
-  const trimmedName = name.trim();
+  const trimmedNickname = nickname.trim();
   const emailValid = validateEmail(trimmedEmail);
   const passwordValid = password.length >= 6;
-  const confirmValid = isLogin ? true : confirmPassword.length >= 6 && password === confirmPassword;
-  const nameValid = isLogin ? true : trimmedName.length >= 2;
+  const nicknameValid = isLogin
+    ? true
+    : trimmedNickname.length >= 3 && trimmedNickname.length <= 20;
+  const nicknameAvailable = isLogin ? true : nicknameAvailability?.available ?? false;
   const canSubmit = isLogin
     ? emailValid && passwordValid
-    : emailValid && passwordValid && confirmValid && nameValid && agreedToTerms;
+    : emailValid && passwordValid && nicknameValid && nicknameAvailable;
   const isPrimaryDisabled = loading || resetLoading || !canSubmit;
 
   const passwordStrengthScore =
@@ -258,8 +260,8 @@ export default function AuthScreen() {
     (/[^A-Za-z0-9]/.test(password) ? 1 : 0);
   const passwordStrengthLevel =
     password.length === 0 ? 0 : passwordStrengthScore <= 1 ? 1 : passwordStrengthScore <= 3 ? 2 : 3;
-  const passwordStrengthLabel =
-    passwordStrengthLevel === 1 ? "Šibko" : passwordStrengthLevel === 2 ? "Dobro" : "Močno";
+  const passwordStrengthLabelSafe =
+    passwordStrengthLevel === 1 ? "Sibko" : passwordStrengthLevel === 2 ? "Dobro" : "Mocno";
   const passwordStrengthColor =
     passwordStrengthLevel === 1 ? "#f97316" : passwordStrengthLevel === 2 ? "#fbbf24" : "#22c55e";
 
@@ -291,18 +293,13 @@ export default function AuthScreen() {
     }
 
     if (!isLogin) {
-      if (password !== confirmPassword) {
-        setError("Gesli se ne ujemata");
+      if (!trimmedNickname || trimmedNickname.length < 3) {
+        setError("Vzdevek mora imeti vsaj 3 znake");
         shakeError();
         return;
       }
-      if (!agreedToTerms) {
-        setError("Strinjati se morate s pogoji uporabe");
-        shakeError();
-        return;
-      }
-      if (!trimmedName || trimmedName.length < 2) {
-        setError("Ime mora imeti vsaj 2 znaka");
+      if (!nicknameAvailable) {
+        setError("Vzdevek je ze zaseden");
         shakeError();
         return;
       }
@@ -325,14 +322,14 @@ export default function AuthScreen() {
           console.error("Login error details:", JSON.stringify(result.error));
           if (result.error.code === "EMAIL_NOT_VERIFIED" ||
               result.error.message?.toLowerCase().includes("verify")) {
-            setError("Najprej potrdi e-naslov. Preveri e-pošto za potrditveno povezavo.");
+            setError("Najprej potrdi e-naslov. Preveri e-posto za potrditveno povezavo.");
           } else if (result.error.code === "INVALID_EMAIL_OR_PASSWORD" || 
               result.error.message?.includes("Invalid") ||
               result.error.message?.includes("password")) {
-            setError("Napačen e-naslov ali geslo");
+            setError("Napacen e-naslov ali geslo");
           } else if (result.error.message?.includes("not found") || 
                      result.error.message?.includes("exist")) {
-            setError("Račun s tem e-naslovom ne obstaja. Registrirajte se!");
+            setError("Racun s tem e-naslovom ne obstaja. Registriraj se!");
           } else {
             setError(`Prijava ni uspela: ${result.error.message || "Neznana napaka"}`);
           }
@@ -342,7 +339,7 @@ export default function AuthScreen() {
         }
         
         console.log("Login successful!");
-        setSuccess("Uspešna prijava! 🎉");
+        setSuccess("Uspesna prijava!");
         showSuccessAnimation();
         // Router will redirect automatically via useEffect
       } else {
@@ -351,7 +348,7 @@ export default function AuthScreen() {
         const result = await authClient.signUp.email({ 
           email: trimmedEmail, 
           password, 
-          name: trimmedName 
+          name: trimmedNickname 
         });
         
         console.log("Register result:", result);
@@ -361,7 +358,7 @@ export default function AuthScreen() {
           if (result.error.message?.includes("exist") || 
               result.error.message?.includes("already") ||
               result.error.code === "USER_ALREADY_EXISTS") {
-            setError("Račun s tem e-naslovom že obstaja. Prijavite se!");
+            setError("Racun s tem e-naslovom ze obstaja. Prijavi se!");
           } else {
             setError(`Registracija ni uspela: ${result.error.message || "Neznana napaka"}`);
           }
@@ -371,7 +368,7 @@ export default function AuthScreen() {
         }
         
         console.log("Registration successful!");
-        setSuccess("Račun ustvarjen! Preveri e-pošto za potrditev ✅");
+        setSuccess("Racun ustvarjen! Preveri e-posto za potrditev.");
         showSuccessAnimation();
         // Email verification required; user stays on auth screen until verified
       }
@@ -380,13 +377,13 @@ export default function AuthScreen() {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       if (isLogin) {
         if (errorMessage.includes("not found") || errorMessage.includes("exist")) {
-          setError("Račun s tem e-naslovom ne obstaja. Registrirajte se!");
+          setError("Racun s tem e-naslovom ne obstaja. Registriraj se!");
         } else {
-          setError("Napačen e-naslov ali geslo");
+          setError("Napacen e-naslov ali geslo");
         }
       } else {
         if (errorMessage.includes("exist") || errorMessage.includes("already")) {
-          setError("Račun s tem e-naslovom že obstaja. Prijavite se!");
+          setError("Racun s tem e-naslovom ze obstaja. Prijavi se!");
         } else {
           setError("Registracija ni uspela. Poskusite znova.");
         }
@@ -429,15 +426,15 @@ export default function AuthScreen() {
         redirectTo: resetRedirectUrl,
       });
       if (result.error) {
-        setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
+        setError("Posiljanje povezave ni uspelo. Poskusite znova.");
         shakeError();
         return;
       }
-      setSuccess("Če račun obstaja, smo poslali povezavo za ponastavitev.");
+      setSuccess("Ce racun obstaja, smo poslali povezavo za ponastavitev.");
       showSuccessAnimation();
     } catch (err) {
       console.log("Reset password error:", err);
-      setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
+      setError("Posiljanje povezave ni uspelo. Poskusite znova.");
       shakeError();
     } finally {
       setResetLoading(false);
@@ -457,7 +454,7 @@ export default function AuthScreen() {
         setAnonymousLoading(false);
         return;
       }
-      setSuccess("Dobrodošli! 👋");
+      setSuccess("Dobrodosli!");
       showSuccessAnimation();
       // Router will redirect automatically via useEffect
     } catch (err) {
@@ -637,13 +634,13 @@ export default function AuthScreen() {
               />
               <Animated.View style={{ transform: [{ scale: logoScale }] }}>
                 <Image
-                  source={AppLogo}
+                  source={getSeasonalLogoSource()}
                   style={styles.logo}
                   resizeMode="contain"
                 />
               </Animated.View>
               <Text style={styles.appName}>Pr'Hran</Text>
-              <Text style={styles.tagline}>Pametno nakupovanje 🛒</Text>
+              <Text style={styles.tagline}>Pametno nakupovanje in varcevanje</Text>
             </View>
 
             {/* Fact Banner */}
@@ -680,12 +677,12 @@ export default function AuthScreen() {
               >
                 <View style={styles.cardInner}>
                   <Text style={styles.title}>
-                    {isLogin ? "Dobrodošli nazaj! 👋" : "Ustvari račun 🚀"}
+                    {isLogin ? "Dobrodosli nazaj!" : "Ustvari racun"}
                   </Text>
                   <Text style={styles.subtitle}>
                     {isLogin
-                      ? "Prijavite se in začnite prihranjevati"
-                      : "Pridružite se tisočim, ki že prihranijo"}
+                      ? "Prijavi se in zacni prihranjevati"
+                      : "Vzdevek, e-naslov in geslo - in si notri"}
                   </Text>
 
                   <View style={styles.modeSwitch}>
@@ -725,25 +722,35 @@ export default function AuthScreen() {
                       <View
                         style={[
                           styles.inputContainer,
-                          focusedField === "name" && styles.inputContainerFocused,
+                          focusedField === "nickname" && styles.inputContainerFocused,
                         ]}
                       >
                         <Ionicons name="person-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
                         <TextInput
                           style={styles.input}
-                          placeholder="Ime in priimek"
+                          placeholder="Vzdevek"
                           placeholderTextColor="#6b7280"
-                          value={name}
-                          onChangeText={setName}
-                          onFocus={() => setFocusedField("name")}
+                          value={nickname}
+                          onChangeText={setNickname}
+                          onFocus={() => setFocusedField("nickname")}
                           onBlur={() => setFocusedField(null)}
-                          autoComplete="name"
-                          autoCapitalize="words"
+                          autoComplete="username"
+                          autoCapitalize="none"
                           autoCorrect={false}
-                          textContentType="name"
+                          textContentType="username"
                           returnKeyType="next"
                         />
                       </View>
+                    )}
+                    {!isLogin && trimmedNickname.length >= 3 && (
+                      <Text
+                        style={[
+                          styles.helperText,
+                          nicknameAvailable ? styles.helperTextSuccess : styles.helperTextError,
+                        ]}
+                      >
+                        {nicknameAvailable ? "Vzdevek je prost" : "Vzdevek je ze zaseden"}
+                      </Text>
                     )}
 
                     <View
@@ -810,7 +817,7 @@ export default function AuthScreen() {
 
                     <View style={styles.helperRow}>
                       <Ionicons name="shield-checkmark-outline" size={16} color="#6b7280" />
-                      <Text style={styles.helperText}>Vsaj 6 znakov; najbolj varno je črke + številke.</Text>
+                      <Text style={styles.helperText}>Vsaj 6 znakov; najbolj varno je crke + stevilke.</Text>
                     </View>
 
                     {isLogin && (
@@ -826,7 +833,7 @@ export default function AuthScreen() {
                               resetLoading && styles.forgotTextDisabled,
                             ]}
                           >
-                            {resetLoading ? "Pošiljam povezavo..." : "Pozabljeno geslo?"}
+                            {resetLoading ? "Posiljam povezavo..." : "Pozabljeno geslo?"}
                           </Text>
                         </TouchableOpacity>
                         {resetLoading && (
@@ -849,141 +856,23 @@ export default function AuthScreen() {
                           ))}
                         </View>
                         <Text style={[styles.strengthText, { color: passwordStrengthColor }]}>
-                          {passwordStrengthLabel}
+                          {passwordStrengthLabelSafe}
                         </Text>
                       </View>
                     )}
 
                     {!isLogin && (
-                      <>
-                        <View
-                          style={[
-                            styles.inputContainer,
-                            focusedField === "confirmPassword" && styles.inputContainerFocused,
-                          ]}
-                        >
-                          <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
-                          <TextInput
-                            style={styles.input}
-                            placeholder="Potrdi geslo"
-                            placeholderTextColor="#6b7280"
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            onFocus={() => setFocusedField("confirmPassword")}
-                            onBlur={() => setFocusedField(null)}
-                            secureTextEntry={!showPassword}
-                            autoCorrect={false}
-                            autoComplete="new-password"
-                            textContentType="newPassword"
-                            returnKeyType="done"
-                            onSubmitEditing={handleAuth}
-                          />
-                        </View>
-
-                        {/* Birth Date Picker */}
-                        <View style={styles.birthDateSection}>
-                          <Text style={styles.birthDateLabel}>
-                            <Ionicons name="calendar-outline" size={16} color="#a78bfa" /> Datum rojstva (opcijsko)
-                          </Text>
-                          <View style={styles.birthDateRow}>
-                            <View
-                              style={[
-                                styles.birthDateInputWrapper,
-                                focusedField === "birthDay" && styles.birthDateInputFocused,
-                              ]}
-                            >
-                              <TextInput
-                                style={styles.birthDateInput}
-                                placeholder="Dan"
-                                placeholderTextColor="#6b7280"
-                                value={birthDay}
-                                onChangeText={(text) => {
-                                  const num = text.replace(/[^0-9]/g, '');
-                                  if (num === '' || (parseInt(num) >= 1 && parseInt(num) <= 31)) {
-                                    setBirthDay(num);
-                                  }
-                                }}
-                                onFocus={() => setFocusedField("birthDay")}
-                                onBlur={() => setFocusedField(null)}
-                                keyboardType="number-pad"
-                                maxLength={2}
-                              />
-                            </View>
-                            <View
-                              style={[
-                                styles.birthDateInputWrapper,
-                                focusedField === "birthMonth" && styles.birthDateInputFocused,
-                              ]}
-                            >
-                              <TextInput
-                                style={styles.birthDateInput}
-                                placeholder="Mesec"
-                                placeholderTextColor="#6b7280"
-                                value={birthMonth}
-                                onChangeText={(text) => {
-                                  const num = text.replace(/[^0-9]/g, '');
-                                  if (num === '' || (parseInt(num) >= 1 && parseInt(num) <= 12)) {
-                                    setBirthMonth(num);
-                                  }
-                                }}
-                                onFocus={() => setFocusedField("birthMonth")}
-                                onBlur={() => setFocusedField(null)}
-                                keyboardType="number-pad"
-                                maxLength={2}
-                              />
-                            </View>
-                            <View
-                              style={[
-                                styles.birthDateInputWrapper,
-                                styles.birthDateYearWrapper,
-                                focusedField === "birthYear" && styles.birthDateInputFocused,
-                              ]}
-                            >
-                              <TextInput
-                                style={styles.birthDateInput}
-                                placeholder="Leto"
-                                placeholderTextColor="#6b7280"
-                                value={birthYear}
-                                onChangeText={(text) => {
-                                  const num = text.replace(/[^0-9]/g, '');
-                                  setBirthYear(num);
-                                }}
-                                onFocus={() => setFocusedField("birthYear")}
-                                onBlur={() => setFocusedField(null)}
-                                keyboardType="number-pad"
-                                maxLength={4}
-                              />
-                            </View>
-                          </View>
-                        </View>
-
-                        <View style={styles.termsRow}>
-                          <TouchableOpacity
-                            style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}
-                            onPress={() => {
-                              triggerHaptic();
-                              setAgreedToTerms(!agreedToTerms);
-                            }}
-                            activeOpacity={0.8}
-                            accessibilityRole="checkbox"
-                            accessibilityState={{ checked: agreedToTerms }}
-                          >
-                            {agreedToTerms && (
-                              <Ionicons name="checkmark" size={14} color="#fff" />
-                            )}
-                          </TouchableOpacity>
-                          <Text style={styles.termsText}>
-                            Strinjam se s{" "}
-                            <Text style={styles.termsLink} onPress={handleTermsPress}>
-                              Pogoji uporabe
-                            </Text>{" "}
-                            in{" "}
-                            <Text style={styles.termsLink} onPress={handleTermsPress}>
-                              Politiko zasebnosti
-                            </Text>
-                          </Text>
-                        </View>
-                      </>
+                      <Text style={styles.legalText}>
+                        Z nadaljevanjem se strinjas s{" "}
+                        <Text style={styles.termsLink} onPress={handleTermsPress}>
+                          Pogoji uporabe
+                        </Text>{" "}
+                        in{" "}
+                        <Text style={styles.termsLink} onPress={handleTermsPress}>
+                          Politiko zasebnosti
+                        </Text>
+                        .
+                      </Text>
                     )}
                   </View>
 
@@ -1086,7 +975,7 @@ export default function AuthScreen() {
                     <Ionicons name="camera" size={20} color="#fbbf24" />
                   </View>
                   <Text style={styles.featureText}>
-                    Slikaj izdelek → takoj najde najnižjo ceno <Text style={styles.premiumBadge}>PREMIUM</Text>
+                    Slikaj izdelek -{"\u003e"} takoj najde najnizjo ceno <Text style={styles.premiumBadge}>PREMIUM</Text>
                   </Text>
                 </View>
               </View>
@@ -1251,8 +1140,8 @@ const styles = StyleSheet.create({
     ...createShadow("#8b5cf6", 0, 4, 0.3, 12, 6),
   },
   cardInner: {
-    padding: 24,
-    paddingBottom: 32,
+    padding: 28,
+    paddingBottom: 46,
   },
   title: {
     fontSize: 26,
@@ -1321,6 +1210,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     lineHeight: 20,
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  helperTextSuccess: {
+    color: "#10b981",
+  },
+  helperTextError: {
+    color: "#f87171",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1401,11 +1301,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(139, 92, 246, 0.15)",
     borderRadius: 18,
-    padding: 14,
-    gap: 10,
+    padding: 16,
+    gap: 12,
   },
   inputContainer: {
-    marginBottom: 14,
+    marginBottom: 16,
     position: "relative",
     flexDirection: "row",
     alignItems: "center",
@@ -1424,7 +1324,8 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    padding: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
     paddingLeft: 12,
     fontSize: 16,
     color: "#fff",
@@ -1506,6 +1407,13 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 22,
   },
+  legalText: {
+    color: "#9ca3af",
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 20,
+    marginTop: 10,
+  },
   termsLink: {
     color: "#a78bfa",
     fontWeight: "600",
@@ -1528,9 +1436,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 20,
+    paddingVertical: 22,
     paddingHorizontal: 18,
-    minHeight: 56,
+    minHeight: 62,
     gap: 12,
   },
   primaryButtonText: {
@@ -1552,14 +1460,14 @@ const styles = StyleSheet.create({
   actionsRowSingle: {
     width: "100%",
     alignItems: "stretch",
-    marginTop: 16,
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 20,
   },
   actionsSeparator: {
     height: 1,
     backgroundColor: "rgba(139, 92, 246, 0.18)",
-    marginTop: 12,
-    marginBottom: 6,
+    marginTop: 16,
+    marginBottom: 10,
   },
   anonymousButton: {
     width: "100%",
@@ -1628,36 +1536,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
   },
-  birthDateSection: {
-    marginBottom: 14,
-  },
-  birthDateLabel: {
-    fontSize: 14,
-    color: "#a78bfa",
-    marginBottom: 10,
-    fontWeight: "500",
-  },
-  birthDateRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  birthDateInputWrapper: {
-    flex: 1,
-    backgroundColor: "rgba(31, 41, 55, 0.5)",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
-  },
-  birthDateInputFocused: {
-    borderColor: "#c084fc",
-  },
-  birthDateYearWrapper: {
-    flex: 1.5,
-  },
-  birthDateInput: {
-    padding: 16,
-    fontSize: 16,
-    color: "#fff",
-    textAlign: "center",
-  },
 });
+

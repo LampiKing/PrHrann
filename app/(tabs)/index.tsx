@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+﻿import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   Easing,
   Modal,
 } from "react-native";
-import Logo from "@/lib/Logo";
+import Logo, { getSeasonalLogoSource } from "@/lib/Logo";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,7 +26,6 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { PLAN_PLUS } from "@/lib/branding";
 import { createShadow, createTextShadow } from "@/lib/shadow-helper";
-import AppLogo from "@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png";
 
 
 interface PriceInfo {
@@ -75,17 +74,11 @@ const STORE_BRANDS: Record<string, StoreBrand> = {
     border: "#a70e27",
     text: "#fff",
   },
-  tuš: {
-    bg: "#0d8a3c",
-    border: "#0b6e30",
-    text: "#fff",
-    cornerIcon: { char: "★", color: "#facc15", top: 2, left: 20, fontSize: 9 },
-  },
   tus: {
     bg: "#0d8a3c",
     border: "#0b6e30",
     text: "#fff",
-    cornerIcon: { char: "★", color: "#facc15", top: 2, left: 20, fontSize: 9 },
+    cornerIcon: { char: "%", color: "#facc15", top: 2, left: 20, fontSize: 9 },
   },
   hofer: {
     bg: "#0b3d7a",
@@ -125,7 +118,7 @@ export default function SearchScreen() {
 
   // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
-  const [guestModalContext, setGuestModalContext] = useState<"search" | "cart">("search");
+  const [guestModalContext, setGuestModalContext] = useState<"search" | "cart" | "camera">("search");
   const [approvedQuery, setApprovedQuery] = useState("");
 
   // Camera/Scanner state
@@ -162,6 +155,10 @@ export default function SearchScreen() {
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
   );
+  const seasonSummary = useQuery(
+    api.leaderboard.getMySeasonSummary,
+    isAuthenticated ? {} : "skip"
+  );
   const isPremium = profile?.isPremium ?? false;
   const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
   const isGuestMode = !isAuthenticated || isGuest;
@@ -169,11 +166,25 @@ export default function SearchScreen() {
   const searchesRemaining = profile?.searchesRemaining ?? (isGuestMode ? 1 : 3);
   const searchResetTime = profile?.searchResetTime;
   const searchLimitRatio = Math.max(0, Math.min(1, searchesRemaining / maxSearches));
-  const searchLimitLabel = maxSearches === 1 ? "gostujoče iskanje" : "brezplačnih iskanj";
+  const searchLimitLabel = maxSearches === 1 ? "gostujoce iskanje" : "brezplacnih iskanj";
+  const isGuestLimitContext = guestModalContext === "search";
   const isGuestCartContext = guestModalContext === "cart";
-  const guestModalSubtitle = isGuestCartContext
-    ? "Za dodajanje v Košarico se prijavi ali registriraj.\nDobiš 3 iskanja v 24h + dostop do Košarice in Profila."
-    : "Kot gost imaš 1 iskanje na dan. Registriraj se za 3 iskanja v 24h ter dostop do Košarice in Profila.";
+  const guestModalTitle = isGuestLimitContext
+    ? "Dosegel si dnevni limit iskanj"
+    : isGuestCartContext
+    ? "Kosarica je na voljo prijavljenim"
+    : "Kamera je na voljo prijavljenim";
+  const guestModalSubtitle = isGuestLimitContext
+    ? "Odstevalnik do polnoci"
+    : "Za nadaljevanje se prijavi ali registriraj.";
+  const seasonSavings = seasonSummary?.savings ?? 0;
+  const seasonRank = seasonSummary?.rank;
+  const seasonYear = seasonSummary?.year;
+  const showRegistrationCta = isGuestMode;
+  const showPlusCta = true;
+  const showWaitOption = isGuestLimitContext;
+  const guestOptionsCount = (showRegistrationCta ? 1 : 0) + (showPlusCta ? 1 : 0);
+  const guestOptionsSingle = guestOptionsCount === 1;
   const cart = useQuery(
     api.cart.getCart,
     isAuthenticated && !isGuestMode ? {} : "skip"
@@ -303,12 +314,8 @@ export default function SearchScreen() {
     
     // Check search limits
     if (!isPremium && searchesRemaining <= 0) {
-      if (isGuestMode) {
-        setGuestModalContext("search");
-        setShowGuestLimitModal(true);
-      } else {
-        setShowPremiumModal(true);
-      }
+      setGuestModalContext("search");
+      setShowGuestLimitModal(true);
       return;
     }
     
@@ -318,14 +325,14 @@ export default function SearchScreen() {
       // Record search first
       const recordResult = await recordSearch();
       if (!recordResult.success) {
-        if (isGuestMode) {
-          setGuestModalContext("search");
-          setShowGuestLimitModal(true);
-        } else {
-          setShowPremiumModal(true);
-        }
+        setGuestModalContext("search");
+        setShowGuestLimitModal(true);
         setSearching(false);
         return;
+      }
+      if (!isPremium && recordResult.searchesRemaining <= 0) {
+        setGuestModalContext("search");
+        setShowGuestLimitModal(true);
       }
       setApprovedQuery(trimmedQuery);
       
@@ -352,6 +359,11 @@ export default function SearchScreen() {
     : [];
 
   const handleSearchFocus = () => {
+    if (!isPremium && searchesRemaining <= 0) {
+      setGuestModalContext("search");
+      setShowGuestLimitModal(true);
+      return;
+    }
     RNAnimated.spring(searchBarScale, {
       toValue: 1.02,
       useNativeDriver: true,
@@ -483,6 +495,12 @@ export default function SearchScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
+    if (isGuestMode) {
+      setGuestModalContext("camera");
+      setShowGuestLimitModal(true);
+      return;
+    }
+
     // Check if user is premium
     if (!isPremium) {
       setShowPremiumModal(true);
@@ -491,35 +509,10 @@ export default function SearchScreen() {
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      // Try gallery instead
-      handleOpenGallery();
       return;
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      handleImageSelected(result.assets[0].uri);
-    }
-  };
-
-  const handleOpenGallery = async () => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-
-    // Check if user is premium
-    if (!isPremium) {
-      setShowPremiumModal(true);
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
@@ -617,9 +610,9 @@ export default function SearchScreen() {
         "Kruh beli",
         "Maslo 250g",
         "Jogurt navadni",
-        "Piščančje prsi",
-        "Paradižnik",
-        "Testenine špageti",
+        "Pisanec prsi",
+        "Paradiznik",
+        "Testenine spageti",
       ];
       const randomProduct = simulatedProducts[Math.floor(Math.random() * simulatedProducts.length)];
       setScanResult(randomProduct);
@@ -674,7 +667,7 @@ export default function SearchScreen() {
           },
           ...prev,
         ].slice(0, 3));
-        triggerCartToast(`${product.name} dodan v košarico`);
+        triggerCartToast(`${product.name} dodan v kosarico`);
         triggerCartPreview();
         setTimeout(() => setAddedToCart(null), 1500);
       } catch (error) {
@@ -686,7 +679,12 @@ export default function SearchScreen() {
 
   const formatPrice = (price: number) => {
     if (!Number.isFinite(price) || price <= 0) return "Ni cene";
-    return price.toFixed(2).replace(".", ",") + " €";
+    return price.toFixed(2).replace(".", ",") + " EUR";
+  };
+
+  const formatSavings = (value: number) => {
+    if (!Number.isFinite(value)) return "0.00 EUR";
+    return value.toFixed(2).replace(".", ",") + " EUR";
   };
 
   const calculateSavings = (product: ProductResult) => {
@@ -764,11 +762,11 @@ export default function SearchScreen() {
                   style={styles.productImageBg}
                 >
                   <Text style={styles.productEmoji}>
-                    {product.category === "Mlečni izdelki" ? "🥛" :
-                     product.category === "Pekovski izdelki" ? "🍞" :
-                     product.category === "Meso" ? "🥩" :
-                     product.category === "Sadje in zelenjava" ? "🥬" :
-                     product.category === "Pijače" ? "🧃" : "🛒"}
+                    {product.category === "Mlecni izdelki" ? "ML" :
+                     product.category === "Pekovski izdelki" ? "PE" :
+                     product.category === "Meso" ? "MS" :
+                     product.category === "Sadje in zelenjava" ? "SZ" :
+                     product.category === "Pijace" ? "PI" : "IZ"}
                   </Text>
                 </LinearGradient>
               </View>
@@ -784,7 +782,7 @@ export default function SearchScreen() {
               {/* Price Display */}
               <View style={styles.priceSection}>
                 <View style={styles.priceMetaRow}>
-                  <Text style={styles.lowestPriceLabel}>Najnižja cena</Text>
+                  <Text style={styles.lowestPriceLabel}>Najnizja cena</Text>
                   {lowestBrand && lowestPriceStore && (
                     <View style={styles.storeChip}>
                       <View
@@ -878,11 +876,11 @@ export default function SearchScreen() {
                 />
                 <Text style={styles.quickAddText}>
                   {cartLocked
-                    ? "Prijava za košarico"
+                    ? "Prijava za kosarico"
                     : lowestPriceStore
                       ? addedToCart === `${product._id}-${lowestPriceStore?.storeId}`
                         ? "Dodano!"
-                        : "Dodaj najcenejše"
+                        : "Dodaj najcenejse"
                       : "Ni cene"}
                 </Text>
               </LinearGradient>
@@ -955,7 +953,7 @@ export default function SearchScreen() {
                         <Text style={styles.storeRowName}>{price.storeName.toUpperCase()}</Text>
                         {isLowest && (
                           <View style={styles.lowestBadge}>
-                            <Text style={styles.lowestBadgeText}>NAJCENEJŠE</Text>
+                            <Text style={styles.lowestBadgeText}>NAJCENEJSE</Text>
                           </View>
                         )}
                       </View>
@@ -1022,7 +1020,7 @@ export default function SearchScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Image
-            source={AppLogo}
+            source={getSeasonalLogoSource()}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -1043,9 +1041,9 @@ export default function SearchScreen() {
                   <Ionicons name="lock-closed" size={14} color="#c4b5fd" />
                   <Text style={styles.guestBannerBadgeText}>GOST</Text>
                 </View>
-                <Text style={styles.guestBannerTitle}>Odkleni Košarico in Profil</Text>
+                <Text style={styles.guestBannerTitle}>Odkleni Kosarico in Profil</Text>
                 <Text style={styles.guestBannerText}>
-                  Registracija odklene 3 iskanja/24h + Košarico + Profil.
+                  Registracija odklene se 2 iskanji danes + Kosarica + Profil.
                 </Text>
               </View>
               <TouchableOpacity
@@ -1065,6 +1063,25 @@ export default function SearchScreen() {
               </TouchableOpacity>
             </LinearGradient>
           )}
+          {!isGuestMode && (
+            <LinearGradient
+              colors={["rgba(16, 185, 129, 0.18)", "rgba(15, 23, 42, 0.4)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.statusBanner}
+            >
+              <Text style={styles.statusTitle}>Prihranil si letos</Text>
+              <Text style={styles.statusValue}>{formatSavings(seasonSavings)}</Text>
+              <View style={styles.statusRow}>
+                <Text style={styles.statusMeta}>
+                  Tvoje mesto: {seasonRank ? `#${seasonRank}` : "--"}
+                </Text>
+                <Text style={styles.statusMeta}>
+                  Sezona {seasonYear ?? new Date().getFullYear()} - do 24. decembra ob 17:00
+                </Text>
+              </View>
+            </LinearGradient>
+          )}
 
           {/* Search Bar with Camera Button */}
           <View style={styles.searchRow}>
@@ -1079,7 +1096,7 @@ export default function SearchScreen() {
                   <Ionicons name="search" size={22} color="#a78bfa" style={styles.searchIcon} />
                   <TextInput
                     style={styles.searchInput}
-                    placeholder="Išči izdelke..."
+                    placeholder="Isci izdelke..."
                     placeholderTextColor="#6b7280"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
@@ -1087,11 +1104,22 @@ export default function SearchScreen() {
                     onBlur={handleSearchBlur}
                     onSubmitEditing={handleSearch}
                     returnKeyType="search"
+                    editable={isPremium || searchesRemaining > 0}
                   />
                   {searchQuery.length > 0 && (
                     <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.clearButton}>
                       <Ionicons name="close-circle" size={20} color="#6b7280" />
                     </TouchableOpacity>
+                  )}
+                  {!isPremium && searchesRemaining <= 0 && (
+                    <TouchableOpacity
+                      style={styles.searchBlocker}
+                      onPress={() => {
+                        setGuestModalContext("search");
+                        setShowGuestLimitModal(true);
+                      }}
+                      activeOpacity={1}
+                    />
                   )}
                 </LinearGradient>
               </BlurView>
@@ -1133,14 +1161,14 @@ export default function SearchScreen() {
               <View style={styles.timerContainer}>
                 <Ionicons name="time-outline" size={14} color="#fbbf24" />
                 <Text style={styles.timerText}>
-                  Novo iskanje čez {timeRemaining}
+                  Novo iskanje cez {timeRemaining}
                 </Text>
               </View>
             ) : (
               <Text style={styles.searchLimitTextEmpty}>
                 {isGuestMode
-                  ? "Kot gost imaš 1 iskanje na dan. Registriraj se za 3 iskanja in dostop do Košarice ter Profila."
-                  : "Nimaš več brezplačnih iskanj. Nadgradi na PrHran Plus!"}
+                  ? "Kot gost imas 1 iskanje na dan. Registracija odklene se 2 iskanji danes + Kosarica + Profil."
+                  : "Dosegel si dnevni limit iskanj. Nadgradi na PrHran Plus za neomejeno iskanje."}
               </Text>
             )}
           </View>
@@ -1157,9 +1185,9 @@ export default function SearchScreen() {
                 <Ionicons name="basket-outline" size={48} color="#a78bfa" />
               </LinearGradient>
             </View>
-            <Text style={styles.emptyTitle}>Začni z iskanjem</Text>
+            <Text style={styles.emptyTitle}>Zacni z iskanjem</Text>
             <Text style={styles.emptyText}>
-              Vpiši ime izdelka in takoj primerjaj cene{"\n"}iz vseh slovenskih trgovin
+              Vpisi ime izdelka in takoj primerjaj cene{"\n"}iz vseh slovenskih trgovin
             </Text>
 
             {/* Fun Fact Card */}
@@ -1172,9 +1200,9 @@ export default function SearchScreen() {
                   <Ionicons name="bulb" size={20} color="#10b981" />
                 </View>
                 <View style={styles.funFactContent}>
-                  <Text style={styles.funFactTitle}>💡 Ali veš?</Text>
+                  <Text style={styles.funFactTitle}>Ali ves?</Text>
                   <Text style={styles.funFactText}>
-                    Povprečna slovenska družina lahko prihrani do 150€ mesečno s pametnim nakupovanjem!
+                    Povprecna slovenska druzina lahko prihrani do 150 EUR mesecno s pametnim nakupovanjem!
                   </Text>
                 </View>
               </LinearGradient>
@@ -1279,10 +1307,10 @@ export default function SearchScreen() {
                   style={styles.guestLimitGradient}
                 >
                   <Ionicons name="lock-closed" size={48} color="rgba(139, 92, 246, 0.6)" />
-                  <Text style={styles.guestLimitTitle}>Odkleni več možnosti</Text>
+                  <Text style={styles.guestLimitTitle}>Odkleni vec moznosti</Text>
                   <Text style={styles.guestLimitText}>
-                    Kot gost imaš 1 iskanje na dan.{"\n"}
-                    Registriraj se za 3 iskanja v 24h, Košarico in Profil.
+                    Kot gost imas 1 iskanje na dan.{"\n"}
+                    Registracija odklene se 2 iskanji danes + Kosarica + Profil.
                   </Text>
                   <View style={styles.guestLimitButton}>
                     <Text style={styles.guestLimitButtonText}>Prijava / Registracija</Text>
@@ -1350,7 +1378,7 @@ export default function SearchScreen() {
             <View style={styles.cartPreviewHeader}>
               <View style={styles.cartPreviewTitleRow}>
                 <Ionicons name="cart-outline" size={18} color="#a78bfa" />
-                <Text style={styles.cartPreviewTitle}>Košarica posodobljena</Text>
+                <Text style={styles.cartPreviewTitle}>Kosarica posodobljena</Text>
               </View>
               <Text style={styles.cartPreviewCount}>
                 {cart?.itemCount ?? previewItems.length} izdelkov
@@ -1364,7 +1392,7 @@ export default function SearchScreen() {
                     {item.name}
                   </Text>
                   <Text style={styles.cartPreviewItemMeta}>
-                    {item.store} · {item.quantity}x
+                    {item.store} - {item.quantity}x
                   </Text>
                 </View>
               ))}
@@ -1381,7 +1409,7 @@ export default function SearchScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.cartPreviewButtonGradient}
               >
-                <Text style={styles.cartPreviewButtonText}>Poglej košarico</Text>
+                <Text style={styles.cartPreviewButtonText}>Poglej kosarico</Text>
                 <Ionicons name="arrow-forward" size={16} color="#fff" />
               </LinearGradient>
             </TouchableOpacity>
@@ -1455,7 +1483,7 @@ export default function SearchScreen() {
                     <Ionicons name="scan-outline" size={64} color="#a78bfa" />
                   </View>
                   <Text style={styles.scannerPlaceholderText}>
-                    Slikaj izdelek in takoj najdi{"\n"}najnižjo ceno v vseh trgovinah!
+                    Slikaj izdelek in takoj najdi{"\n"}najnizjo ceno v vseh trgovinah!
                   </Text>
                 </View>
               )}
@@ -1473,10 +1501,6 @@ export default function SearchScreen() {
                         <Text style={styles.scannerActionText}>Odpri kamero</Text>
                       </LinearGradient>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.scannerActionBtnSecondary} onPress={handleOpenGallery}>
-                      <Ionicons name="images-outline" size={20} color="#a78bfa" />
-                      <Text style={styles.scannerActionTextSecondary}>Izberi iz galerije</Text>
-                    </TouchableOpacity>
                   </>
                 ) : scanResult ? (
                   <>
@@ -1486,7 +1510,9 @@ export default function SearchScreen() {
                         style={styles.scannerActionGradient}
                       >
                         <Ionicons name="search" size={24} color="#fff" />
-                        <Text style={[styles.scannerActionText, { color: "#fff" }]}>Išči "{scanResult}"</Text>
+                        <Text style={[styles.scannerActionText, { color: "#fff" }]}>
+                          Isci "{scanResult}"
+                        </Text>
                       </LinearGradient>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -1503,7 +1529,7 @@ export default function SearchScreen() {
                 ) : (
                   <View style={styles.analyzingInfo}>
                     <Text style={styles.analyzingInfoText}>
-                      🤖 AI analizira sliko...
+                      AI analizira sliko...
                     </Text>
                   </View>
                 )}
@@ -1536,87 +1562,102 @@ export default function SearchScreen() {
 
               <View style={styles.premiumIconContainer}>
                 <LinearGradient
-                  colors={isGuestCartContext ? ["#8b5cf6", "#7c3aed"] : ["#ef4444", "#dc2626"]}
+                  colors={isGuestLimitContext ? ["#ef4444", "#dc2626"] : ["#8b5cf6", "#7c3aed"]}
                   style={styles.premiumIconGradient}
                 >
-                  <Ionicons name={isGuestCartContext ? "cart-outline" : "time"} size={44} color="#fff" />
+                  <Ionicons
+                    name={isGuestLimitContext ? "time" : isGuestCartContext ? "cart-outline" : "camera-outline"}
+                    size={44}
+                    color="#fff"
+                  />
                 </LinearGradient>
               </View>
 
-              <Text style={styles.premiumModalTitle}>
-                {isGuestCartContext ? "Košarica je za prijavljene" : "⏰ Dnevni limit dosežen"}
-              </Text>
-              
-              {!isGuestCartContext && timeRemaining ? (
+              <Text style={styles.premiumModalTitle}>{guestModalTitle}</Text>
+
+              {isGuestLimitContext ? (
                 <View style={styles.guestTimerBox}>
-                  <Text style={styles.guestTimerLabel}>Naslednje iskanje čez:</Text>
-                  <Text style={styles.guestTimerValue}>{timeRemaining}</Text>
+                  <Text style={styles.guestTimerLabel}>Odstevalnik do polnoci</Text>
+                  <Text style={styles.guestTimerValue}>{timeRemaining ?? "--:--:--"}</Text>
+                  {!timeRemaining && (
+                    <Text style={styles.guestLimitDescription}>
+                      Novo iskanje bo na voljo ob polnoci.
+                    </Text>
+                  )}
                 </View>
               ) : (
-                <Text style={styles.premiumModalSubtitle}>
-                  {guestModalSubtitle}
-                </Text>
+                <Text style={styles.premiumModalSubtitle}>{guestModalSubtitle}</Text>
               )}
 
-              <View style={styles.guestOptionsContainer}>
-                {/* Option 1: FREE Registration */}
-                <View style={styles.guestOptionCard}>
-                  <View style={styles.guestOptionBadge}>
-                    <Text style={styles.guestOptionBadgeText}>BREZPLAČNO</Text>
-                  </View>
-                  <Text style={styles.guestOptionTitle}>Registracija</Text>
-                  <Text style={styles.guestOptionDesc}>3 iskanja v 24h + Košarica + Profil</Text>
-                  <TouchableOpacity
-                    style={styles.guestOptionBtn}
-                    onPress={handleGuestAuthPress}
-                  >
-                    <LinearGradient
-                      colors={["#8b5cf6", "#7c3aed"]}
-                      style={styles.guestOptionBtnGradient}
+              <View
+                style={[
+                  styles.guestOptionsContainer,
+                  guestOptionsSingle && styles.guestOptionsContainerSingle,
+                ]}
+              >
+                {showRegistrationCta && (
+                  <View style={[styles.guestOptionCard, guestOptionsSingle && styles.guestOptionCardFull]}>
+                    <View style={styles.guestOptionBadge}>
+                      <Text style={styles.guestOptionBadgeText}>BREZPLACNO</Text>
+                    </View>
+                    <Text style={styles.guestOptionTitle}>Registracija</Text>
+                    <Text style={styles.guestOptionDesc}>+2 iskanji danes + Kosarica + Profil</Text>
+                    <TouchableOpacity
+                      style={styles.guestOptionBtn}
+                      onPress={handleGuestAuthPress}
                     >
-                      <Ionicons name="person-add" size={18} color="#fff" />
-                      <Text style={styles.guestOptionBtnText}>REGISTRIRAJ SE</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
+                      <LinearGradient
+                        colors={["#8b5cf6", "#7c3aed"]}
+                        style={styles.guestOptionBtnGradient}
+                      >
+                        <Ionicons name="person-add" size={18} color="#fff" />
+                        <Text style={styles.guestOptionBtnText}>REGISTRIRAJ SE</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
-                {/* Option 2: Premium */}
-                <View style={[styles.guestOptionCard, styles.guestOptionCardPremium]}>
-                  <View style={[styles.guestOptionBadge, styles.guestOptionBadgePremium]}>
-                    <Text style={styles.guestOptionBadgeTextPremium}>PRIPOROČENO</Text>
-                  </View>
-                  <Text style={styles.guestOptionTitle}>{PLAN_PLUS}</Text>
-                  <Text style={styles.guestOptionDesc}>Neomejeno iskanje</Text>
-                  <Text style={styles.guestOptionPrice}>1,99 €/mesec</Text>
-                  <TouchableOpacity
-                    style={styles.guestOptionBtn}
-                    onPress={handleGuestPremiumPress}
-                  >
-                    <LinearGradient
-                      colors={["#fbbf24", "#f59e0b"]}
-                      style={styles.guestOptionBtnGradient}
+                {showPlusCta && (
+                  <View style={[
+                    styles.guestOptionCard,
+                    styles.guestOptionCardPremium,
+                    guestOptionsSingle && styles.guestOptionCardFull,
+                  ]}>
+                    <View style={[styles.guestOptionBadge, styles.guestOptionBadgePremium]}>
+                      <Text style={styles.guestOptionBadgeTextPremium}>PRIPOROCENO</Text>
+                    </View>
+                    <Text style={styles.guestOptionTitle}>{PLAN_PLUS}</Text>
+                    <Text style={styles.guestOptionDesc}>Neomejeno iskanje + slikanje izdelkov</Text>
+                    <Text style={styles.guestOptionPrice}>1.99 EUR/mesec</Text>
+                    <TouchableOpacity
+                      style={styles.guestOptionBtn}
+                      onPress={handleGuestPremiumPress}
                     >
-                      <Ionicons name="diamond" size={18} color="#000" />
-                      <Text style={[styles.guestOptionBtnText, { color: "#000" }]}>NADGRADI</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
+                      <LinearGradient
+                        colors={["#fbbf24", "#f59e0b"]}
+                        style={styles.guestOptionBtnGradient}
+                      >
+                        <Ionicons name="diamond" size={18} color="#000" />
+                        <Text style={[styles.guestOptionBtnText, { color: "#000" }]}>NADGRADI</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
 
-              {!isGuestCartContext && (
+              {showWaitOption && (
                 <TouchableOpacity
                   style={styles.guestWaitBtn}
                   onPress={() => setShowGuestLimitModal(false)}
                 >
-                  <Text style={styles.guestWaitBtnText}>Počakam do jutri →</Text>
+                  <Text style={styles.guestWaitBtnText}>Pocakam do jutri -{"\u003e"}</Text>
                 </TouchableOpacity>
               )}
             </LinearGradient>
           </View>
         </View>
       </Modal>
-
-      {/* Premium Modal - Search Limit */}
+      {/* Premium Modal - Camera Upsell */}
       <Modal
         transparent
         visible={showPremiumModal}
@@ -1642,31 +1683,15 @@ export default function SearchScreen() {
                   colors={["#fbbf24", "#f59e0b"]}
                   style={styles.premiumIconGradient}
                 >
-                  <Ionicons name="search" size={40} color="#000" />
+                  <Ionicons name="camera" size={40} color="#000" />
                 </LinearGradient>
               </View>
 
-              <Text style={styles.premiumModalTitle}>🔍 PrHran FREE limit dosežen</Text>
+              <Text style={styles.premiumModalTitle}>PrHran Plus za kamero</Text>
               <Text style={styles.premiumModalSubtitle}>
-                {searchesRemaining <= 0 && timeRemaining
-                  ? `Novo iskanje čez ${timeRemaining}`
-                  : "Nadgradi se na PrHran Plus za neomejeno iskanje!"}
+                Slikanje izdelkov je na voljo v Plus. Nadgradi za neomejeno iskanje in
+                slikanje izdelkov.
               </Text>
-
-              {searchesRemaining <= 0 && timeRemaining && (
-                <View style={styles.modalTimerContainer}>
-                  <Text style={styles.timerKicker}>⏱️ Počakaj trenutek</Text>
-                  <Text style={styles.timerExplanation}>
-                    Porabil si vsa dnevna brezplačna iskanja. Naslednje iskanje bo na voljo čez:
-                  </Text>
-                  <View style={styles.timerDisplay}>
-                    <Text style={styles.timerValue}>{timeRemaining}</Text>
-                  </View>
-                  <Text style={styles.timerHint}>
-                    💡 Ali nadgradi na PrHran Plus za neomejeno iskanje!
-                  </Text>
-                </View>
-              )}
 
               <View style={styles.premiumFeatures}>
                 <View style={styles.premiumFeatureItem}>
@@ -1675,18 +1700,18 @@ export default function SearchScreen() {
                 </View>
                 <View style={styles.premiumFeatureItem}>
                   <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Slikaj in najdi najnižjo ceno</Text>
+                  <Text style={styles.premiumFeatureText}>Slikaj in najdi najnizjo ceno</Text>
                 </View>
                 <View style={styles.premiumFeatureItem}>
                   <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
                   <Text style={styles.premiumFeatureText}>Ekskluzivni kuponi do 30%</Text>
                 </View>
-                {/* Removed "Brez oglasov" – oglasi niso prisotni v nobenem planu */}
+                {/* Removed "Brez oglasov" - oglasi niso prisotni v nobenem planu */}
               </View>
 
               <View style={styles.premiumPriceContainer}>
                 <Text style={styles.premiumPriceLabel}>{PLAN_PLUS}</Text>
-                <Text style={styles.premiumPrice}>1,99 €</Text>
+                <Text style={styles.premiumPrice}>1.99 EUR</Text>
                 <Text style={styles.premiumPricePeriod}>/ mesec</Text>
               </View>
 
@@ -1709,7 +1734,7 @@ export default function SearchScreen() {
               </TouchableOpacity>
 
               <Text style={styles.premiumNote}>
-                Prekliči kadarkoli • Brez skritih stroškov
+                Preklici kadarkoli - brez skritih stroskov
               </Text>
             </LinearGradient>
           </View>
@@ -1803,6 +1828,10 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  searchBlocker: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
   },
   searchLimitContainer: {
     flexDirection: "row",
@@ -2964,6 +2993,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     width: "100%",
   },
+  guestOptionsContainerSingle: {
+    flexDirection: "column",
+  },
   guestOptionCard: {
     flex: 1,
     backgroundColor: "rgba(255, 255, 255, 0.08)",
@@ -2972,6 +3004,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  guestOptionCardFull: {
+    width: "100%",
   },
   guestOptionCardPremium: {
     borderColor: "rgba(251, 191, 36, 0.4)",
@@ -3042,3 +3077,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+
+
+

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+﻿import { useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "react-native";
-import AppLogo from "@/assets/images/1595E33B-B540-4C55-BAA2-E6DA6596BEFF.png";
+import { getSeasonalLogoSource } from "@/lib/Logo";
 import { createShadow } from "@/lib/shadow-helper";
 import { useRouter } from "expo-router";
 
@@ -79,17 +79,11 @@ const STORE_BRANDS: Record<string, StoreBrand> = {
     border: "#a70e27",
     text: "#fff",
   },
-  tuš: {
-    bg: "#0d8a3c",
-    border: "#0b6e30",
-    text: "#fff",
-    cornerIcon: { char: "★", color: "#facc15", top: 2, left: 20, fontSize: 9 },
-  },
   tus: {
     bg: "#0d8a3c",
     border: "#0b6e30",
     text: "#fff",
-    cornerIcon: { char: "★", color: "#facc15", top: 2, left: 20, fontSize: 9 },
+    cornerIcon: { char: "%", color: "#facc15", top: 2, left: 20, fontSize: 9 },
   },
   hofer: {
     bg: "#0b3d7a",
@@ -133,6 +127,14 @@ export default function CartScreen() {
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
   );
+  const seasonSummary = useQuery(
+    api.leaderboard.getMySeasonSummary,
+    isAuthenticated ? {} : "skip"
+  );
+  const leaderboard = useQuery(
+    api.leaderboard.getLeaderboard,
+    isAuthenticated ? { limit: 100 } : "skip"
+  );
   const updateQuantity = useMutation(api.cart.updateQuantity);
   const removeFromCart = useMutation(api.cart.removeFromCart);
   const clearCart = useMutation(api.cart.clearCart);
@@ -141,13 +143,46 @@ export default function CartScreen() {
   const premiumType = profile?.premiumType;
   // Gost je anonymous uporabnik ali brez emaila
   const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
+  const currentSavings = seasonSummary?.savings ?? 0;
+  const top100Threshold =
+    leaderboard?.entries?.length === 100
+      ? leaderboard.entries[leaderboard.entries.length - 1]?.savings ?? null
+      : null;
+  const projectedSavings = currentSavings + (cart?.totalSavings ?? 0);
+  const remainingToTop100 =
+    top100Threshold !== null ? Math.max(0, top100Threshold - projectedSavings) : null;
 
-  // Redirect guest to auth
-  useEffect(() => {
-    if (isGuest) {
-      router.replace("/auth");
-    }
-  }, [isGuest]);
+  if (isGuest) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]}
+          style={StyleSheet.absoluteFill}
+        />
+        <View style={[styles.guestLockCard, { paddingTop: insets.top + 40 }]}>
+          <Ionicons name="lock-closed" size={48} color="#a78bfa" />
+          <Text style={styles.guestLockTitle}>Kosarica je zaklenjena</Text>
+          <Text style={styles.guestLockText}>
+            Za nadaljevanje se prijavi ali registriraj.
+          </Text>
+          <TouchableOpacity
+            style={styles.guestLockButton}
+            onPress={() => router.push({ pathname: "/auth", params: { mode: "register" } })}
+          >
+            <LinearGradient
+              colors={["#8b5cf6", "#7c3aed"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.guestLockButtonGradient}
+            >
+              <Ionicons name="person-add" size={18} color="#fff" />
+              <Text style={styles.guestLockButtonText}>Prijava / Registracija</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   useEffect(() => {
     Animated.parallel([
@@ -166,7 +201,7 @@ export default function CartScreen() {
   }, []);
 
   const formatPrice = (price: number) => {
-    return price.toFixed(2).replace(".", ",") + " €";
+    return price.toFixed(2).replace(".", ",") + " EUR";
   };
 
   const handleQuantityChange = async (itemId: Id<"cartItems">, currentQuantity: number, delta: number) => {
@@ -206,17 +241,17 @@ export default function CartScreen() {
   const handleShare = async () => {
     if (!cart || cart.items.length === 0) return;
 
-    let message = "🛒 Moj nakupovalni seznam (Pr'Hran)\n\n";
+    let message = " Moj nakupovalni seznam (Pr'Hran)\n\n";
     
     cart.groupedByStore.forEach((group: StoreGroup) => {
-      message += `📍 ${group.storeName}\n`;
+      message += ` ${group.storeName}\n`;
       group.items.forEach((item: CartItemType) => {
-        message += `  • ${item.productName} (${item.quantity}x) - ${formatPrice(item.currentPrice * item.quantity)}\n`;
+        message += `  -  ${item.productName} (${item.quantity}x) - ${formatPrice(item.currentPrice * item.quantity)}\n`;
       });
       message += `  Skupaj: ${formatPrice(group.subtotal)}\n\n`;
     });
 
-    message += `💰 SKUPAJ: ${formatPrice(cart.total)}`;
+    message += ` SKUPAJ: ${formatPrice(cart.total)}`;
 
     try {
       await Share.share({ message });
@@ -252,12 +287,12 @@ export default function CartScreen() {
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <Image
-            source={AppLogo}
+            source={getSeasonalLogoSource()}
             style={styles.logo}
             resizeMode="contain"
           />
           <Text style={styles.title}>
-            {isPremium ? "Premium košarica" : "Tvoja košarica"}
+            {isPremium ? "Premium kosarica" : "Tvoja kosarica"}
           </Text>
           {isPremium && (
             <View style={styles.premiumBadgeContainer}>
@@ -284,10 +319,24 @@ export default function CartScreen() {
                 <Ionicons name="cart-outline" size={48} color="#a78bfa" />
               </LinearGradient>
             </View>
-            <Text style={styles.emptyTitle}>Košarica je prazna</Text>
+            <Text style={styles.emptyTitle}>Kosarica je prazna</Text>
             <Text style={styles.emptyText}>
               Dodaj izdelke iz iskalnika in{"\n"}primerjaj cene med trgovinami
             </Text>
+            <TouchableOpacity
+              style={styles.emptyCta}
+              onPress={() => router.push("/(tabs)")}
+            >
+              <LinearGradient
+                colors={["#8b5cf6", "#7c3aed"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.emptyCtaGradient}
+              >
+                <Ionicons name="search" size={18} color="#fff" />
+                <Text style={styles.emptyCtaText}>Najdi najcenejsi izdelek</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </Animated.View>
         ) : (
           <>
@@ -297,7 +346,7 @@ export default function CartScreen() {
                 <View style={styles.premiumSummaryBadge}>
                   <Ionicons name="star" size={16} color="#fbbf24" />
                   <Text style={styles.premiumSummaryText}>
-                    {premiumType === "family" ? "Družinska naročnina" : "Plus naročnina"}
+                    {premiumType === "family" ? "Druzinska narocnina" : "Plus narocnina"}
                   </Text>
                   {cart.totalSavings > 0 && (
                     <Text style={styles.premiumSummaryExtra}>
@@ -314,7 +363,7 @@ export default function CartScreen() {
               </View>
               <View style={styles.quickSummaryRow}>
                 <View style={styles.quickSummaryItem}>
-                  <Text style={styles.quickSummaryLabel}>Količina</Text>
+                  <Text style={styles.quickSummaryLabel}>Kolicina</Text>
                   <Text style={styles.quickSummaryValue}>{cart.itemCount} kom</Text>
                 </View>
                 <View style={styles.quickSummaryDivider} />
@@ -323,6 +372,16 @@ export default function CartScreen() {
                   <Text style={styles.quickSummaryValue}>{cart.groupedByStore.length}</Text>
                 </View>
               </View>
+            </Animated.View>
+
+            <Animated.View style={[styles.motivationCard, { opacity: fadeAnim }]}>
+              <Text style={styles.motivationTitle}>Potencialni prihranek</Text>
+              <Text style={styles.motivationValue}>{formatPrice(cart.totalSavings)}</Text>
+              <Text style={styles.motivationText}>
+                {remainingToTop100 !== null
+                  ? `Ta nakup te je priblizal Top 100 za ${formatPrice(remainingToTop100)}.`
+                  : "Ta nakup je korak blize do Top 100."}
+              </Text>
             </Animated.View>
 
             {/* Store Groups */}
@@ -493,9 +552,9 @@ export default function CartScreen() {
                     <Ionicons name="pricetag" size={24} color="#10b981" />
                   </View>
                   <View style={styles.savingsInfo}>
-                    <Text style={styles.savingsTitle}>💰 Prihranek s kuponi: {formatPrice(cart.totalSavings)}</Text>
+                    <Text style={styles.savingsTitle}> Prihranek s kuponi: {formatPrice(cart.totalSavings)}</Text>
                     <Text style={styles.savingsSubtitle}>
-                      Avtomatsko izbrani najboljši kuponi za vsako trgovino
+                      Avtomatsko izbrani najboljsi kuponi za vsako trgovino
                     </Text>
                   </View>
                 </LinearGradient>
@@ -506,7 +565,7 @@ export default function CartScreen() {
             <View style={styles.actionButtons}>
               <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
                 <Ionicons name="share-outline" size={20} color="#a78bfa" />
-                <Text style={styles.shareButtonText}>Deli košarico</Text>
+                <Text style={styles.shareButtonText}>Deli kosarico</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.clearButton} onPress={handleClearCart}>
@@ -528,6 +587,46 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#0f0a1e",
+  },
+  guestLockCard: {
+    marginHorizontal: 20,
+    padding: 24,
+    borderRadius: 20,
+    alignItems: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.35)",
+    gap: 12,
+  },
+  guestLockTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+  },
+  guestLockText: {
+    fontSize: 14,
+    color: "#cbd5f5",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  guestLockButton: {
+    width: "100%",
+    borderRadius: 14,
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  guestLockButtonGradient: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 8,
+  },
+  guestLockButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
   scrollView: {
     flex: 1,
@@ -777,6 +876,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
   },
+  emptyCta: {
+    marginTop: 18,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  emptyCtaGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  emptyCtaText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
   quickSummary: {
     marginBottom: 20,
     paddingHorizontal: 16,
@@ -785,6 +902,32 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  motivationCard: {
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.25)",
+  },
+  motivationTitle: {
+    fontSize: 12,
+    color: "#d1fae5",
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  motivationValue: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#10b981",
+    marginBottom: 6,
+  },
+  motivationText: {
+    fontSize: 13,
+    color: "#e5e7eb",
+    lineHeight: 18,
   },
   // duplicate premiumSummaryBadge/premiumSummaryText removed (defined earlier)
   premiumSummaryExtra: {
@@ -1209,3 +1352,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+
