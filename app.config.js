@@ -1,6 +1,16 @@
 const appJson = require("./app.json");
 
-const season = (process.env.PRHRAN_SEASON || "default").toLowerCase();
+const getSeasonFromDate = (date = new Date()) => {
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+
+  if (month === 10) return "halloween";
+  if (month === 11 && day >= 15) return "winter";
+  if (month === 12) return "winter";
+  return "default";
+};
+
+const season = (process.env.PRHRAN_SEASON || getSeasonFromDate()).toLowerCase();
 const seasonalLogos = {
   default: "./assets/images/Logo Default.png",
   halloween: "./assets/images/Logo Halloween.png",
