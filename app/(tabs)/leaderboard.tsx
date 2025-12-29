@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from "react-native";
+﻿import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useConvexAuth } from "convex/react";
@@ -40,7 +40,7 @@ export default function LeaderboardScreen() {
           </View>
           <Text style={styles.guestTitle}>Lestvica je zaklenjena</Text>
           <Text style={styles.guestText}>
-            Registracija odklene lestvico, Kosarico in Profil ter se 2 iskanji danes.
+            Registracija odklene lestvico, Košarico in Profil ter se 2 iskanji danes.
           </Text>
           <TouchableOpacity
             style={styles.guestButton}
@@ -105,7 +105,7 @@ export default function LeaderboardScreen() {
         </View>
 
         <View style={styles.listCard}>
-          <Text style={styles.listTitle}>Top varcevalci</Text>
+          <Text style={styles.listTitle}>Top varčevalci</Text>
           {leaderboard?.entries.length ? (
             leaderboard.entries.map((entry) => (
               <View key={entry.userId} style={styles.listRow}>
@@ -303,3 +303,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+

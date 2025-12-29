@@ -161,7 +161,7 @@ export default function CartScreen() {
         />
         <View style={[styles.guestLockCard, { paddingTop: insets.top + 40 }]}>
           <Ionicons name="lock-closed" size={48} color="#a78bfa" />
-          <Text style={styles.guestLockTitle}>Kosarica je zaklenjena</Text>
+          <Text style={styles.guestLockTitle}>Košarica je zaklenjena</Text>
           <Text style={styles.guestLockText}>
             Za nadaljevanje se prijavi ali registriraj.
           </Text>
@@ -292,7 +292,7 @@ export default function CartScreen() {
             resizeMode="contain"
           />
           <Text style={styles.title}>
-            {isPremium ? "Premium kosarica" : "Tvoja kosarica"}
+            {isPremium ? "Premium košarica" : "Tvoja košarica"}
           </Text>
           {isPremium && (
             <View style={styles.premiumBadgeContainer}>
@@ -319,7 +319,7 @@ export default function CartScreen() {
                 <Ionicons name="cart-outline" size={48} color="#a78bfa" />
               </LinearGradient>
             </View>
-            <Text style={styles.emptyTitle}>Kosarica je prazna</Text>
+            <Text style={styles.emptyTitle}>Košarica je prazna</Text>
             <Text style={styles.emptyText}>
               Dodaj izdelke iz iskalnika in{"\n"}primerjaj cene med trgovinami
             </Text>
@@ -1352,4 +1352,5 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+
 

@@ -21,7 +21,7 @@ const FAQ_ITEMS = [
   {
     question: "Kako deluje primerjava cen?",
     answer:
-      "Pr'Hran avtomatsko primerja cene izdelkov v trgovinah (Spar, Mercator, Tus, Hofer, Lidl, Jager). Cene se posodabljajo dnevno ob 22:00, da vedno vidis najnovejse podatke.",
+      "Pr'Hran avtomatsko primerja cene izdelkov v trgovinah (Spar, Mercator, Tus, Hofer, Lidl, Jager). Cene se posodabljajo dnevno ob 22:00, da vedno vidiš najnovejse podatke.",
   },
   {
     question: "Kako delujejo kuponi?",
@@ -34,9 +34,9 @@ const FAQ_ITEMS = [
       "Premium narocnina (1.99 EUR/mesec) vkljucuje: neomejeno iskanje izdelkov, dostop do vseh trgovin, obvestila o padcih cen in ekskluzivne kupone.",
   },
   {
-    question: "Kako dodam izdelek v kosarico?",
+    question: "Kako dodam izdelek v košarico?",
     answer:
-      "Ko najdes izdelek, klikni na gumb 'Dodaj v kosarico' pri izbrani trgovini. V kosarici potem vidis skupno ceno in prihranke za vsako trgovino posebej.",
+      "Ko najdeš izdelek, klikni na gumb 'Dodaj v košarico' pri izbrani trgovini. V kosarici potem vidiš skupno ceno in prihranke za vsako trgovino posebej.",
   },
   {
     question: "Ali so cene vedno tocne?",
@@ -140,7 +140,7 @@ export default function HelpScreen() {
               </View>
               <Text style={styles.contactTitle}>Potrebujes pomoc?</Text>
               <Text style={styles.contactText}>
-                Nasa ekipa ti je na voljo za vsa vprasanja in tezave.
+                Naša ekipa ti je na voljo za vsa vprašanja in težave.
               </Text>
               <TouchableOpacity
                 style={styles.contactButton}
@@ -159,7 +159,7 @@ export default function HelpScreen() {
 
           {/* FAQ Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pogosta vprasanja</Text>
+            <Text style={styles.sectionTitle}>Pogosta vprašanja</Text>
 
             {FAQ_ITEMS.map((item, index) => (
               <TouchableOpacity
@@ -369,5 +369,6 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
 });
+
 
 

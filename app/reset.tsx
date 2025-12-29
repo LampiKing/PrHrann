@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -114,7 +114,7 @@ export default function ResetScreen() {
           <View style={styles.card}>
             <Text style={styles.title}>Ponastavi geslo</Text>
             <Text style={styles.subtitle}>
-              Vnesi novo geslo za svoj racun.
+              Vnesi novo geslo za svoj račun.
             </Text>
 
             {error ? (
@@ -415,3 +415,4 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
 });
+

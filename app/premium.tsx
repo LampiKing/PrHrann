@@ -24,10 +24,10 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const INDIVIDUAL_FEATURES = [
   { icon: "infinite", title: "Neomejeno iskanje", description: "Brez dnevnih omejitev" },
-  { icon: "camera", title: "Slikaj izdelek", description: "Takoj najde najnizjo ceno" },
+  { icon: "camera", title: "Slikaj izdelek", description: "Takoj najde najnižjo ceno" },
   { icon: "pricetag", title: "Pametni kuponi", description: "Najboljse akcije na enem mestu" },
   { icon: "analytics", title: "Letni prihranek", description: "Sledenje prihrankom po racunih" },
-  { icon: "trophy", title: "Lestvice in bedzi", description: "Letna sezona varcevanja" },
+  { icon: "trophy", title: "Lestvice in bedži", description: "Letna sezona varčevanja" },
 ];
 
 const FAMILY_BONUS_FEATURES = [
@@ -513,7 +513,7 @@ export default function PremiumScreen() {
 
             <Text style={styles.disclaimer}>
               Mesecna narocnina z avtomatskim podaljsanjem. Preklicete lahko kadarkoli
-              brez dodatnih stroskov. Vse cene vkljucujejo DDV.
+              brez dodatnih stroškov. Vse cene vključujejo DDV.
             </Text>
           </Animated.View>
         </ScrollView>
@@ -551,7 +551,7 @@ export default function PremiumScreen() {
 
               <Text style={styles.authModalTitle}>Prijava potrebna</Text>
               <Text style={styles.authModalSubtitle}>
-                Za nakup Premium narocnine se moras najprej prijaviti ali registrirati.
+                Za nakup Premium naročnine se moraš najprej prijaviti ali registrirati.
               </Text>
 
               <View style={styles.authBenefits}>
@@ -1082,4 +1082,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
 

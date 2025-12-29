@@ -478,7 +478,7 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 <Text style={styles.planPrice}>
-                  {isPremium ? (premiumType === "family" ? "2,99  EUR/mesec" : "1,99  EUR/mesec") : "Brezplacno"}
+                  {isPremium ? (premiumType === "family" ? "2,99  EUR/mesec" : "1,99  EUR/mesec") : "Brezplačno"}
                 </Text>
               </View>
               {(!isPremium || (isPremium && premiumType === "solo")) && (
@@ -530,7 +530,7 @@ export default function ProfileScreen() {
                 </View>
               ) : !isPremium && searchesRemaining === 1 ? (
                 <Text style={styles.searchWarning}>
-                  Se samo 1 brezplacno iskanje.
+                  Še samo 1 brezplačno iskanje.
                 </Text>
               ) : null}
             </View>
@@ -576,12 +576,12 @@ export default function ProfileScreen() {
         {/* Achievements */}
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>Dosezki</Text>
-          <Text style={styles.sectionSubtitle}>Letni dosezki iz varcevanja</Text>
+          <Text style={styles.sectionSubtitle}>Letni dosežki iz varčevanja</Text>
           {awardYears.length === 0 ? (
             <View style={styles.emptyAwards}>
               <Ionicons name="trophy-outline" size={26} color="#a78bfa" />
               <Text style={styles.emptyAwardsText}>
-                Se ni dosezkov. Dodaj racune in zacni varcevati.
+                Še ni dosežkov. Dodaj račune in začni varčevati.
               </Text>
             </View>
           ) : (
@@ -1037,7 +1037,7 @@ export default function ProfileScreen() {
 
               <Text style={styles.deleteTitle}>Izbrisi racun?</Text>
               <Text style={styles.deleteDescription}>
-                Ta dejanje je nepovratno. Vsi tvoji podatki, kosarica in nastavitve bodo trajno izbrisani.
+                Ta dejanje je nepovratno. Vsi tvoji podatki, košarica in nastavitve bodo trajno izbrisani.
               </Text>
 
               <View style={styles.deleteButtons}>
@@ -2033,5 +2033,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
 
 

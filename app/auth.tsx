@@ -25,12 +25,12 @@ import Logo, { getSeasonalLogoSource } from "@/lib/Logo";
 import { api } from "@/convex/_generated/api";
 
 const FACTS = [
-  "Povprecna slovenska druzina lahko prihrani do 150 EUR mesecno.",
+  "Povprečna slovenska družina lahko prihrani do 150 EUR mesečno.",
   "Cene istega izdelka se razlikujejo do 40% med trgovinami.",
-  "Primerjamo cene iz 6 najvecjih slovenskih trgovin.",
-  "Prihranis do 2 uri tedensko z avtomatskim iskanjem.",
-  "Vec kot 10.000 uporabnikov ze prihranjuje s Pr'Hran.",
-  "Plus: Slikaj izdelek in takoj najdi najnizjo ceno.",
+  "Primerjamo cene iz 6 največjih slovenskih trgovin.",
+  "Prihraniš do 2 uri tedensko z avtomatskim iskanjem.",
+  "Več kot 10.000 uporabnikov že prihranjuje s Pr'Hran.",
+  "Plus: Slikaj izdelek in takoj najdi najnižjo ceno.",
 ];
 
 
@@ -326,7 +326,7 @@ export default function AuthScreen() {
           } else if (result.error.code === "INVALID_EMAIL_OR_PASSWORD" || 
               result.error.message?.includes("Invalid") ||
               result.error.message?.includes("password")) {
-            setError("Napacen e-naslov ali geslo");
+            setError("Napačen e-naslov ali geslo");
           } else if (result.error.message?.includes("not found") || 
                      result.error.message?.includes("exist")) {
             setError("Racun s tem e-naslovom ne obstaja. Registriraj se!");
@@ -339,7 +339,7 @@ export default function AuthScreen() {
         }
         
         console.log("Login successful!");
-        setSuccess("Uspesna prijava!");
+        setSuccess("Uspešna prijava!");
         showSuccessAnimation();
         // Router will redirect automatically via useEffect
       } else {
@@ -379,7 +379,7 @@ export default function AuthScreen() {
         if (errorMessage.includes("not found") || errorMessage.includes("exist")) {
           setError("Racun s tem e-naslovom ne obstaja. Registriraj se!");
         } else {
-          setError("Napacen e-naslov ali geslo");
+          setError("Napačen e-naslov ali geslo");
         }
       } else {
         if (errorMessage.includes("exist") || errorMessage.includes("already")) {
@@ -682,7 +682,7 @@ export default function AuthScreen() {
                   <Text style={styles.subtitle}>
                     {isLogin
                       ? "Prijavi se in zacni prihranjevati"
-                      : "Vzdevek, e-naslov in geslo - in si notri"}
+                      : "Vzdevek, e-naslov in geslo – in si notri"}
                   </Text>
 
                   <View style={styles.modeSwitch}>
@@ -833,7 +833,7 @@ export default function AuthScreen() {
                               resetLoading && styles.forgotTextDisabled,
                             ]}
                           >
-                            {resetLoading ? "Posiljam povezavo..." : "Pozabljeno geslo?"}
+                            {resetLoading ? "Pošiljam povezavo..." : "Pozabljeno geslo?"}
                           </Text>
                         </TouchableOpacity>
                         {resetLoading && (
@@ -1537,4 +1537,5 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+
 
