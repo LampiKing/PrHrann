@@ -27,7 +27,8 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",`n      "backgroundColor": "#0a0a12",
+      "output": "static",
+      "backgroundColor": "#0a0a12",
       "favicon": "./assets/images/Logo Default.png",
       "build": {
         "babel": {
@@ -61,4 +62,5 @@
     }
   }
 }
+
 

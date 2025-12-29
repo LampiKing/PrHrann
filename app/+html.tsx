@@ -1,19 +1,29 @@
 ﻿import React from "react";
-import { Html, Head, Main, NextScript } from "expo-router/html";
+import { ScrollViewStyleReset } from "expo-router/html";
 
-export default function Root() {
+type Props = {
+  children: React.ReactNode;
+};
+
+export default function Root({ children }: Props) {
   return (
-    <Html>
-      <Head>
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no"
+        />
         <meta name="theme-color" content="#0a0a12" />
+        <ScrollViewStyleReset />
         <style>{`
           html, body, #root {
             background-color: #0a0a12;
           }
         `}</style>
-      </Head>
-      <Main />
-      <NextScript />
-    </Html>
+      </head>
+      <body>{children}</body>
+    </html>
   );
 }
