@@ -1,4 +1,4 @@
-{
+﻿{
   "expo": {
     "name": "PrHran",
     "slug": "prhran",
@@ -27,7 +27,7 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "static",`n      "backgroundColor": "#0a0a12",
       "favicon": "./assets/images/Logo Default.png",
       "build": {
         "babel": {
@@ -43,7 +43,7 @@
           "image": "./assets/images/Logo Default.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FAFAFA"
+          "backgroundColor": "#0a0a12"
         }
       ],
       "expo-secure-store",
@@ -61,3 +61,4 @@
     }
   }
 }
+
