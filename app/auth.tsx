@@ -53,6 +53,10 @@ export default function AuthScreen() {
     api.userProfiles.isNicknameAvailable,
     !isLogin && nickname.trim().length >= 3 ? { nickname: nickname.trim() } : "skip"
   );
+  const profile = useQuery(
+    api.userProfiles.getProfile,
+    isAuthenticated ? {} : "skip"
+  );
 
   const switchMode = (login: boolean) => {
     triggerHaptic();
@@ -93,10 +97,10 @@ export default function AuthScreen() {
   // Redirect if authenticated
   useEffect(() => {
     console.log("Auth useEffect: isAuthenticated =", isAuthenticated, "authLoading =", authLoading);
-    if (isAuthenticated && !authLoading) {
+    if (isAuthenticated && !authLoading && profile && !profile.isAnonymous) {
       router.replace("/(tabs)");
     }
-  }, [isAuthenticated, authLoading]);
+  }, [isAuthenticated, authLoading, profile]);
 
   // Logo glow animation
   useEffect(() => {
@@ -329,7 +333,7 @@ export default function AuthScreen() {
             setError("Napačen e-naslov ali geslo");
           } else if (result.error.message?.includes("not found") || 
                      result.error.message?.includes("exist")) {
-            setError("Racun s tem e-naslovom ne obstaja. Registriraj se!");
+            setError("Račun s tem e-naslovom ne obstaja. Registriraj se!");
           } else {
             setError(`Prijava ni uspela: ${result.error.message || "Neznana napaka"}`);
           }
@@ -358,7 +362,7 @@ export default function AuthScreen() {
           if (result.error.message?.includes("exist") || 
               result.error.message?.includes("already") ||
               result.error.code === "USER_ALREADY_EXISTS") {
-            setError("Racun s tem e-naslovom ze obstaja. Prijavi se!");
+            setError("Račun s tem e-naslovom že obstaja. Prijavi se!");
           } else {
             setError(`Registracija ni uspela: ${result.error.message || "Neznana napaka"}`);
           }
@@ -377,13 +381,13 @@ export default function AuthScreen() {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       if (isLogin) {
         if (errorMessage.includes("not found") || errorMessage.includes("exist")) {
-          setError("Racun s tem e-naslovom ne obstaja. Registriraj se!");
+          setError("Račun s tem e-naslovom ne obstaja. Registriraj se!");
         } else {
           setError("Napačen e-naslov ali geslo");
         }
       } else {
         if (errorMessage.includes("exist") || errorMessage.includes("already")) {
-          setError("Racun s tem e-naslovom ze obstaja. Prijavi se!");
+          setError("Račun s tem e-naslovom že obstaja. Prijavi se!");
         } else {
           setError("Registracija ni uspela. Poskusite znova.");
         }
@@ -426,15 +430,15 @@ export default function AuthScreen() {
         redirectTo: resetRedirectUrl,
       });
       if (result.error) {
-        setError("Posiljanje povezave ni uspelo. Poskusite znova.");
+        setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
         shakeError();
         return;
       }
-      setSuccess("Ce racun obstaja, smo poslali povezavo za ponastavitev.");
+      setSuccess("Če račun obstaja, smo poslali povezavo za ponastavitev.");
       showSuccessAnimation();
     } catch (err) {
       console.log("Reset password error:", err);
-      setError("Posiljanje povezave ni uspelo. Poskusite znova.");
+      setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
       shakeError();
     } finally {
       setResetLoading(false);
@@ -454,9 +458,10 @@ export default function AuthScreen() {
         setAnonymousLoading(false);
         return;
       }
-      setSuccess("Dobrodosli!");
+      setSuccess("Dobrodošli!");
       showSuccessAnimation();
-      // Router will redirect automatically via useEffect
+      setAnonymousLoading(false);
+      router.replace("/(tabs)");
     } catch (err) {
       console.log("Anonymous error:", err);
       setError("Prijava kot gost ni uspela. Poskusite znova.");
@@ -677,7 +682,7 @@ export default function AuthScreen() {
               >
                 <View style={styles.cardInner}>
                   <Text style={styles.title}>
-                    {isLogin ? "Dobrodosli nazaj!" : "Ustvari racun"}
+                    {isLogin ? "Dobrodošli nazaj!" : "Ustvari račun"}
                   </Text>
                   <Text style={styles.subtitle}>
                     {isLogin
@@ -1537,5 +1542,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
+
 
 
