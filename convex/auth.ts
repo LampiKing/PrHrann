@@ -43,11 +43,11 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
 // export the trigger API functions so that triggers work
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
+const fallbackSiteUrl = "https://prhrannn.netlify.app";
 const rawSiteUrl =
     process.env.SITE_URL ||
     process.env.EXPO_PUBLIC_SITE_URL ||
-    process.env.EXPO_PUBLIC_CONVEX_SITE_URL ||
-    "https://vibrant-dolphin-871.convex.site";
+    fallbackSiteUrl;
 const siteUrl = rawSiteUrl.includes(".convex.cloud")
     ? rawSiteUrl.replace(".convex.cloud", ".convex.site")
     : rawSiteUrl;
@@ -64,7 +64,14 @@ const localhostOrigins = isDev
           "http://127.0.0.1:3001",
       ]
     : [];
-const corsOrigins = isDev ? [siteUrl, ...localhostOrigins] : [siteUrl];
+const knownProdOrigins = [
+    "https://prhran.com",
+    "https://www.prhran.com",
+    fallbackSiteUrl,
+];
+const corsOrigins = isDev
+    ? [siteUrl, ...localhostOrigins]
+    : Array.from(new Set([siteUrl, ...knownProdOrigins]));
 const fromEmail = process.env.FROM_EMAIL;
 const fromName = process.env.FROM_NAME || "PrHran";
 const resendApiKey = process.env.RESEND_API_KEY;
@@ -112,7 +119,9 @@ export const createAuth = (
             disabled: optionsOnly,
         },
         secret: process.env.BETTER_AUTH_SECRET!,
-        trustedOrigins: [siteUrl, "myapp://", ...localhostOrigins],
+        trustedOrigins: isDev
+            ? [siteUrl, "myapp://", ...localhostOrigins]
+            : Array.from(new Set([siteUrl, "myapp://", ...knownProdOrigins])),
         database: authComponent.adapter(ctx),
         emailAndPassword: {
             enabled: true,
