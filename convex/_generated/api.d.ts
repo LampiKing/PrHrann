@@ -11,13 +11,17 @@
 import type * as ai from "../ai.js";
 import type * as aiCouponParser from "../aiCouponParser.js";
 import type * as auth from "../auth.js";
+import type * as awards from "../awards.js";
 import type * as cart from "../cart.js";
 import type * as coupons from "../coupons.js";
+import type * as crons from "../crons.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as functions from "../functions.js";
 import type * as http from "../http.js";
+import type * as leaderboard from "../leaderboard.js";
 import type * as priceAlerts from "../priceAlerts.js";
 import type * as products from "../products.js";
+import type * as receipts from "../receipts.js";
 import type * as savings from "../savings.js";
 import type * as security from "../security.js";
 import type * as seedCoupons from "../seedCoupons.js";
@@ -25,6 +29,7 @@ import type * as seedData from "../seedData.js";
 import type * as seedHelpers from "../seedHelpers.js";
 import type * as shoppingLists from "../shoppingLists.js";
 import type * as stores from "../stores.js";
+import type * as time from "../time.js";
 import type * as userProfiles from "../userProfiles.js";
 
 import type {
@@ -37,13 +42,17 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   aiCouponParser: typeof aiCouponParser;
   auth: typeof auth;
+  awards: typeof awards;
   cart: typeof cart;
   coupons: typeof coupons;
+  crons: typeof crons;
   emailVerification: typeof emailVerification;
   functions: typeof functions;
   http: typeof http;
+  leaderboard: typeof leaderboard;
   priceAlerts: typeof priceAlerts;
   products: typeof products;
+  receipts: typeof receipts;
   savings: typeof savings;
   security: typeof security;
   seedCoupons: typeof seedCoupons;
@@ -51,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   seedHelpers: typeof seedHelpers;
   shoppingLists: typeof shoppingLists;
   stores: typeof stores;
+  time: typeof time;
   userProfiles: typeof userProfiles;
 }>;
 

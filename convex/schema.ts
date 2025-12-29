@@ -1,7 +1,8 @@
+Ôªøimport { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // Trgovine (Spar, Mercator, Tuö, Lidl, Hofer, Jager)
+  // Trgovine (Spar, Mercator, Tu≈°, Lidl, Hofer, Jager)
   stores: defineTable({
     name: v.string(),
     logo: v.optional(v.string()),
@@ -24,7 +25,7 @@ export default defineSchema({
     productId: v.id("products"),
     storeId: v.id("stores"),
     price: v.number(),
-    originalPrice: v.optional(v.number()), // »e je na akciji
+    originalPrice: v.optional(v.number()), // ƒåe je na akciji
     isOnSale: v.boolean(),
     lastUpdated: v.number(),
   })
@@ -63,7 +64,7 @@ export default defineSchema({
     applicableCategories: v.optional(v.array(v.string())),
     // Dodatni pogoji
     maxUsesPerUser: v.optional(v.number()), // Koliko krat lahko uporabnik uporabi (npr. 1 za ENKRAT)
-    excludedProducts: v.optional(v.array(v.string())), // IzkljuËeni izdelki (npr. "postreûeno meso")
+    excludedProducts: v.optional(v.array(v.string())), // Izkljuƒçeni izdelki (npr. "postre≈æeno meso")
     additionalNotes: v.optional(v.string()), // Dodatna opozorila
     weekNumber: v.optional(v.number()), // Za tedenski tracking kuponov
     isActive: v.optional(v.boolean()), // Ali je kupon aktiven
@@ -75,13 +76,13 @@ export default defineSchema({
     userId: v.string(),
     couponId: v.id("coupons"),
     usedAt: v.number(),
-    orderId: v.optional(v.string()), // Za tracking ûe implementiramo naroËila
+    orderId: v.optional(v.string()), // Za tracking ≈æe implementiramo naroƒçila
     savings: v.number(), // Koliko je uporabnik prihranil
   })
     .index("by_user_and_coupon", ["userId", "couponId"])
     .index("by_user", ["userId"]),
 
-  // Uporabniöki profili
+  // Uporabni≈°ki profili
   userProfiles: defineTable({
     userId: v.string(),
     name: v.optional(v.string()),
@@ -102,8 +103,8 @@ export default defineSchema({
     ),
     isPremium: v.boolean(),
     premiumUntil: v.optional(v.number()),
-    premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))), // solo: 1.99Ä, family: 2.99Ä
-    familyOwnerId: v.optional(v.string()), // »e je Ëlan family plana
+    premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))), // solo: 1.99‚Ç¨, family: 2.99‚Ç¨
+    familyOwnerId: v.optional(v.string()), // ƒåe je ƒçlan family plana
     familyMembers: v.optional(v.array(v.string())), // Max 3 osebe za family plan
     dailySearches: v.number(),
     lastSearchDate: v.string(), // YYYY-MM-DD format
@@ -119,7 +120,7 @@ export default defineSchema({
     // Savings tracker
     totalSavings: v.optional(v.number()), // Skupni prihranki
     monthlySavings: v.optional(v.number()), // Prihranki ta mesec
-    lastSavingsReset: v.optional(v.number()), // Kdaj resetiramo meseËne
+    lastSavingsReset: v.optional(v.number()), // Kdaj resetiramo meseƒçne
   })
     .index("by_user_id", ["userId"])
     .index("by_family_owner", ["familyOwnerId"])
@@ -136,7 +137,7 @@ export default defineSchema({
     verified: v.boolean(),
     verifiedAt: v.optional(v.number()),
     resendCount: v.optional(v.number()), // koliko krat je bila koda ponovno poslana
-    lastSentAt: v.optional(v.number()), // zadnji Ëas poöiljanja emaila
+    lastSentAt: v.optional(v.number()), // zadnji ƒças po≈°iljanja emaila
   })
     .index("by_user", ["userId"])
     .index("by_token", ["token"]),
@@ -144,12 +145,12 @@ export default defineSchema({
   // Shopping Lists
   shoppingLists: defineTable({
     userId: v.string(),
-    name: v.string(), // "Tedenski nakup", "Za ûur"...
+    name: v.string(), // "Tedenski nakup", "Za ≈æur"...
     icon: v.optional(v.string()), // Emoji ikona
     createdAt: v.number(),
     updatedAt: v.number(),
     // Family sharing
-    sharedWith: v.optional(v.array(v.string())), // userId-ji druûinskih Ëlanov
+    sharedWith: v.optional(v.array(v.string())), // userId-ji dru≈æinskih ƒçlanov
     isShared: v.optional(v.boolean()),
   })
     .index("by_user_id", ["userId"])
@@ -160,7 +161,7 @@ export default defineSchema({
     listId: v.id("shoppingLists"),
     productId: v.id("products"),
     quantity: v.number(),
-    checked: v.boolean(), // Ali je ûe kupljeno
+    checked: v.boolean(), // Ali je ≈æe kupljeno
     addedBy: v.optional(v.string()), // Kdo je dodal (za family)
     addedAt: v.number(),
   })
@@ -171,11 +172,11 @@ export default defineSchema({
   priceAlerts: defineTable({
     userId: v.string(),
     productId: v.id("products"),
-    storeId: v.optional(v.id("stores")), // »e ûeli spremljati specifiËno trgovino
-    targetPrice: v.number(), // éelena cena
-    currentPrice: v.number(), // Trenutna najniûja cena
+    storeId: v.optional(v.id("stores")), // ƒåe ≈æeli spremljati specifiƒçno trgovino
+    targetPrice: v.number(), // ≈Ωelena cena
+    currentPrice: v.number(), // Trenutna najni≈æja cena
     isActive: v.boolean(),
-    triggered: v.boolean(), // Ali je bil alert ûe sproûen
+    triggered: v.boolean(), // Ali je bil alert ≈æe spro≈æen
     triggeredAt: v.optional(v.number()),
     createdAt: v.number(),
   })
@@ -189,7 +190,7 @@ export default defineSchema({
     productId: v.id("products"),
     storeId: v.id("stores"),
     quantity: v.number(),
-    pricePaid: v.number(), // Cena ki jo je plaËal
+    pricePaid: v.number(), // Cena ki jo je plaƒçal
     regularPrice: v.number(), // Redna cena (brez akcije)
     savedAmount: v.number(), // Prihranek
     purchaseDate: v.number(),
@@ -197,7 +198,7 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_date", ["userId", "purchaseDate"]),
 
-  // RaËuni (OCR + prihranki)
+  // Raƒçuni (OCR + prihranki)
   receipts: defineTable({
     userId: v.string(),
     groupId: v.string(),
@@ -290,7 +291,7 @@ export default defineSchema({
     .index("by_session_token", ["sessionToken"])
     .index("by_expires_at", ["expiresAt"]),
 
-  // Koöarica
+  // Ko≈°arica
   cartItems: defineTable({
     userId: v.string(),
     productId: v.id("products"),
@@ -308,3 +309,4 @@ export default defineSchema({
     timestamp: v.number(),
   }).index("by_user", ["userId"]),
 });
+
