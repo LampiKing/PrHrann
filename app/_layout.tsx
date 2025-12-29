@@ -5,7 +5,8 @@ import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import { authClient } from "@/lib/auth-client";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { View, Text, StyleSheet, Platform, Image } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
+import { Asset } from "expo-asset";
 import { getSeasonalLogoSource } from "@/lib/Logo";
 
 const convexUrl =
@@ -21,25 +22,38 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS !== "web") return;
 
-    const updateFavicon = () => {
+    const updateFavicon = async () => {
       if (typeof document === "undefined") return;
-      const source = Image.resolveAssetSource(getSeasonalLogoSource(new Date()));
-      if (!source?.uri) return;
+      const source = getSeasonalLogoSource(new Date());
+      const asset = Asset.fromModule(source);
+
+      if (!asset.uri) {
+        try {
+          await asset.downloadAsync();
+        } catch {
+          return;
+        }
+      }
+
+      const uri = asset.uri || asset.localUri;
+      if (!uri) return;
 
       const links = document.querySelectorAll("link[rel*='icon']");
       if (links.length === 0) {
         const link = document.createElement("link");
         link.rel = "icon";
-        link.href = source.uri;
+        link.href = uri;
         document.head.appendChild(link);
         return;
       }
 
-      links.forEach((link) => link.setAttribute("href", source.uri));
+      links.forEach((link) => link.setAttribute("href", uri));
     };
 
     updateFavicon();
-    const interval = setInterval(updateFavicon, 60 * 60 * 1000);
+    const interval = setInterval(() => {
+      void updateFavicon();
+    }, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
