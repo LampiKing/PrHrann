@@ -40,7 +40,7 @@ export default function LeaderboardScreen() {
           </View>
           <Text style={styles.guestTitle}>Lestvica je zaklenjena</Text>
           <Text style={styles.guestText}>
-            Registracija odklene lestvico, Košarico in Profil ter se 2 iskanji danes.
+            Registracija odklene lestvico, Košarico in Profil ter še 2 iskanji danes.
           </Text>
           <TouchableOpacity
             style={styles.guestButton}
@@ -63,6 +63,35 @@ export default function LeaderboardScreen() {
 
   const leaderboardTypeLabel =
     summary?.leaderboardType === "family" ? "Family lestvica" : "Free + Plus lestvica";
+  const leaderboardEntries = leaderboard?.entries ?? [];
+  const topThree = leaderboardEntries.slice(0, 3);
+  const restEntries = leaderboardEntries.slice(3);
+  const podiumSlots = [
+    {
+      rank: 2,
+      entry: topThree[1],
+      colors: ["rgba(148, 163, 184, 0.22)", "rgba(15, 23, 42, 0.7)"],
+      accent: "#e2e8f0",
+      icon: "medal",
+      style: styles.podiumStepSecond,
+    },
+    {
+      rank: 1,
+      entry: topThree[0],
+      colors: ["rgba(251, 191, 36, 0.3)", "rgba(120, 53, 15, 0.6)"],
+      accent: "#fbbf24",
+      icon: "trophy",
+      style: styles.podiumStepFirst,
+    },
+    {
+      rank: 3,
+      entry: topThree[2],
+      colors: ["rgba(217, 119, 6, 0.25)", "rgba(67, 20, 7, 0.65)"],
+      accent: "#f59e0b",
+      icon: "medal",
+      style: styles.podiumStepThird,
+    },
+  ];
 
   return (
     <View style={styles.container}>
@@ -77,16 +106,42 @@ export default function LeaderboardScreen() {
           <Text style={styles.subtitle}>{leaderboardTypeLabel}</Text>
         </View>
 
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Prihranil si letos</Text>
-          <Text style={styles.summaryValue}>{formatCurrency(summary?.savings ?? 0)}</Text>
-          <Text style={styles.summaryRank}>
-            Tvoje mesto: {summary?.rank ? `#${summary.rank}` : "--"}
-          </Text>
-          <Text style={styles.summarySeason}>
-            Sezona {summary?.year ?? new Date().getFullYear()} - do 24. decembra ob 17:00
-          </Text>
-        </View>
+        <LinearGradient
+          colors={["rgba(16, 185, 129, 0.22)", "rgba(15, 23, 42, 0.65)"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.summaryCard}
+        >
+          <View style={styles.summaryTopRow}>
+            <View style={styles.summaryPill}>
+              <Ionicons name="sparkles" size={14} color="#a7f3d0" />
+              <Text style={styles.summaryPillText}>
+                Sezona {summary?.year ?? new Date().getFullYear()}
+              </Text>
+            </View>
+            <View style={styles.summaryDeadlinePill}>
+              <Ionicons name="time" size={14} color="#fcd34d" />
+              <Text style={styles.summaryDeadlineText}>Do 24. decembra ob 17:00</Text>
+            </View>
+          </View>
+          <View style={styles.summaryMainRow}>
+            <View style={styles.summarySavingsBlock}>
+              <Text style={styles.summaryTitle}>Prihranil si letos</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(summary?.savings ?? 0)}</Text>
+              <Text style={styles.summaryNote}>Prihranek iz potrjenih računov</Text>
+            </View>
+            <View style={styles.summaryRankBlock}>
+              <Text style={styles.summaryRankLabel}>Tvoje mesto</Text>
+              <Text style={styles.summaryRankValue}>
+                {summary?.rank ? `#${summary.rank}` : "--"}
+              </Text>
+              <View style={styles.summaryRankBadge}>
+                <Ionicons name="trophy" size={14} color="#fbbf24" />
+                <Text style={styles.summaryRankBadgeText}>Lestvica</Text>
+              </View>
+            </View>
+          </View>
+        </LinearGradient>
 
         <View style={styles.rewardCard}>
           <Text style={styles.rewardTitle}>Nagrade sezone</Text>
@@ -104,24 +159,60 @@ export default function LeaderboardScreen() {
           </View>
         </View>
 
-        <View style={styles.listCard}>
-          <Text style={styles.listTitle}>Top varčevalci</Text>
-          {leaderboard?.entries.length ? (
-            leaderboard.entries.map((entry) => (
-              <View key={entry.userId} style={styles.listRow}>
-                <View style={styles.rankBadge}>
-                  <Text style={styles.rankText}>#{entry.rank}</Text>
-                </View>
-                <View style={styles.listInfo}>
-                  <Text style={styles.listName}>{entry.nickname}</Text>
-                  <Text style={styles.listSaving}>{formatCurrency(entry.savings)}</Text>
-                </View>
+        {leaderboardEntries.length ? (
+          <>
+            <View style={styles.podiumCard}>
+              <Text style={styles.podiumTitle}>Top 3 varčevalci</Text>
+              <View style={styles.podiumRow}>
+                {podiumSlots.map((slot) => (
+                  <LinearGradient
+                    key={slot.rank}
+                    colors={slot.colors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={[styles.podiumStep, slot.style]}
+                  >
+                    <View style={[styles.podiumRankBadge, { borderColor: slot.accent }]}>
+                      <Text style={[styles.podiumRankText, { color: slot.accent }]}>
+                        #{slot.rank}
+                      </Text>
+                    </View>
+                    <Ionicons name={slot.icon} size={18} color={slot.accent} />
+                    <Text style={styles.podiumName}>{slot.entry?.nickname ?? "—"}</Text>
+                    <Text style={styles.podiumSavings}>
+                      {formatCurrency(slot.entry?.savings ?? 0)}
+                    </Text>
+                  </LinearGradient>
+                ))}
               </View>
-            ))
-          ) : (
+              <View style={styles.podiumBaseLine} />
+            </View>
+
+            <View style={styles.listCard}>
+              <Text style={styles.listTitle}>Top 100 varčevalci</Text>
+              {restEntries.length ? (
+                restEntries.map((entry) => (
+                  <View key={entry.userId} style={styles.listRow}>
+                    <View style={styles.rankBadge}>
+                      <Text style={styles.rankText}>#{entry.rank}</Text>
+                    </View>
+                    <View style={styles.listInfo}>
+                      <Text style={styles.listName}>{entry.nickname}</Text>
+                      <Text style={styles.listSaving}>{formatCurrency(entry.savings)}</Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>Zaenkrat ni več uvrščenih.</Text>
+              )}
+            </View>
+          </>
+        ) : (
+          <View style={styles.listCard}>
+            <Text style={styles.listTitle}>Top 100 varčevalci</Text>
             <Text style={styles.emptyText}>Ni podatkov za lestvico.</Text>
-          )}
-        </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -152,11 +243,61 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     padding: 18,
-    borderRadius: 18,
-    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
+    borderColor: "rgba(16, 185, 129, 0.35)",
     marginBottom: 16,
+    overflow: "hidden",
+  },
+  summaryTopRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  summaryPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.35)",
+  },
+  summaryPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#a7f3d0",
+    letterSpacing: 0.3,
+  },
+  summaryDeadlinePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
+  },
+  summaryDeadlineText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#fde68a",
+  },
+  summaryMainRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  summarySavingsBlock: {
+    flex: 1,
   },
   summaryTitle: {
     fontSize: 12,
@@ -169,14 +310,40 @@ const styles = StyleSheet.create({
     color: "#10b981",
     marginBottom: 6,
   },
-  summaryRank: {
-    fontSize: 14,
-    color: "#e5e7eb",
+  summaryNote: {
+    fontSize: 11,
+    color: "rgba(226, 232, 240, 0.7)",
   },
-  summarySeason: {
+  summaryRankBlock: {
+    alignItems: "flex-end",
+  },
+  summaryRankLabel: {
     fontSize: 12,
-    color: "#9ca3af",
+    fontWeight: "700",
+    color: "#94a3b8",
+  },
+  summaryRankValue: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#fbbf24",
+  },
+  summaryRankBadge: {
     marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.35)",
+  },
+  summaryRankBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#fde68a",
+    letterSpacing: 0.4,
   },
   rewardCard: {
     padding: 16,
@@ -206,38 +373,109 @@ const styles = StyleSheet.create({
     color: "#fde68a",
     fontWeight: "600",
   },
+  podiumCard: {
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.18)",
+    marginBottom: 16,
+  },
+  podiumTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  podiumRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  podiumStep: {
+    width: "31%",
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  podiumStepFirst: {
+    minHeight: 170,
+  },
+  podiumStepSecond: {
+    minHeight: 140,
+  },
+  podiumStepThird: {
+    minHeight: 120,
+  },
+  podiumRankBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+  },
+  podiumRankText: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  podiumName: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
+    textAlign: "center",
+  },
+  podiumSavings: {
+    fontSize: 11,
+    color: "#e2e8f0",
+  },
+  podiumBaseLine: {
+    marginTop: 12,
+    height: 2,
+    borderRadius: 999,
+    backgroundColor: "rgba(148, 163, 184, 0.25)",
+  },
   listCard: {
     padding: 16,
-    borderRadius: 18,
-    backgroundColor: "rgba(139, 92, 246, 0.08)",
+    borderRadius: 20,
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.25)",
+    borderColor: "rgba(139, 92, 246, 0.2)",
   },
   listTitle: {
     fontSize: 15,
-    fontWeight: "700",
-    color: "#fff",
+    fontWeight: "800",
+    color: "#e9d5ff",
     marginBottom: 12,
   },
   listRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(139, 92, 246, 0.15)",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    borderRadius: 14,
+    backgroundColor: "rgba(30, 41, 59, 0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.18)",
   },
   rankBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(139, 92, 246, 0.25)",
     alignItems: "center",
     justifyContent: "center",
   },
   rankText: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#fff",
   },
   listInfo: {
@@ -250,7 +488,7 @@ const styles = StyleSheet.create({
   },
   listSaving: {
     fontSize: 12,
-    color: "#c4b5fd",
+    color: "#ddd6fe",
     marginTop: 2,
   },
   emptyText: {
