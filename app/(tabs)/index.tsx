@@ -1158,20 +1158,37 @@ export default function SearchScreen() {
           )}
           {!isGuestMode && (
             <LinearGradient
-              colors={["rgba(16, 185, 129, 0.18)", "rgba(15, 23, 42, 0.4)"]}
+              colors={["rgba(16, 185, 129, 0.2)", "rgba(15, 23, 42, 0.55)"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.statusBanner}
             >
-              <Text style={styles.statusTitle}>Prihranil si letos</Text>
-              <Text style={styles.statusValue}>{formatSavings(seasonSavings)}</Text>
-              <View style={styles.statusRow}>
-                <Text style={styles.statusMeta}>
-                  Tvoje mesto: {seasonRank ? `#${seasonRank}` : "--"}
-                </Text>
-                <Text style={styles.statusMeta}>
-                  Sezona {seasonYear ?? new Date().getFullYear()} - do 24. decembra ob 17:00
-                </Text>
+              <View style={styles.statusTopRow}>
+                <View style={styles.statusSeasonPill}>
+                  <Ionicons name="sparkles" size={14} color="#a7f3d0" />
+                  <Text style={styles.statusSeasonText}>
+                    Sezona {seasonYear ?? new Date().getFullYear()}
+                  </Text>
+                </View>
+                <View style={styles.statusDeadlinePill}>
+                  <Ionicons name="time" size={14} color="#fcd34d" />
+                  <Text style={styles.statusDeadlineText}>Do 24. decembra ob 17:00</Text>
+                </View>
+              </View>
+              <View style={styles.statusMainRow}>
+                <View style={styles.statusSavingsBlock}>
+                  <Text style={styles.statusTitle}>Prihranil si letos</Text>
+                  <Text style={styles.statusValue}>{formatSavings(seasonSavings)}</Text>
+                  <Text style={styles.statusSubtext}>Prihranek iz potrjenih računov</Text>
+                </View>
+                <View style={styles.statusRankBlock}>
+                  <Text style={styles.statusRankLabel}>Tvoje mesto</Text>
+                  <Text style={styles.statusRankValue}>{seasonRank ? `#${seasonRank}` : "--"}</Text>
+                  <View style={styles.statusRankBadge}>
+                    <Ionicons name="trophy" size={14} color="#fbbf24" />
+                    <Text style={styles.statusRankBadgeText}>Lestvica</Text>
+                  </View>
+                </View>
               </View>
             </LinearGradient>
           )}
@@ -2916,6 +2933,111 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#fff",
+  },
+  statusBanner: {
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+    ...createShadow("#10b981", 0, 6, 0.25, 14, 8),
+  },
+  statusTopRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  statusSeasonPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.35)",
+  },
+  statusSeasonText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#a7f3d0",
+    letterSpacing: 0.3,
+  },
+  statusDeadlinePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
+  },
+  statusDeadlineText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#fde68a",
+  },
+  statusMainRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  statusSavingsBlock: {
+    flex: 1,
+  },
+  statusTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#cbd5e1",
+  },
+  statusValue: {
+    fontSize: 30,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.5,
+  },
+  statusSubtext: {
+    marginTop: 4,
+    fontSize: 11,
+    color: "rgba(226, 232, 240, 0.7)",
+  },
+  statusRankBlock: {
+    alignItems: "flex-end",
+  },
+  statusRankLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#94a3b8",
+  },
+  statusRankValue: {
+    fontSize: 24,
+    fontWeight: "900",
+    color: "#fbbf24",
+  },
+  statusRankBadge: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.35)",
+  },
+  statusRankBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#fde68a",
+    letterSpacing: 0.5,
   },
   searchRow: {
     flexDirection: "row",
