@@ -1,5 +1,4 @@
 ﻿import { useState } from "react";
-import { useState } from "react";
 import {
   View,
   Text,
@@ -370,6 +369,7 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
 });
+
 
 
 

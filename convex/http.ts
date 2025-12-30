@@ -15,10 +15,14 @@ const localhostPorts = [
   "http://127.0.0.1:3001",
 ];
 
-const rawSiteUrl =
+const normalizeUrl = (value?: string) => value?.trim().replace(/\/$/, "");
+const isString = (value?: string | null): value is string => Boolean(value);
+const fallbackSiteUrl = "https://www.prhran.com";
+const rawSiteUrl = normalizeUrl(
   process.env.SITE_URL ||
-  process.env.EXPO_PUBLIC_SITE_URL ||
-  "https://prhrannn.netlify.app";
+    process.env.EXPO_PUBLIC_SITE_URL ||
+    fallbackSiteUrl
+) || fallbackSiteUrl;
 const siteUrl = rawSiteUrl.includes(".convex.cloud")
   ? rawSiteUrl.replace(".convex.cloud", ".convex.site")
   : rawSiteUrl;
@@ -26,16 +30,23 @@ const prodOrigins = [
   "https://prhran.com",
   "https://www.prhran.com",
   "https://prhrannn.netlify.app",
-];
+  fallbackSiteUrl,
+].map(normalizeUrl).filter(isString);
 const allowedOrigins = Array.from(
-  new Set([siteUrl, ...localhostPorts, ...prodOrigins])
+  new Set([siteUrl, ...localhostPorts, ...prodOrigins].filter(isString))
 );
 
 // Configure auth routes with proper CORS for web + localhost development
 authComponent.registerRoutes(http, createAuth, {
   cors: {
     allowedOrigins,
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Better-Auth-Cookie",
+      "Set-Better-Auth-Cookie",
+    ],
   },
 });
 

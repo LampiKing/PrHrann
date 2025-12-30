@@ -79,6 +79,7 @@ export const getProfile = authQuery({
     const searchesRemaining = profile.isPremium
       ? 999
       : Math.max(0, maxSearches - dailySearches);
+    const computedAdmin = (profile.isAdmin ?? false) || isAdminEmail(profile.email);
 
     return {
       _id: profile._id,
@@ -91,7 +92,7 @@ export const getProfile = authQuery({
       email: profile.email,
       emailVerified: profile.emailVerified ?? false,
       isAnonymous: profile.isAnonymous ?? false,
-      isAdmin: profile.isAdmin ?? false,
+      isAdmin: computedAdmin,
       birthDate: profile.birthDate,
       isPremium: profile.isPremium,
       premiumUntil: profile.premiumUntil,

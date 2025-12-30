@@ -1,4 +1,4 @@
-import { AuthFunctions, createClient, type GenericCtx } from "@convex-dev/better-auth";
+﻿import { AuthFunctions, createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth";
 import { expo } from "@better-auth/expo";
@@ -49,7 +49,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
                           <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
                             <h2 style="margin: 0 0 12px;">Nov uporabnik</h2>
                             <p style="margin: 0 0 8px;"><strong>E-naslov:</strong> ${normalizedEmail}</p>
-                            <p style="margin: 0 0 8px;"><strong>Vzdevek:</strong> ${nickname || "—"}</p>
+                            <p style="margin: 0 0 8px;"><strong>Vzdevek:</strong> ${nickname || "-"}</p>
                             <p style="margin: 16px 0 0; color: #475569; font-size: 12px;">Samodejno obvestilo iz Pr'Hran.</p>
                           </div>
                         `;
@@ -64,35 +64,41 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
 // export the trigger API functions so that triggers work
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
-const fallbackSiteUrl = "https://prhrannn.netlify.app";
-const rawSiteUrl =
+const normalizeUrl = (value?: string) => value?.trim().replace(/\/$/, "");
+const isString = (value?: string | null): value is string => Boolean(value);
+const fallbackSiteUrl = "https://www.prhran.com";
+const rawSiteUrl = normalizeUrl(
     process.env.SITE_URL ||
     process.env.EXPO_PUBLIC_SITE_URL ||
-    fallbackSiteUrl;
+    fallbackSiteUrl
+) || fallbackSiteUrl;
 const siteUrl = rawSiteUrl.includes(".convex.cloud")
     ? rawSiteUrl.replace(".convex.cloud", ".convex.site")
     : rawSiteUrl;
 const isDev = process.env.NODE_ENV !== "production";
-const localhostOrigins = isDev
-    ? [
-          ...Array.from({ length: 100 }, (_, i) => `http://localhost:${8000 + i}`),
-          ...Array.from({ length: 100 }, (_, i) => `http://127.0.0.1:${8000 + i}`),
-          ...Array.from({ length: 100 }, (_, i) => `http://localhost:${19000 + i}`),
-          ...Array.from({ length: 100 }, (_, i) => `http://127.0.0.1:${19000 + i}`),
-          "http://localhost:3000",
-          "http://localhost:3001",
-          "http://127.0.0.1:3000",
-          "http://127.0.0.1:3001",
-      ]
-    : [];
+const localhostOrigins = [
+    ...Array.from({ length: 100 }, (_, i) => `http://localhost:${8000 + i}`),
+    ...Array.from({ length: 100 }, (_, i) => `http://127.0.0.1:${8000 + i}`),
+    ...Array.from({ length: 100 }, (_, i) => `http://localhost:${19000 + i}`),
+    ...Array.from({ length: 100 }, (_, i) => `http://127.0.0.1:${19000 + i}`),
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+];
 const knownProdOrigins = [
     "https://prhran.com",
     "https://www.prhran.com",
+    "https://prhrannn.netlify.app",
     fallbackSiteUrl,
-];
-const corsOrigins = isDev
-    ? [siteUrl, ...localhostOrigins]
-    : Array.from(new Set([siteUrl, ...knownProdOrigins]));
+].map(normalizeUrl).filter(isString);
+const corsOrigins = Array.from(
+    new Set([
+        siteUrl,
+        ...knownProdOrigins,
+        ...(isDev ? localhostOrigins : []),
+    ].filter(isString))
+);
 const fromEmail = process.env.FROM_EMAIL;
 const fromName = process.env.FROM_NAME || "PrHran";
 const resendApiKey = process.env.RESEND_API_KEY;
@@ -140,9 +146,14 @@ export const createAuth = (
             disabled: optionsOnly,
         },
         secret: process.env.BETTER_AUTH_SECRET!,
-        trustedOrigins: isDev
-            ? [siteUrl, "myapp://", ...localhostOrigins]
-            : Array.from(new Set([siteUrl, "myapp://", ...knownProdOrigins])),
+        trustedOrigins: Array.from(
+            new Set([
+                siteUrl,
+                "myapp://",
+                ...knownProdOrigins,
+                ...(isDev ? localhostOrigins : []),
+            ].filter(isString))
+        ),
         database: authComponent.adapter(ctx),
         emailAndPassword: {
             enabled: true,
@@ -240,3 +251,4 @@ export const createAuth = (
     
     return betterAuth(config);
 };
+

@@ -136,9 +136,6 @@ export default function SearchScreen() {
   // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [guestModalContext, setGuestModalContext] = useState<"search" | "cart" | "camera">("search");
-  const [pendingGuestRedirect, setPendingGuestRedirect] = useState<"register" | "premium" | null>(
-    null
-  );
   const [approvedQuery, setApprovedQuery] = useState("");
   const guestModalDismissedAtRef = useRef(0);
 
@@ -285,25 +282,14 @@ export default function SearchScreen() {
   }, []);
 
   const handleGuestAuthPress = useCallback(() => {
-    setPendingGuestRedirect("register");
     closeGuestModal();
-  }, [closeGuestModal]);
+    router.push({ pathname: "/auth", params: { mode: "register" } });
+  }, [closeGuestModal, router]);
 
   const handleGuestPremiumPress = useCallback(() => {
-    setPendingGuestRedirect("premium");
     closeGuestModal();
-  }, [closeGuestModal]);
-
-  useEffect(() => {
-    if (!pendingGuestRedirect || showGuestLimitModal) return;
-    const next = pendingGuestRedirect;
-    setPendingGuestRedirect(null);
-    if (next === "register") {
-      router.push({ pathname: "/auth", params: { mode: "register" } });
-      return;
-    }
     router.push("/premium");
-  }, [pendingGuestRedirect, router, showGuestLimitModal]);
+  }, [closeGuestModal, router]);
 
   const triggerCartToast = useCallback((message: string) => {
     if (cartToastTimeoutRef.current) {

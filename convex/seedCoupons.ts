@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+﻿import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 // Helper funkcija za izračun števila tedna v letu (ISO 8601)
@@ -69,7 +69,7 @@ export const updateSparWeeklyCoupons = mutation({
       deactivatedCount++;
     }
 
-    // 2. DODAJ NOVE KUPONE ZA TEDNˇ
+    // 2. DODAJ NOVE KUPONE ZA TEDNO
     // TODO: Tukaj boš posodabljal kupone vsako nedeljo iz SPAR strani
     
     const newCoupons = [
@@ -745,3 +745,4 @@ export const getActiveSparCoupons = mutation({
     }));
   },
 });
+
