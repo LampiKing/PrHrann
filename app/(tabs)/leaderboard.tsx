@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -176,6 +175,12 @@ export default function LeaderboardScreen() {
         <View style={styles.podiumCard}>
           <Text style={styles.podiumTitle}>Top 3 varčevalci</Text>
           <View style={styles.podiumRow}>
+            <LinearGradient
+              colors={["rgba(148, 163, 184, 0.35)", "rgba(15, 23, 42, 0.0)"]}
+              start={{ x: 0, y: 1 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.podiumStage}
+            />
             {podiumSlots.map((slot) => {
               const isEmpty = !slot.entry;
               return (
@@ -461,6 +466,18 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
     gap: 10,
+    position: "relative",
+    paddingBottom: 8,
+  },
+  podiumStage: {
+    position: "absolute",
+    left: 8,
+    right: 8,
+    bottom: 0,
+    height: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.25)",
   },
   podiumColumn: {
     width: "31%",

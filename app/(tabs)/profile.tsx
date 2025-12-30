@@ -68,6 +68,10 @@ export default function ProfileScreen() {
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
   );
+  const adminStats = useQuery(
+    api.admin.getStats,
+    isAuthenticated && profile?.isAdmin ? {} : "skip"
+  );
   const receipts = useQuery(
     api.receipts.getReceipts,
     isAuthenticated ? { limit: 20 } : "skip"
@@ -87,6 +91,7 @@ export default function ProfileScreen() {
   
   // Check if user is guest (anonymous)
   const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
+  const isAdmin = profile?.isAdmin ?? false;
 
   const isPremium = profile?.isPremium ?? false;
   const premiumType = profile?.premiumType ?? "solo";
@@ -695,6 +700,40 @@ export default function ProfileScreen() {
             )}
           </View>
         </Animated.View>
+
+        {isAdmin && (
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>Admin nadzor</Text>
+            <Text style={styles.sectionSubtitle}>Pregled rasti aplikacije</Text>
+            <LinearGradient
+              colors={["rgba(139, 92, 246, 0.2)", "rgba(15, 23, 42, 0.7)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.adminCard}
+            >
+              <View style={styles.adminRow}>
+                <View style={styles.adminStat}>
+                  <Text style={styles.adminStatLabel}>Uporabniki</Text>
+                  <Text style={styles.adminStatValue}>
+                    {adminStats?.totalUsers ?? "--"}
+                  </Text>
+                </View>
+                <View style={styles.adminStat}>
+                  <Text style={styles.adminStatLabel}>Aktivni</Text>
+                  <Text style={styles.adminStatValue}>
+                    {adminStats?.activeUsers ?? "--"}
+                  </Text>
+                </View>
+                <View style={styles.adminStat}>
+                  <Text style={styles.adminStatLabel}>Gostje</Text>
+                  <Text style={styles.adminStatValue}>
+                    {adminStats?.totalGuests ?? "--"}
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+        )}
 
         {/* Settings */}
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
@@ -1438,6 +1477,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9ca3af",
     marginBottom: 16,
+  },
+  adminCard: {
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.35)",
+  },
+  adminRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  adminStat: {
+    flex: 1,
+    minWidth: 90,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: "rgba(15, 23, 42, 0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.25)",
+    alignItems: "center",
+  },
+  adminStatLabel: {
+    fontSize: 11,
+    color: "#cbd5e1",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  adminStatValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
   },
   emptyAwards: {
     padding: 16,

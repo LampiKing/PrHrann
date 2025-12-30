@@ -147,11 +147,12 @@ export const getMySeasonSummary = authQuery({
     if (!profile) {
       const year = getSeasonYear(Date.now());
       const season = getSeasonWindow(year);
+      const fallbackLeaderboardType: LeaderboardType = "standard";
       return {
         year,
         savings: 0,
         rank: undefined,
-        leaderboardType: "standard",
+        leaderboardType: fallbackLeaderboardType,
         seasonStartAt: season.startAt,
         seasonEndAt: season.endAt,
       };
@@ -233,7 +234,12 @@ export const getLeaderboard = authQuery({
       .first();
 
     if (!profile) {
-      return { year: getSeasonYear(Date.now()), leaderboardType: "standard", entries: [] };
+      const fallbackLeaderboardType: LeaderboardType = "standard";
+      return {
+        year: getSeasonYear(Date.now()),
+        leaderboardType: fallbackLeaderboardType,
+        entries: [],
+      };
     }
 
     const leaderboardType: LeaderboardType = isFamilyProfile(profile) ? "family" : "standard";

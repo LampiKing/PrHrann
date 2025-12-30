@@ -19,6 +19,10 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
                 const now = Date.now();
                 const nickname = user.name ? user.name.trim() : undefined;
                 const nicknameLower = nickname ? nickname.toLowerCase() : undefined;
+                const normalizedEmail = user.email?.toLowerCase();
+                const adminEmail =
+                    (process.env.ADMIN_EMAIL || "lamprett69@gmail.com").toLowerCase();
+                const isAdmin = Boolean(normalizedEmail && normalizedEmail === adminEmail);
                 await ctx.db.insert("userProfiles", {
                     userId: user._id,
                     name: user.name || undefined,
@@ -31,10 +35,27 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
                     email: user.email || undefined,
                     emailVerified: user.emailVerified || false,
                     isAnonymous: user.isAnonymous ?? false,
+                    isAdmin,
                     isPremium: false,
                     dailySearches: 0,
                     lastSearchDate: new Date().toISOString().split("T")[0],
                 });
+
+                if (normalizedEmail && !user.isAnonymous) {
+                    const adminNotify = (process.env.ADMIN_NOTIFY_EMAIL || adminEmail).trim();
+                    if (adminNotify) {
+                        const subject = "Nova registracija v Pr'Hran";
+                        const html = `
+                          <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+                            <h2 style="margin: 0 0 12px;">Nov uporabnik</h2>
+                            <p style="margin: 0 0 8px;"><strong>E-naslov:</strong> ${normalizedEmail}</p>
+                            <p style="margin: 0 0 8px;"><strong>Vzdevek:</strong> ${nickname || "—"}</p>
+                            <p style="margin: 16px 0 0; color: #475569; font-size: 12px;">Samodejno obvestilo iz Pr'Hran.</p>
+                          </div>
+                        `;
+                        await sendEmail(adminNotify, subject, html);
+                    }
+                }
             },
         },
     },

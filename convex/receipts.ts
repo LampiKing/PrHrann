@@ -31,6 +31,13 @@ type ReceiptItemMatch = {
   referenceUnitPrice?: number;
 };
 
+type ReceiptActionResult = {
+  success: boolean;
+  receiptId?: Id<"receipts">;
+  error?: string;
+  invalidReason?: string;
+};
+
 const MAX_RECEIPTS_FREE = 2;
 const MAX_RECEIPTS_FAMILY = 4;
 
@@ -142,7 +149,7 @@ export const submitReceipt = action({
     error: v.optional(v.string()),
     invalidReason: v.optional(v.string()),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<ReceiptActionResult> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       return { success: false, error: "Authentication required." };
@@ -153,7 +160,7 @@ export const submitReceipt = action({
       return { success: false, error: "Receipt could not be parsed." };
     }
 
-    const result = await ctx.runMutation(api.receipts.createReceipt, {
+    const result: ReceiptActionResult = await ctx.runMutation(api.receipts.createReceipt, {
       parsed,
       confirmed: args.confirmed,
     });

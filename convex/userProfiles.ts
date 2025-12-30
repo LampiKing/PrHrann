@@ -8,6 +8,9 @@ const MAX_GUEST_SEARCHES = 1; // Guest has 1 search per day
 const NICKNAME_MIN_LENGTH = 3;
 const NICKNAME_MAX_LENGTH = 20;
 const NICKNAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "lamprett69@gmail.com").toLowerCase();
+const isAdminEmail = (email?: string | null) =>
+  Boolean(email && email.toLowerCase() === ADMIN_EMAIL);
 
 // Get user profile
 export const getProfile = authQuery({
@@ -24,6 +27,7 @@ export const getProfile = authQuery({
       email: v.optional(v.string()),
       emailVerified: v.optional(v.boolean()),
       isAnonymous: v.optional(v.boolean()),
+      isAdmin: v.optional(v.boolean()),
       birthDate: v.optional(
         v.object({
           day: v.number(),
@@ -87,6 +91,7 @@ export const getProfile = authQuery({
       email: profile.email,
       emailVerified: profile.emailVerified ?? false,
       isAnonymous: profile.isAnonymous ?? false,
+      isAdmin: profile.isAdmin ?? false,
       birthDate: profile.birthDate,
       isPremium: profile.isPremium,
       premiumUntil: profile.premiumUntil,
@@ -154,6 +159,7 @@ export const ensureProfile = authMutation({
       email: ctx.user.email || undefined,
       emailVerified: ctx.user.emailVerified ?? false,
       isAnonymous: ctx.user.isAnonymous ?? false,
+      isAdmin: isAdminEmail(ctx.user.email),
       isPremium: false,
       dailySearches: 0,
       lastSearchDate: today,
@@ -225,6 +231,7 @@ export const recordSearch = authMutation({
         email: ctx.user.email || undefined,
         emailVerified: ctx.user.emailVerified ?? false,
         isAnonymous: isAnonymous,
+        isAdmin: isAdminEmail(ctx.user.email),
         isPremium: false,
         dailySearches: 1,
         lastSearchDate: today,

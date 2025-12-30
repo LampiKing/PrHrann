@@ -999,7 +999,7 @@ export default function SearchScreen() {
                         <Text style={styles.storeRowName}>{price.storeName.toUpperCase()}</Text>
                         {isLowest && (
                           <View style={styles.lowestBadge}>
-                            <Text style={styles.lowestBadgeText}>NAJCENEJSE</Text>
+                            <Text style={styles.lowestBadgeText}>NAJCENEJŠE</Text>
                           </View>
                         )}
                       </View>
@@ -1687,7 +1687,7 @@ export default function SearchScreen() {
                 {showRegistrationCta && (
                   <View style={[styles.guestOptionCard, guestOptionsSingle && styles.guestOptionCardFull]}>
                     <View style={styles.guestOptionBadge}>
-                    <Text style={styles.guestOptionBadgeText}>BREZPLAčNO</Text>
+                    <Text style={styles.guestOptionBadgeText}>BREZPLAČNO</Text>
                     </View>
                     <Text style={styles.guestOptionTitle}>Registracija</Text>
                     <Text style={styles.guestOptionDesc}>+2 iskanji danes + Košarica + Profil</Text>
@@ -1713,11 +1713,11 @@ export default function SearchScreen() {
                     guestOptionsSingle && styles.guestOptionCardFull,
                   ]}>
                     <View style={[styles.guestOptionBadge, styles.guestOptionBadgePremium]}>
-                      <Text style={styles.guestOptionBadgeTextPremium}>PRIPOROčENO</Text>
+                      <Text style={styles.guestOptionBadgeTextPremium}>PRIPOROČENO</Text>
                     </View>
                     <Text style={styles.guestOptionTitle}>{PLAN_PLUS}</Text>
                     <Text style={styles.guestOptionDesc}>Neomejeno iskanje + slikanje izdelkov</Text>
-                    <Text style={styles.guestOptionPrice}>1.99 EUR/mesec</Text>
+                    <Text style={styles.guestOptionPrice}>1,99 EUR/mesec</Text>
                     <TouchableOpacity
                       style={styles.guestOptionBtn}
                       onPress={handleGuestPremiumPress}
