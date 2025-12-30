@@ -126,7 +126,7 @@ export const createAuth = (
         emailAndPassword: {
             enabled: true,
             // Enable immediate login to avoid blocking on email verification
-            requireEmailVerification: true,
+            requireEmailVerification: false,
             sendVerificationOnSignUp: true,
             autoSignInAfterVerification: true,
             sendVerificationEmail: async ({ user, url, token }: any) => {

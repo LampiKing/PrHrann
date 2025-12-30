@@ -199,7 +199,7 @@ export default function ProfileScreen() {
 
   const handleCaptureReceipt = async () => {
     if (receiptsRemaining <= 0) {
-      setReceiptError("Dosezen dnevni limit racunov.");
+      setReceiptError("Dosežen dnevni limit računov.");
       return;
     }
     if (Platform.OS !== "web") {
@@ -236,11 +236,11 @@ export default function ProfileScreen() {
 
   const handleSubmitReceipt = async () => {
     if (!receiptImage) {
-      setReceiptError("Najprej posnemi racun.");
+      setReceiptError("Najprej posnemi račun.");
       return;
     }
     if (!receiptConfirmed) {
-      setReceiptError("Potrdi, da je racun tvoj in danasnji.");
+      setReceiptError("Potrdi, da je slikani račun tvoj.");
       return;
     }
 
@@ -271,14 +271,14 @@ export default function ProfileScreen() {
       });
 
       if (!result.success) {
-        setReceiptError(result.error ?? "Oddaja racuna ni uspela.");
+        setReceiptError(result.error ?? "Oddaja računa ni uspela.");
         return;
       }
 
       if (result.invalidReason) {
-        setReceiptSuccess(`Racun shranjen, a neveljaven: ${result.invalidReason}`);
+        setReceiptSuccess(`Račun shranjen, a neveljaven: ${result.invalidReason}`);
       } else {
-        setReceiptSuccess("Racun potrjen in upostevan.");
+        setReceiptSuccess("Račun potrjen in upoštevan.");
       }
 
       setTimeout(() => {
@@ -287,7 +287,7 @@ export default function ProfileScreen() {
       }, 1200);
     } catch (error) {
       console.error("Receipt error:", error);
-      setReceiptError("Oddaja racuna ni uspela.");
+      setReceiptError("Oddaja računa ni uspela.");
     } finally {
       setReceiptSubmitting(false);
     }
@@ -297,8 +297,8 @@ export default function ProfileScreen() {
     if (!canChangeNickname) {
       setNicknameError(
         nextNicknameChangeLabel
-          ? `Vzdevek lahko spremenis po ${nextNicknameChangeLabel}.`
-          : "Vzdevek lahko spremenis enkrat na 30 dni."
+          ? `Vzdevek lahko spremeniš po ${nextNicknameChangeLabel}.`
+          : "Vzdevek lahko spremeniš enkrat na 30 dni."
       );
       return;
     }
@@ -309,10 +309,10 @@ export default function ProfileScreen() {
       return;
     }
 
-    if (nicknameAvailability && !nicknameAvailability.available) {
-      setNicknameError("Vzdevek je ze zaseden.");
-      return;
-    }
+      if (nicknameAvailability && !nicknameAvailability.available) {
+        setNicknameError("Vzdevek je že zaseden.");
+        return;
+      }
 
     setNicknameSaving(true);
     setNicknameError("");
@@ -526,7 +526,7 @@ export default function ProfileScreen() {
               {!isPremium && searchesRemaining <= 0 && timeRemaining ? (
                 <View style={styles.searchTimer}>
                   <Ionicons name="time-outline" size={14} color="#fbbf24" />
-                  <Text style={styles.searchTimerText}>Novo iskanje cez {timeRemaining}</Text>
+                  <Text style={styles.searchTimerText}>Novo iskanje čez {timeRemaining}</Text>
                 </View>
               ) : !isPremium && searchesRemaining === 1 ? (
                 <Text style={styles.searchWarning}>
@@ -615,7 +615,7 @@ export default function ProfileScreen() {
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>Racuni</Text>
           <Text style={styles.sectionSubtitle}>
-            Prihranek se racuna iz potrjenih racunov (max {receiptLimit}/dan).
+            Prihranek se računa iz potrjenih računov (max {receiptLimit}/dan).
           </Text>
           <View style={styles.receiptCard}>
             <View style={styles.receiptHeader}>
@@ -640,12 +640,12 @@ export default function ProfileScreen() {
                   style={styles.receiptButtonGradient}
                 >
                   <Ionicons name="camera" size={16} color="#fff" />
-                  <Text style={styles.receiptButtonText}>Dodaj racun</Text>
+                  <Text style={styles.receiptButtonText}>Dodaj račun</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
             <Text style={styles.receiptHint}>
-              Racun velja samo danes do 23:00. Brez potrditve se ne uposteva.
+              Račun velja samo danes do 23:00. Brez potrditve se ne upošteva.
             </Text>
           </View>
 
@@ -658,20 +658,20 @@ export default function ProfileScreen() {
                     <Text style={styles.receiptDate}>{receipt.purchaseDateKey}</Text>
                   </View>
                   <View style={styles.receiptItemRow}>
-                    <Text style={styles.receiptTotal}>Placano: {formatCurrency(receipt.totalPaid)}</Text>
+                    <Text style={styles.receiptTotal}>Plačano: {formatCurrency(receipt.totalPaid)}</Text>
                     <Text style={styles.receiptSaved}>
                       Prihranek: {formatCurrency(receipt.savedAmount)}
                     </Text>
                   </View>
                   {!receipt.isValid && (
                     <Text style={styles.receiptInvalid}>
-                      Neveljaven racun: {receipt.invalidReason ?? "Ni potrjen"}
+                      Neveljaven račun: {receipt.invalidReason ?? "Ni potrjen"}
                     </Text>
                   )}
                 </View>
               ))
             ) : (
-              <Text style={styles.receiptEmpty}>Ni racunov.</Text>
+              <Text style={styles.receiptEmpty}>Ni računov.</Text>
             )}
           </View>
         </Animated.View>
@@ -721,7 +721,7 @@ export default function ProfileScreen() {
                 <View style={[styles.settingIcon, { backgroundColor: "rgba(251, 191, 36, 0.15)" }]}>
                   <Ionicons name="close-circle-outline" size={20} color="#fbbf24" />
                 </View>
-                <Text style={styles.settingText}>Preklici narocnino</Text>
+                <Text style={styles.settingText}>Prekliči naročnino</Text>
                 <Ionicons name="chevron-forward" size={20} color="#6b7280" />
               </TouchableOpacity>
             )}
@@ -733,7 +733,7 @@ export default function ProfileScreen() {
               <View style={[styles.settingIcon, { backgroundColor: "rgba(239, 68, 68, 0.15)" }]}>
                 <Ionicons name="trash-outline" size={20} color="#ef4444" />
               </View>
-              <Text style={styles.settingTextDanger}>Izbrisi racun</Text>
+              <Text style={styles.settingTextDanger}>Izbriši račun</Text>
               <Ionicons name="chevron-forward" size={20} color="#ef4444" />
             </TouchableOpacity>
           </View>
@@ -768,14 +768,14 @@ export default function ProfileScreen() {
                 <Ionicons name="close" size={22} color="#9ca3af" />
               </TouchableOpacity>
 
-              <Text style={styles.receiptModalTitle}>Dodaj racun</Text>
+              <Text style={styles.receiptModalTitle}>Dodaj račun</Text>
 
               {receiptImage ? (
                 <Image source={{ uri: receiptImage }} style={styles.receiptPreview} />
               ) : (
                 <View style={styles.receiptPlaceholder}>
                   <Ionicons name="receipt-outline" size={42} color="#a78bfa" />
-                  <Text style={styles.receiptPlaceholderText}>Posnemi racun s kamero.</Text>
+                  <Text style={styles.receiptPlaceholderText}>Posnemi račun s kamero.</Text>
                 </View>
               )}
 
@@ -787,7 +787,7 @@ export default function ProfileScreen() {
                 <View style={[styles.receiptCheckBox, receiptConfirmed && styles.receiptCheckBoxChecked]}>
                   {receiptConfirmed && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
-                <Text style={styles.receiptCheckText}>Potrjujem, da je racun moj in danasnji.</Text>
+                <Text style={styles.receiptCheckText}>Potrdi, da je slikani račun tvoj.</Text>
               </TouchableOpacity>
 
               {receiptError ? <Text style={styles.receiptErrorText}>{receiptError}</Text> : null}
@@ -830,7 +830,7 @@ export default function ProfileScreen() {
                     ) : (
                       <>
                         <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                        <Text style={styles.receiptActionText}>Oddaj racun</Text>
+                        <Text style={styles.receiptActionText}>Oddaj račun</Text>
                       </>
                     )}
                   </LinearGradient>
@@ -889,7 +889,7 @@ export default function ProfileScreen() {
                   style={styles.nicknameCancelButton}
                   onPress={() => setShowNicknameModal(false)}
                 >
-                  <Text style={styles.nicknameCancelText}>Preklici</Text>
+                  <Text style={styles.nicknameCancelText}>Prekliči</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.nicknameSaveButton}
@@ -1003,7 +1003,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               <Text style={styles.modalDisclaimer}>
-                Preklici kadarkoli. Brez skritih stroskov.
+                Prekliči kadarkoli. Brez skritih stroškov.
               </Text>
             </LinearGradient>
           </View>
@@ -1035,7 +1035,7 @@ export default function ProfileScreen() {
                 </LinearGradient>
               </View>
 
-              <Text style={styles.deleteTitle}>Izbrisi racun?</Text>
+              <Text style={styles.deleteTitle}>Izbriši račun?</Text>
               <Text style={styles.deleteDescription}>
                 Ta dejanje je nepovratno. Vsi tvoji podatki, košarica in nastavitve bodo trajno izbrisani.
               </Text>
@@ -1045,7 +1045,7 @@ export default function ProfileScreen() {
                   style={styles.cancelDeleteButton}
                   onPress={() => setShowDeleteModal(false)}
                 >
-                  <Text style={styles.cancelDeleteText}>Preklici</Text>
+                  <Text style={styles.cancelDeleteText}>Prekliči</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -1056,7 +1056,7 @@ export default function ProfileScreen() {
                     colors={["#ef4444", "#dc2626"]}
                     style={styles.confirmDeleteGradient}
                   >
-                    <Text style={styles.confirmDeleteText}>Izbrisi</Text>
+                    <Text style={styles.confirmDeleteText}>Izbriši</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1090,7 +1090,7 @@ export default function ProfileScreen() {
                 </LinearGradient>
               </View>
 
-              <Text style={styles.cancelTitle}>Preklici Premium?</Text>
+              <Text style={styles.cancelTitle}>Prekliči Premium?</Text>
               <Text style={styles.cancelDescription}>
                 Ob preklicu bos izgubil dostop do:{"\n"}
                 -  Neomejenega iskanja{"\n"}
@@ -1115,7 +1115,7 @@ export default function ProfileScreen() {
                   style={styles.confirmCancelButton}
                   onPress={handleCancelSubscription}
                 >
-                  <Text style={styles.confirmCancelText}>Preklici narocnino</Text>
+                  <Text style={styles.confirmCancelText}>Prekliči naročnino</Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>

@@ -26,14 +26,14 @@ const INDIVIDUAL_FEATURES = [
   { icon: "infinite", title: "Neomejeno iskanje", description: "Brez dnevnih omejitev" },
   { icon: "camera", title: "Slikaj izdelek", description: "Takoj najde najnižjo ceno" },
   { icon: "pricetag", title: "Pametni kuponi", description: "Najboljse akcije na enem mestu" },
-  { icon: "analytics", title: "Letni prihranek", description: "Sledenje prihrankom po racunih" },
+  { icon: "analytics", title: "Letni prihranek", description: "Sledenje prihrankom po računih" },
   { icon: "trophy", title: "Lestvice in bedži", description: "Letna sezona varčevanja" },
 ];
 
 const FAMILY_BONUS_FEATURES = [
   { icon: "people", title: "Do 3 uporabniki", description: "Family paket za en dom" },
-  { icon: "trophy", title: "Family lestvica", description: "Lozena lestvica za druzino" },
-  { icon: "document-text", title: "4 racuni na dan", description: "Skupni family limit" },
+  { icon: "trophy", title: "Family lestvica", description: "Ločena lestvica za družino" },
+  { icon: "document-text", title: "4 računi na dan", description: "Skupni family limit" },
 ];
 
 export default function PremiumScreen() {
@@ -226,8 +226,8 @@ export default function PremiumScreen() {
               </Text>
               <Text style={styles.subtitle}>
                 {isAlreadyPremium && currentPremiumType === "solo" 
-                  ? "Deli Premium z druzino in prihrani se vec"
-                  : "Odkleni vse funkcije in varcuj vec kot kdaj koli prej"
+                  ? "Deli Premium z družino in prihrani še več"
+                  : "Odkleni vse funkcije in varčuj več kot kdaj koli prej"
                 }
               </Text>
             </View>
@@ -366,7 +366,7 @@ export default function PremiumScreen() {
 
                 <View style={styles.comparisonRow}>
                   <View style={[styles.comparisonCell, styles.featureNameCell]}>
-                    <Text style={styles.comparisonItemText}>Kamera za racune</Text>
+                    <Text style={styles.comparisonItemText}>Kamera za račune</Text>
                   </View>
                   <View style={[styles.comparisonCell, styles.basicCell]}>
                     <Ionicons name="checkmark" size={20} color="#22c55e" />
@@ -503,7 +503,7 @@ export default function PremiumScreen() {
               </View>
               <View style={styles.trustBadge}>
                 <Ionicons name="refresh" size={16} color="#10b981" />
-                <Text style={styles.trustText}>Preklici kadarkoli</Text>
+                <Text style={styles.trustText}>Prekliči kadarkoli</Text>
               </View>
               <View style={styles.trustBadge}>
                 <Ionicons name="lock-closed" size={16} color="#10b981" />
@@ -512,7 +512,7 @@ export default function PremiumScreen() {
             </View>
 
             <Text style={styles.disclaimer}>
-              Mesecna narocnina z avtomatskim podaljsanjem. Preklicete lahko kadarkoli
+              Mesečna naročnina z avtomatskim podaljšanjem. Prekličete lahko kadarkoli
               brez dodatnih stroškov. Vse cene vključujejo DDV.
             </Text>
           </Animated.View>
@@ -557,7 +557,7 @@ export default function PremiumScreen() {
               <View style={styles.authBenefits}>
                 <View style={styles.authBenefitItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
-                  <Text style={styles.authBenefitText}>Brezplacna registracija</Text>
+                  <Text style={styles.authBenefitText}>Brezplačna registracija</Text>
                 </View>
                 <View style={styles.authBenefitItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />

@@ -20,7 +20,7 @@ import Svg, { Rect } from "react-native-svg";
 import { createShadow } from "@/lib/shadow-helper";
 import Logo from "@/lib/Logo";
 
-// Brezplacne kartice - dostopne vsem
+// Brezplačne kartice - dostopne vsem
 const FREE_LOYALTY_CARDS = [
   {
     id: "spar",
@@ -46,7 +46,7 @@ const FREE_LOYALTY_CARDS = [
     store: "Tus",
     color: "#0d8a3c",
     icon: "card",
-    description: "Druzinske ugodnosti in posebni popusti",
+    description: "Družinske ugodnosti in posebni popusti",
     perks: "Klubski kuponi in bonusi",
   },
 ];
@@ -423,8 +423,8 @@ export default function LoyaltyCardsScreen() {
           {/* All Cards */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Brezplacne kartice</Text>
-              <Text style={styles.sectionTag}>Vkljuceno</Text>
+              <Text style={styles.sectionTitle}>Brezplačne kartice</Text>
+              <Text style={styles.sectionTag}>Vključeno</Text>
             </View>
             {FREE_LOYALTY_CARDS.map(renderCard)}
 

@@ -13,9 +13,9 @@ export const FREE_LIMITS = {
 };
 
 export const MARKETING = {
-  ctaPlus: "Zacni z 1.99 EUR/mesec",
-  ctaFamily: "Zacni z 2.99 EUR/mesec",
-  footerLine: "Preklici kadarkoli - DDV vkljucen - Varno placilo",
+  ctaPlus: "Začni z 1.99 EUR/mesec",
+  ctaFamily: "Začni z 2.99 EUR/mesec",
+  footerLine: "Prekliči kadarkoli - DDV vključen - Varno plačilo",
   labels: {
     unlimited: "neomejeno",
     perDaySuffix: "/dan",

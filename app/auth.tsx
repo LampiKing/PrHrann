@@ -45,6 +45,10 @@ export default function AuthScreen() {
   const [anonymousLoading, setAnonymousLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
+  const [pendingRedirect, setPendingRedirect] = useState<"login" | "register" | "guest" | null>(
+    null
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [currentFact, setCurrentFact] = useState(0);
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -60,23 +64,24 @@ export default function AuthScreen() {
 
   const switchMode = (login: boolean) => {
     triggerHaptic();
+    const nextMode = login ? "login" : "register";
+    if (mode !== nextMode) {
+      router.setParams({ mode: nextMode });
+    }
     setIsLogin(login);
     setError("");
     setSuccess("");
+    setShowSuccessOverlay(false);
+    setPendingRedirect(null);
     setFocusedField(null);
     setResetLoading(false);
   };
 
   useEffect(() => {
-    if (mode === "login" && !isLogin) {
-      setIsLogin(true);
-      setError("");
-      setSuccess("");
-      setFocusedField(null);
-      return;
-    }
-    if (mode === "register" && isLogin) {
-      setIsLogin(false);
+    if (!mode) return;
+    const shouldLogin = mode === "login";
+    if (shouldLogin !== isLogin) {
+      setIsLogin(shouldLogin);
       setError("");
       setSuccess("");
       setFocusedField(null);
@@ -97,10 +102,10 @@ export default function AuthScreen() {
   // Redirect if authenticated
   useEffect(() => {
     console.log("Auth useEffect: isAuthenticated =", isAuthenticated, "authLoading =", authLoading);
-    if (isAuthenticated && !authLoading && profile && !profile.isAnonymous) {
+    if (isAuthenticated && !authLoading && profile && !profile.isAnonymous && !showSuccessOverlay) {
       router.replace("/(tabs)");
     }
-  }, [isAuthenticated, authLoading, profile]);
+  }, [isAuthenticated, authLoading, profile, showSuccessOverlay]);
 
   // Logo glow animation
   useEffect(() => {
@@ -229,13 +234,29 @@ export default function AuthScreen() {
     ]).start();
   };
 
-  const showSuccessAnimation = () => {
+  const openSuccessOverlay = (
+    message: string,
+    redirect: "login" | "register" | "guest" | null = null
+  ) => {
     triggerSuccessHaptic();
-    Animated.sequence([
-      Animated.timing(successAnim, { toValue: 1, duration: 300, useNativeDriver: false }),
-      Animated.delay(1500),
-      Animated.timing(successAnim, { toValue: 0, duration: 300, useNativeDriver: false }),
-    ]).start();
+    setSuccess(message);
+    setPendingRedirect(redirect);
+    setShowSuccessOverlay(true);
+    Animated.timing(successAnim, { toValue: 1, duration: 250, useNativeDriver: false }).start();
+  };
+
+  const closeSuccessOverlay = () => {
+    const redirectTarget = pendingRedirect;
+    Animated.timing(successAnim, { toValue: 0, duration: 200, useNativeDriver: false }).start(
+      () => {
+        setShowSuccessOverlay(false);
+        setPendingRedirect(null);
+        setSuccess("");
+        if (redirectTarget === "guest") {
+          router.replace("/(tabs)");
+        }
+      }
+    );
   };
 
   const validateEmail = (email: string) => {
@@ -303,7 +324,7 @@ export default function AuthScreen() {
         return;
       }
       if (!nicknameAvailable) {
-        setError("Vzdevek je ze zaseden");
+        setError("Vzdevek je že zaseden");
         shakeError();
         return;
       }
@@ -343,8 +364,7 @@ export default function AuthScreen() {
         }
         
         console.log("Login successful!");
-        setSuccess("Uspešna prijava!");
-        showSuccessAnimation();
+        openSuccessOverlay("Uspešna prijava!", "login");
         // Router will redirect automatically via useEffect
       } else {
         // Register
@@ -371,10 +391,24 @@ export default function AuthScreen() {
           return;
         }
         
+        if (!result.data?.session) {
+          const signInResult = await authClient.signIn.email({
+            email: trimmedEmail,
+            password,
+          });
+          if (signInResult.error) {
+            setError("Prijava po registraciji ni uspela. Poskusite znova.");
+            shakeError();
+            setLoading(false);
+            return;
+          }
+        }
+
         console.log("Registration successful!");
-        setSuccess("Racun ustvarjen! Preveri e-posto za potrditev.");
-        showSuccessAnimation();
-        // Email verification required; user stays on auth screen until verified
+        openSuccessOverlay(
+          "Račun ustvarjen! Poslali smo povezavo za potrditev e-naslova.",
+          "register"
+        );
       }
     } catch (err: unknown) {
       console.log("Auth error:", err);
@@ -434,8 +468,7 @@ export default function AuthScreen() {
         shakeError();
         return;
       }
-      setSuccess("Če račun obstaja, smo poslali povezavo za ponastavitev.");
-      showSuccessAnimation();
+      openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
     } catch (err) {
       console.log("Reset password error:", err);
       setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
@@ -458,10 +491,8 @@ export default function AuthScreen() {
         setAnonymousLoading(false);
         return;
       }
-      setSuccess("Dobrodošli!");
-      showSuccessAnimation();
+      openSuccessOverlay("Dobrodošli!", "guest");
       setAnonymousLoading(false);
-      router.replace("/(tabs)");
     } catch (err) {
       console.log("Anonymous error:", err);
       setError("Prijava kot gost ni uspela. Poskusite znova.");
@@ -498,20 +529,32 @@ export default function AuthScreen() {
       />
 
       {/* Success Overlay */}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.successOverlay,
-          {
-            opacity: successAnim,
-          },
-        ]}
-      >
-        <View style={styles.successContent}>
-          <Ionicons name="checkmark-circle" size={80} color="#22c55e" />
-          <Text style={styles.successText}>{success}</Text>
-        </View>
-      </Animated.View>
+      {showSuccessOverlay && (
+        <Animated.View
+          pointerEvents={showSuccessOverlay ? "auto" : "none"}
+          style={[
+            styles.successOverlay,
+            {
+              opacity: successAnim,
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={["rgba(15, 10, 30, 0.98)", "rgba(30, 17, 55, 0.98)"]}
+            style={styles.successCard}
+          >
+            <TouchableOpacity style={styles.successClose} onPress={closeSuccessOverlay}>
+              <Ionicons name="close" size={20} color="#fff" />
+            </TouchableOpacity>
+            <Ionicons name="checkmark-circle" size={64} color="#22c55e" />
+            <Text style={styles.successTitle}>Uspešno</Text>
+            <Text style={styles.successText}>{success}</Text>
+            <TouchableOpacity style={styles.successAction} onPress={closeSuccessOverlay}>
+              <Text style={styles.successActionText}>Zapri</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
+      )}
 
       {/* Animated Background Orbs */}
       <Animated.View
@@ -645,7 +688,7 @@ export default function AuthScreen() {
                 />
               </Animated.View>
               <Text style={styles.appName}>Pr'Hran</Text>
-              <Text style={styles.tagline}>Pametno nakupovanje in varcevanje</Text>
+                <Text style={styles.tagline}>Pametno nakupovanje in varčevanje</Text>
             </View>
 
             {/* Fact Banner */}
@@ -686,7 +729,7 @@ export default function AuthScreen() {
                   </Text>
                   <Text style={styles.subtitle}>
                     {isLogin
-                      ? "Prijavi se in zacni prihranjevati"
+                      ? "Prijavi se in začni prihranjevati"
                       : "Vzdevek, e-naslov in geslo – in si notri"}
                   </Text>
 
@@ -754,7 +797,7 @@ export default function AuthScreen() {
                           nicknameAvailable ? styles.helperTextSuccess : styles.helperTextError,
                         ]}
                       >
-                        {nicknameAvailable ? "Vzdevek je prost" : "Vzdevek je ze zaseden"}
+                        {nicknameAvailable ? "Vzdevek je prost" : "Vzdevek je že zaseden"}
                       </Text>
                     )}
 
@@ -980,7 +1023,8 @@ export default function AuthScreen() {
                     <Ionicons name="camera" size={20} color="#fbbf24" />
                   </View>
                   <Text style={styles.featureText}>
-                    Slikaj izdelek -{"\u003e"} takoj najde najnizjo ceno <Text style={styles.premiumBadge}>PREMIUM</Text>
+                    Slikaj izdelek -{"\u003e"} takoj najde najnižjo ceno{" "}
+                    <Text style={styles.premiumBadge}>PREMIUM</Text>
                   </Text>
                 </View>
               </View>
@@ -1010,19 +1054,60 @@ const styles = StyleSheet.create({
   },
   successOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "rgba(7, 6, 12, 0.88)",
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
     zIndex: 100,
   },
-  successContent: {
+  successCard: {
+    width: "100%",
+    maxWidth: 340,
+    borderRadius: 24,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.35)",
+    ...createShadow("#000", 0, 10, 0.45, 24, 12),
+  },
+  successClose: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
+  successTitle: {
+    marginTop: 10,
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
   },
   successText: {
+    color: "#d1d5db",
+    fontSize: 14,
+    fontWeight: "500",
+    marginTop: 6,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  successAction: {
+    marginTop: 18,
+    width: "100%",
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#8b5cf6",
+    alignItems: "center",
+  },
+  successActionText: {
     color: "#fff",
-    fontSize: 24,
+    fontSize: 14,
     fontWeight: "700",
-    marginTop: 16,
   },
   safeArea: {
     flex: 1,

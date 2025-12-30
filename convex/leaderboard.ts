@@ -20,20 +20,20 @@ function isFamilyProfile(profile: {
 
 const buildAwardTitles = (year: number, rank: number) => {
   const awards: string[] = [];
-  if (rank === 1) awards.push(`Zlati varcevalec ${year}`);
-  if (rank === 2) awards.push(`Srebrni varcevalec ${year}`);
-  if (rank === 3) awards.push(`Bronasti varcevalec ${year}`);
+  if (rank === 1) awards.push(`Zlati varčevalec ${year}`);
+  if (rank === 2) awards.push(`Srebrni varčevalec ${year}`);
+  if (rank === 3) awards.push(`Bronasti varčevalec ${year}`);
   if (rank <= 3) {
-    awards.push(`Top 10 varcevalec ${year}`);
-    awards.push(`Top 100 varcevalec ${year}`);
+    awards.push(`Top 10 varčevalec ${year}`);
+    awards.push(`Top 100 varčevalec ${year}`);
     return awards;
   }
   if (rank <= 10) {
-    awards.push(`Top 10 varcevalec ${year}`);
+    awards.push(`Top 10 varčevalec ${year}`);
     return awards;
   }
   if (rank <= 100) {
-    awards.push(`Top 100 varcevalec ${year}`);
+    awards.push(`Top 100 varčevalec ${year}`);
   }
   return awards;
 };

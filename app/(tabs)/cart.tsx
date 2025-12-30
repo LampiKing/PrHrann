@@ -334,7 +334,7 @@ export default function CartScreen() {
                 style={styles.emptyCtaGradient}
               >
                 <Ionicons name="search" size={18} color="#fff" />
-                <Text style={styles.emptyCtaText}>Najdi najcenejsi izdelek</Text>
+                <Text style={styles.emptyCtaText}>Najdi najcenejši izdelek</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
@@ -346,7 +346,7 @@ export default function CartScreen() {
                 <View style={styles.premiumSummaryBadge}>
                   <Ionicons name="star" size={16} color="#fbbf24" />
                   <Text style={styles.premiumSummaryText}>
-                    {premiumType === "family" ? "Druzinska narocnina" : "Plus narocnina"}
+                    {premiumType === "family" ? "Družinska naročnina" : "Plus naročnina"}
                   </Text>
                   {cart.totalSavings > 0 && (
                     <Text style={styles.premiumSummaryExtra}>
@@ -565,7 +565,7 @@ export default function CartScreen() {
             <View style={styles.actionButtons}>
               <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
                 <Ionicons name="share-outline" size={20} color="#a78bfa" />
-                <Text style={styles.shareButtonText}>Deli kosarico</Text>
+                <Text style={styles.shareButtonText}>Deli košarico</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.clearButton} onPress={handleClearCart}>

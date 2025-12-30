@@ -21,32 +21,32 @@ const FAQ_ITEMS = [
   {
     question: "Kako deluje primerjava cen?",
     answer:
-      "Pr'Hran avtomatsko primerja cene izdelkov v trgovinah (Spar, Mercator, Tus, Hofer, Lidl, Jager). Cene se posodabljajo dnevno ob 22:00, da vedno vidiš najnovejse podatke.",
+      "Pr'Hran avtomatsko primerja cene izdelkov v trgovinah (Spar, Mercator, Tuš, Hofer, Lidl, Jager). Cene se posodabljajo dnevno ob 22:00, da vedno vidiš najnovejše podatke.",
   },
   {
     question: "Kako delujejo kuponi?",
     answer:
-      "Sistem uposteva aktivne kupone in akcije v trgovinah. Pri izracunu koncne cene ti pokazemo, koliko lahko prihranis z uporabo kuponov. Premium uporabniki imajo dostop do ekskluzivnih kuponov.",
+      "Sistem upošteva aktivne kupone in akcije v trgovinah. Pri izračunu končne cene ti pokažemo, koliko lahko prihraniš z uporabo kuponov. Premium uporabniki imajo dostop do ekskluzivnih kuponov.",
   },
   {
-    question: "Kaj vkljucuje Premium narocnina?",
+    question: "Kaj vključuje Premium naročnina?",
     answer:
-      "Premium narocnina (1.99 EUR/mesec) vkljucuje: neomejeno iskanje izdelkov, dostop do vseh trgovin, obvestila o padcih cen in ekskluzivne kupone.",
+      "Premium naročnina (1.99 EUR/mesec) vključuje: neomejeno iskanje izdelkov, dostop do vseh trgovin, obvestila o padcih cen in ekskluzivne kupone.",
   },
   {
     question: "Kako dodam izdelek v košarico?",
     answer:
-      "Ko najdeš izdelek, klikni na gumb 'Dodaj v košarico' pri izbrani trgovini. V kosarici potem vidiš skupno ceno in prihranke za vsako trgovino posebej.",
+      "Ko najdeš izdelek, klikni na gumb 'Dodaj v košarico' pri izbrani trgovini. V košarici potem vidiš skupno ceno in prihranke za vsako trgovino posebej.",
   },
   {
     question: "Ali so cene vedno tocne?",
     answer:
-      "Cene posodabljamo dnevno iz uradnih virov trgovin. Obcasno lahko pride do manjsih odstopanj zaradi lokalnih akcij ali zakasnitev. Priporocamo, da ceno preveris tudi v trgovini.",
+      "Cene posodabljamo dnevno iz uradnih virov trgovin. Občasno lahko pride do manjših odstopanj zaradi lokalnih akcij ali zakasnitev. Priporočamo, da ceno preveriš tudi v trgovini.",
   },
   {
-    question: "Kako preklicem Premium narocnino?",
+    question: "Kako prekličem Premium naročnino?",
     answer:
-      "Premium narocnino lahko kadarkoli preklices v nastavitvah profila. Po preklicu imas dostop do Premium funkcij do konca obracunskega obdobja.",
+      "Premium naročnino lahko kadarkoli prekličeš v nastavitvah profila. Po preklicu imaš dostop do Premium funkcij do konca obračunskega obdobja.",
   },
 ];
 
@@ -81,7 +81,7 @@ export default function HelpScreen() {
             try {
               const result = await resetData({});
               Alert.alert(
-                "Uspesno!",
+                "Uspešno!",
                 `Nalozenih:\n${result.stores} trgovin\n${result.products} izdelkov\n${result.prices} cen\n${result.coupons} kuponov`
               );
             } catch {

@@ -135,7 +135,7 @@ export default function ShoppingListsScreen() {
               </View>
               <Text style={styles.emptyTitle}>Se ni seznamov</Text>
               <Text style={styles.emptyText}>
-                Ustvari svoj prvi nakupovalni seznam in zacni varcevati.
+                Ustvari svoj prvi nakupovalni seznam in začni varčevati.
               </Text>
               <TouchableOpacity
                 style={styles.emptyButton}

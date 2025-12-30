@@ -15,10 +15,26 @@ const localhostPorts = [
   "http://127.0.0.1:3001",
 ];
 
-// Configure auth routes with proper CORS for localhost development
+const rawSiteUrl =
+  process.env.SITE_URL ||
+  process.env.EXPO_PUBLIC_SITE_URL ||
+  "https://prhrannn.netlify.app";
+const siteUrl = rawSiteUrl.includes(".convex.cloud")
+  ? rawSiteUrl.replace(".convex.cloud", ".convex.site")
+  : rawSiteUrl;
+const prodOrigins = [
+  "https://prhran.com",
+  "https://www.prhran.com",
+  "https://prhrannn.netlify.app",
+];
+const allowedOrigins = Array.from(
+  new Set([siteUrl, ...localhostPorts, ...prodOrigins])
+);
+
+// Configure auth routes with proper CORS for web + localhost development
 authComponent.registerRoutes(http, createAuth, {
   cors: {
-    allowedOrigins: localhostPorts,
+    allowedOrigins,
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   },
 });

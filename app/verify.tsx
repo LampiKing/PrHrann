@@ -38,7 +38,7 @@ export default function VerifyEmailScreen() {
       await requestEmailVerification({});
       setSuccess("Email ponovno poslan.");
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Napaka pri posiljanju";
+      const message = e instanceof Error ? e.message : "Napaka pri pošiljanju";
       setError(message);
     } finally {
       setLoading(false);

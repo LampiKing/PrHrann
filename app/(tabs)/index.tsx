@@ -791,7 +791,7 @@ export default function SearchScreen() {
               {/* Price Display */}
               <View style={styles.priceSection}>
                 <View style={styles.priceMetaRow}>
-                  <Text style={styles.lowestPriceLabel}>Najnizja cena</Text>
+                  <Text style={styles.lowestPriceLabel}>Najnižja cena</Text>
                   {lowestBrand && lowestPriceStore && (
                     <View style={styles.storeChip}>
                       <View
@@ -889,7 +889,7 @@ export default function SearchScreen() {
                     : lowestPriceStore
                       ? addedToCart === `${product._id}-${lowestPriceStore?.storeId}`
                         ? "Dodano!"
-                        : "Dodaj najcenejse"
+                        : "Dodaj najcenejše"
                       : "Ni cene"}
                 </Text>
               </LinearGradient>
@@ -1057,8 +1057,47 @@ export default function SearchScreen() {
               end={{ x: 1, y: 0 }}
               style={styles.premiumFabGradient}
             >
-              <Ionicons name="diamond" size={16} color="#000" />
+              <Ionicons name="diamond" size={18} color="#000" />
               <Text style={styles.premiumFabText}>Kupi Premium</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </RNAnimated.View>
+      )}
+
+      {isGuestMode && (
+        <RNAnimated.View
+          style={[
+            styles.authFab,
+            {
+              top: insets.top + 12,
+              transform: [
+                {
+                  scale: glowAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.98, 1.04],
+                  }),
+                },
+              ],
+              opacity: glowAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.8, 1],
+              }),
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.authFabButton}
+            onPress={handleGuestAuthPress}
+            activeOpacity={0.9}
+          >
+            <LinearGradient
+              colors={["#8b5cf6", "#7c3aed"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.authFabGradient}
+            >
+              <Ionicons name="person-add" size={18} color="#fff" />
+              <Text style={styles.authFabText}>Prijava / Registracija</Text>
             </LinearGradient>
           </TouchableOpacity>
         </RNAnimated.View>
@@ -2356,14 +2395,39 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
   },
   premiumFabText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "800",
     color: "#000",
     letterSpacing: 0.2,
+  },
+  authFab: {
+    position: "absolute",
+    right: 16,
+    zIndex: 30,
+    borderRadius: 16,
+    overflow: "hidden",
+    ...createShadow("#7c3aed", 0, 8, 0.35, 18, 10),
+  },
+  authFabButton: {
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  authFabGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
+  },
+  authFabText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.1,
   },
   cartToast: {
     position: "absolute",
@@ -3065,6 +3129,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
 
 
 

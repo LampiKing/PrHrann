@@ -46,7 +46,7 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>1. Osnovne informacije</Text>
             <Text style={styles.sectionText}>
-              Pr'Hran je aplikacija za primerjavo cen in spremljanje prihrankov na podlagi potrjenih racunov.
+              Pr'Hran je aplikacija za primerjavo cen in spremljanje prihrankov na podlagi potrjenih računov.
               Z uporabo aplikacije se strinjas s temi pogoji.
             </Text>
           </View>
@@ -54,32 +54,32 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>2. Uporabniski statusi</Text>
             <Text style={styles.sectionText}>
-              Gost: 1 iskanje na dan, brez dostopa do kosarice, profila, lestvice in racunov.
+              Gost: 1 iskanje na dan, brez dostopa do košarice, profila, lestvice in računov.
               {"\n"}
-              Free: 3 iskanja na dan, dostop do kosarice, profila in skupne lestvice.
+              Free: 3 iskanja na dan, dostop do košarice, profila in skupne lestvice.
               {"\n"}
               {PLAN_PLUS}: neomejeno iskanje in slikanje izdelkov.
               {"\n"}
-              {PLAN_FAMILY}: do 3 uporabniki, family lestvica, 4 racuni na dan.
+              {PLAN_FAMILY}: do 3 uporabniki, family lestvica, 4 računi na dan.
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>3. Prihranek in racuni</Text>
+            <Text style={styles.sectionTitle}>3. Prihranek in računi</Text>
             <Text style={styles.sectionText}>
-              Prihranek se racuna izkljucno iz potrjenih racunov. Kosarica in primerjava cen
+              Prihranek se računa izključno iz potrjenih računov. Košarica in primerjava cen
               brez nakupa ne vplivata na letni prihranek ali lestvico.
               {"\n\n"}
-              Veljaven racun mora biti dodan isti dan do 23:00, potrjen s checkboxom in ne sme
+              Veljaven račun mora biti dodan isti dan do 23:00, potrjen s checkboxom in ne sme
               biti duplikat (trgovina, datum, znesek).
             </Text>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>4. Placila in narocnine</Text>
+            <Text style={styles.sectionTitle}>4. Plačila in naročnine</Text>
             <Text style={styles.sectionText}>
-              Narocnina se obracunava mesecno. Preklic je mogoc kadarkoli in velja do konca
-              obracunskega obdobja. Cene so navedene z DDV.
+              Naročnina se obračunava mesečno. Preklic je mogoč kadarkoli in velja do konca
+              obračunskega obdobja. Cene so navedene z DDV.
             </Text>
           </View>
 
@@ -87,14 +87,14 @@ export default function TermsScreen() {
             <Text style={styles.sectionTitle}>5. Vsebina in omejitve</Text>
             <Text style={styles.sectionText}>
               Prikazane cene so informativne narave. Ne jamcimo za popolno tocnost ali
-              razpolozljivost izdelkov. Uporabnik naj cene preveri tudi v trgovini.
+              razpoložljivost izdelkov. Uporabnik naj cene preveri tudi v trgovini.
             </Text>
           </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>6. Varstvo podatkov</Text>
             <Text style={styles.sectionText}>
-              Shranjujemo e-naslov, vzdevek, podatke o uporabi in racune, kadar jih uporabnik doda.
+              Shranjujemo e-naslov, vzdevek, podatke o uporabi in račune, kadar jih uporabnik doda.
               Podatkov ne prodajamo tretjim osebam. Vec informacij je na voljo pri podpori.
             </Text>
           </View>

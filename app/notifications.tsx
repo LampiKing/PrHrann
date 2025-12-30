@@ -134,9 +134,9 @@ export default function NotificationsScreen() {
                     <Ionicons name="cart" size={20} color="#ef4444" />
                   </View>
                   <View style={styles.settingInfo}>
-                    <Text style={styles.settingTitle}>Opomniki kosarice</Text>
+                    <Text style={styles.settingTitle}>Opomniki košarice</Text>
                     <Text style={styles.settingDescription}>
-                      Opomnik, ce imas izdelke v kosarici
+                      Opomnik, če imaš izdelke v košarici
                     </Text>
                   </View>
                 </View>
