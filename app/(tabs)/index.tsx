@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -107,6 +107,23 @@ const getStoreBrand = (name?: string, fallbackColor?: string) => {
   return { bg: color, border: color, text: "#fff" };
 };
 
+const FUN_FACTS = [
+  "Ali veš, da primerjava cen pred tedenskim nakupom prinese največ prihrankov?",
+  "Ali veš, da se prihranek na lestvici šteje le iz potrjenih računov?",
+  "Ali veš, da košarica pokaže potencialni prihranek, račun pa potrdi dejanski?",
+  "Ali veš, da se akcije in cene pogosto zamenjajo čez vikend?",
+  "Ali veš, da redno preverjanje cen zmanjša nepotrebne nakupe?",
+  "Ali veš, da je slikanje računa dovoljeno le isti dan do 23:00?",
+  "Ali veš, da kombinacija kuponov in akcij pogosto prinese največ?",
+  "Ali veš, da tudi majhni prihranki skozi leto ustvarijo velik rezultat?",
+  "Ali veš, da načrtovana košarica pomaga pri pametnem nakupu?",
+  "Ali veš, da lahko preveriš cene tik pred odhodom v trgovino?",
+  "Ali veš, da prihranek temelji na dejanskem nakupu, ne na košarici?",
+  "Ali veš, da je tvoj rezultat vedno pošten, ker upošteva le račune?",
+  "Ali veš, da pameten načrt nakupa zmanjša impulzivne odločitve?",
+  "Ali veš, da primerjava cen pogosto prihrani več, kot pričakuješ?",
+];
+
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -119,6 +136,9 @@ export default function SearchScreen() {
   // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [guestModalContext, setGuestModalContext] = useState<"search" | "cart" | "camera">("search");
+  const [pendingGuestRedirect, setPendingGuestRedirect] = useState<"register" | "premium" | null>(
+    null
+  );
   const [approvedQuery, setApprovedQuery] = useState("");
   const guestModalDismissedAtRef = useRef(0);
 
@@ -200,6 +220,8 @@ export default function SearchScreen() {
         quantity: item.quantity,
       }));
 
+  const [funFactIndex, setFunFactIndex] = useState(0);
+
   // Timer state for countdown
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
 
@@ -236,6 +258,14 @@ export default function SearchScreen() {
     return () => clearInterval(interval);
   }, [searchResetTime, isPremium, searchesRemaining]);
 
+  useEffect(() => {
+    if (FUN_FACTS.length <= 1) return;
+    const interval = setInterval(() => {
+      setFunFactIndex((current) => (current + 1) % FUN_FACTS.length);
+    }, 9000);
+    return () => clearInterval(interval);
+  }, []);
+
   const recordSearch = useMutation(api.userProfiles.recordSearch);
   const addToCart = useMutation(api.cart.addToCart);
   const analyzeImage = useAction(api.ai.analyzeProductImage);
@@ -255,18 +285,25 @@ export default function SearchScreen() {
   }, []);
 
   const handleGuestAuthPress = useCallback(() => {
+    setPendingGuestRedirect("register");
     closeGuestModal();
-    setTimeout(() => {
-      router.push({ pathname: "/auth", params: { mode: "register" } });
-    }, 50);
-  }, [router, closeGuestModal]);
+  }, [closeGuestModal]);
 
   const handleGuestPremiumPress = useCallback(() => {
+    setPendingGuestRedirect("premium");
     closeGuestModal();
-    setTimeout(() => {
-      router.push("/premium");
-    }, 50);
-  }, [router, closeGuestModal]);
+  }, [closeGuestModal]);
+
+  useEffect(() => {
+    if (!pendingGuestRedirect || showGuestLimitModal) return;
+    const next = pendingGuestRedirect;
+    setPendingGuestRedirect(null);
+    if (next === "register") {
+      router.push({ pathname: "/auth", params: { mode: "register" } });
+      return;
+    }
+    router.push("/premium");
+  }, [pendingGuestRedirect, router, showGuestLimitModal]);
 
   const triggerCartToast = useCallback((message: string) => {
     if (cartToastTimeoutRef.current) {
@@ -1184,10 +1221,14 @@ export default function SearchScreen() {
                 <View style={styles.statusRankBlock}>
                   <Text style={styles.statusRankLabel}>Tvoje mesto</Text>
                   <Text style={styles.statusRankValue}>{seasonRank ? `#${seasonRank}` : "--"}</Text>
-                  <View style={styles.statusRankBadge}>
+                  <TouchableOpacity
+                    style={styles.statusRankBadge}
+                    onPress={() => router.push("/leaderboard")}
+                    activeOpacity={0.85}
+                  >
                     <Ionicons name="trophy" size={14} color="#fbbf24" />
                     <Text style={styles.statusRankBadgeText}>Lestvica</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               </View>
             </LinearGradient>
@@ -1276,7 +1317,7 @@ export default function SearchScreen() {
             ) : (
               <Text style={styles.searchLimitTextEmpty}>
                 {isGuestMode
-                  ? "Kot gost imaš 1 iskanje na dan. Registracija odklene še 2 iskanji danes + Košarica + Profil."
+                  ? "Registracija odklene še 2 iskanji danes + Košarica + Profil."
                   : "Dosegel si dnevni limit iskanj. Nadgradi na PrHran Plus za neomejeno iskanje."}
               </Text>
             )}
@@ -1295,9 +1336,7 @@ export default function SearchScreen() {
               </LinearGradient>
             </View>
             <Text style={styles.emptyTitle}>Začni z iskanjem</Text>
-            <Text style={styles.emptyText}>
-              Vpiši ime izdelka in takoj primerjaj cene{"\n"}iz vseh slovenskih trgovin
-            </Text>
+            <Text style={styles.emptyText}>Vpiši ime izdelka in takoj primerjaj cene{"\n"}iz vseh slovenskih trgovin.</Text>
 
             {/* Fun Fact Card */}
             <View style={styles.funFactCard}>
@@ -1310,9 +1349,7 @@ export default function SearchScreen() {
                 </View>
                 <View style={styles.funFactContent}>
                   <Text style={styles.funFactTitle}>Ali veš?</Text>
-                  <Text style={styles.funFactText}>
-                    Povprečna slovenska družina lahko prihrani do 150 EUR mesečno s pametnim nakupovanjem!
-                  </Text>
+                  <Text style={styles.funFactText}>{FUN_FACTS[funFactIndex]}</Text>
                 </View>
               </LinearGradient>
             </View>
@@ -1330,17 +1367,16 @@ export default function SearchScreen() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>22:00</Text>
-                <Text style={styles.statLabel}>Posodobitev</Text>
+                <Text style={styles.statNumber}>Posodobitev</Text>
+                <Text style={styles.statLabel}>Izdelki: vsako nedeljo ob 22:00</Text>
               </View>
             </View>
-
           </View>
         ) : sortedResults.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={48} color="#6b7280" />
-            <Text style={styles.emptyTitle}>Ni rezultatov</Text>
-            <Text style={styles.emptyText}>Poskusi z drugim iskalnim nizom</Text>
+            <Text style={styles.emptyTitle}>Ni zadetkov</Text>
+            <Text style={styles.emptyText}>Preveri zapis ali poskusi z drugim izdelkom.</Text>
           </View>
         ) : (
           <View style={styles.resultsContainer}>
@@ -1651,7 +1687,7 @@ export default function SearchScreen() {
                 {showRegistrationCta && (
                   <View style={[styles.guestOptionCard, guestOptionsSingle && styles.guestOptionCardFull]}>
                     <View style={styles.guestOptionBadge}>
-                      <Text style={styles.guestOptionBadgeText}>BREZPLAČNO</Text>
+                    <Text style={styles.guestOptionBadgeText}>BREZPLAčNO</Text>
                     </View>
                     <Text style={styles.guestOptionTitle}>Registracija</Text>
                     <Text style={styles.guestOptionDesc}>+2 iskanji danes + Košarica + Profil</Text>
@@ -1677,7 +1713,7 @@ export default function SearchScreen() {
                     guestOptionsSingle && styles.guestOptionCardFull,
                   ]}>
                     <View style={[styles.guestOptionBadge, styles.guestOptionBadgePremium]}>
-                      <Text style={styles.guestOptionBadgeTextPremium}>PRIPOROČENO</Text>
+                      <Text style={styles.guestOptionBadgeTextPremium}>PRIPOROčENO</Text>
                     </View>
                     <Text style={styles.guestOptionTitle}>{PLAN_PLUS}</Text>
                     <Text style={styles.guestOptionDesc}>Neomejeno iskanje + slikanje izdelkov</Text>
@@ -1787,7 +1823,7 @@ export default function SearchScreen() {
               </TouchableOpacity>
 
               <Text style={styles.premiumNote}>
-                Preklici kadarkoli - brez skritih stroškov
+                Prekliči kadarkoli - brez skritih stroškov
               </Text>
             </LinearGradient>
           </View>

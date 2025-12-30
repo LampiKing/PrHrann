@@ -565,7 +565,7 @@ export default function PremiumScreen() {
                 </View>
                 <View style={styles.authBenefitItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
-                  <Text style={styles.authBenefitText}>Moznost nadgradnje kadarkoli</Text>
+                  <Text style={styles.authBenefitText}>Možnost nadgradnje kadarkoli</Text>
                 </View>
               </View>
 

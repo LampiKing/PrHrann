@@ -86,7 +86,7 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>5. Vsebina in omejitve</Text>
             <Text style={styles.sectionText}>
-              Prikazane cene so informativne narave. Ne jamcimo za popolno tocnost ali
+              Prikazane cene so informativne narave. Ne jamčimo za popolno točnost ali
               razpoložljivost izdelkov. Uporabnik naj cene preveri tudi v trgovini.
             </Text>
           </View>
@@ -95,14 +95,14 @@ export default function TermsScreen() {
             <Text style={styles.sectionTitle}>6. Varstvo podatkov</Text>
             <Text style={styles.sectionText}>
               Shranjujemo e-naslov, vzdevek, podatke o uporabi in račune, kadar jih uporabnik doda.
-              Podatkov ne prodajamo tretjim osebam. Vec informacij je na voljo pri podpori.
+              Podatkov ne prodajamo tretjim osebam. Več informacij je na voljo pri podpori.
             </Text>
           </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>7. Kontakt</Text>
             <Text style={styles.sectionText}>
-              Vprasanja in zahteve: support@prhran.com
+              Vprašanja in zahteve: support@prhran.com
             </Text>
           </View>
 

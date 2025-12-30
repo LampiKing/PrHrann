@@ -67,7 +67,7 @@ export default function VerifyEmailScreen() {
         </TouchableOpacity>
       )}
       <TouchableOpacity style={[styles.button, styles.secondary]} onPress={handleResend}>
-        <Text style={styles.buttonText}>Poslji email ponovno</Text>
+        <Text style={styles.buttonText}>Pošlji email ponovno</Text>
       </TouchableOpacity>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {success ? <Text style={styles.success}>{success}</Text> : null}

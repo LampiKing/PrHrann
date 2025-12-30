@@ -6,19 +6,20 @@ import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-const rawBaseUrl =
-    process.env.EXPO_PUBLIC_CONVEX_SITE_URL || process.env.EXPO_PUBLIC_CONVEX_URL;
-const normalizedBaseUrl =
-    rawBaseUrl && rawBaseUrl.includes(".convex.cloud")
-        ? rawBaseUrl.replace(".convex.cloud", ".convex.site")
-        : rawBaseUrl;
+const rawSiteUrl = process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
+const rawCloudUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
+const authBaseUrl = rawSiteUrl
+    ? rawSiteUrl
+    : rawCloudUrl && rawCloudUrl.includes(".convex.cloud")
+    ? rawCloudUrl.replace(".convex.cloud", ".convex.site")
+    : rawCloudUrl;
 
-if (!normalizedBaseUrl) {
-    console.warn("EXPO_PUBLIC_CONVEX_SITE_URL is not set. Auth requests will fail.");
+if (!authBaseUrl) {
+    console.warn("Missing Convex auth URL. Set EXPO_PUBLIC_CONVEX_SITE_URL.");
 }
 
 export const authClient = createAuthClient({
-    baseURL: normalizedBaseUrl,
+    baseURL: authBaseUrl,
     plugins: [
         anonymousClient(),
         ...(Platform.OS === "web"

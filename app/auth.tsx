@@ -25,12 +25,12 @@ import Logo, { getSeasonalLogoSource } from "@/lib/Logo";
 import { api } from "@/convex/_generated/api";
 
 const FACTS = [
-  "Povprečna slovenska družina lahko prihrani do 150 EUR mesečno.",
-  "Cene istega izdelka se razlikujejo do 40% med trgovinami.",
-  "Primerjamo cene iz 6 največjih slovenskih trgovin.",
-  "Prihraniš do 2 uri tedensko z avtomatskim iskanjem.",
-  "Več kot 10.000 uporabnikov že prihranjuje s Pr'Hran.",
-  "Plus: Slikaj izdelek in takoj najdi najnižjo ceno.",
+  "Pametna primerjava cen ti prihrani čas in denar.",
+  "Prihranek na lestvici se šteje samo iz potrjenih računov.",
+  "Košarica pokaže potencialni prihranek pred nakupom.",
+  "Slikanje računa traja manj kot minuto.",
+  "Cene istega izdelka se razlikujejo med trgovinami.",
+  "Z rednim spremljanjem cen hitreje opaziš prave akcije.",
 ];
 
 
@@ -62,11 +62,13 @@ export default function AuthScreen() {
     isAuthenticated ? {} : "skip"
   );
 
+  const modeInitialized = useRef(false);
+
   const switchMode = (login: boolean) => {
     triggerHaptic();
     const nextMode = login ? "login" : "register";
     if (mode !== nextMode) {
-      router.setParams({ mode: nextMode });
+      router.replace({ pathname: "/auth", params: { mode: nextMode } });
     }
     setIsLogin(login);
     setError("");
@@ -80,13 +82,15 @@ export default function AuthScreen() {
   useEffect(() => {
     if (!mode) return;
     const shouldLogin = mode === "login";
-    if (shouldLogin !== isLogin) {
-      setIsLogin(shouldLogin);
-      setError("");
-      setSuccess("");
-      setFocusedField(null);
+    if (modeInitialized.current && shouldLogin === isLogin) {
+      return;
     }
-  }, [mode, isLogin]);
+    modeInitialized.current = true;
+    setIsLogin(shouldLogin);
+    setError("");
+    setSuccess("");
+    setFocusedField(null);
+  }, [mode]);
 
   // Animations
   const logoGlow = useRef(new Animated.Value(0)).current;
@@ -252,7 +256,7 @@ export default function AuthScreen() {
         setShowSuccessOverlay(false);
         setPendingRedirect(null);
         setSuccess("");
-        if (redirectTarget === "guest") {
+        if (redirectTarget) {
           router.replace("/(tabs)");
         }
       }
@@ -286,7 +290,7 @@ export default function AuthScreen() {
   const passwordStrengthLevel =
     password.length === 0 ? 0 : passwordStrengthScore <= 1 ? 1 : passwordStrengthScore <= 3 ? 2 : 3;
   const passwordStrengthLabelSafe =
-    passwordStrengthLevel === 1 ? "Sibko" : passwordStrengthLevel === 2 ? "Dobro" : "Mocno";
+    passwordStrengthLevel === 1 ? "Sibko" : passwordStrengthLevel === 2 ? "Dobro" : "Močno";
   const passwordStrengthColor =
     passwordStrengthLevel === 1 ? "#f97316" : passwordStrengthLevel === 2 ? "#fbbf24" : "#22c55e";
 
@@ -482,6 +486,11 @@ export default function AuthScreen() {
     triggerHaptic();
     setAnonymousLoading(true);
     setError("");
+    if (isAuthenticated && !authLoading) {
+      setAnonymousLoading(false);
+      router.replace("/(tabs)");
+      return;
+    }
     try {
       const result = await authClient.signIn.anonymous();
       if (result.error) {
@@ -865,7 +874,7 @@ export default function AuthScreen() {
 
                     <View style={styles.helperRow}>
                       <Ionicons name="shield-checkmark-outline" size={16} color="#6b7280" />
-                      <Text style={styles.helperText}>Vsaj 6 znakov; najbolj varno je crke + stevilke.</Text>
+                      <Text style={styles.helperText}>Vsaj 6 znakov; najbolj varno je črke + številke.</Text>
                     </View>
 
                     {isLogin && (

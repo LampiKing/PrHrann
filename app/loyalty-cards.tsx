@@ -174,12 +174,12 @@ export default function LoyaltyCardsScreen() {
   const activeNumber = showBarcodeModal?.number;
 
   const handleSaveCard = (cardId: string) => {
-    // Validacija - kartica mora imeti vsaj 8 stevilk
+    // Validacija - kartica mora imeti vsaj 8 številk
     if (inputValue.length < 8) {
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
-      alert("Stevilka kartice mora imeti vsaj 8 stevilk!");
+      alert("Številka kartice mora imeti vsaj 8 številk!");
       return;
     }
     
@@ -274,10 +274,10 @@ export default function LoyaltyCardsScreen() {
           {/* Card Input or Saved State */}
           {editingCard === card.id ? (
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Stevilka kartice (min. 8 stevilk)</Text>
+              <Text style={styles.inputLabel}>Številka kartice (min. 8 številk)</Text>
               <TextInput
                 style={[styles.input, { borderColor: `${card.color}70`, backgroundColor: `${card.color}12` }]}
-                placeholder={`Vnesi stevilke kartice ${card.name}...`}
+                placeholder={`Vnesi številke kartice ${card.name}...`}
                 placeholderTextColor="#cbd5e1"
                 value={inputValue}
                 onChangeText={setInputValue}

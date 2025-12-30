@@ -1,4 +1,5 @@
 ﻿import { useState } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -21,7 +22,7 @@ const FAQ_ITEMS = [
   {
     question: "Kako deluje primerjava cen?",
     answer:
-      "Pr'Hran avtomatsko primerja cene izdelkov v trgovinah (Spar, Mercator, Tuš, Hofer, Lidl, Jager). Cene se posodabljajo dnevno ob 22:00, da vedno vidiš najnovejše podatke.",
+      "Pr'Hran avtomatsko primerja cene izdelkov v trgovinah (Spar, Mercator, Tuš, Hofer, Lidl, Jager). Cene se posodabljajo vsako nedeljo ob 22:00, da vedno vidiš najnovejše podatke.",
   },
   {
     question: "Kako delujejo kuponi?",
@@ -31,7 +32,7 @@ const FAQ_ITEMS = [
   {
     question: "Kaj vključuje Premium naročnina?",
     answer:
-      "Premium naročnina (1.99 EUR/mesec) vključuje: neomejeno iskanje izdelkov, dostop do vseh trgovin, obvestila o padcih cen in ekskluzivne kupone.",
+      "Premium naročnina (1,99 EUR/mesec) vključuje: neomejeno iskanje izdelkov, dostop do vseh trgovin, obvestila o padcih cen in ekskluzivne kupone.",
   },
   {
     question: "Kako dodam izdelek v košarico?",
@@ -39,9 +40,9 @@ const FAQ_ITEMS = [
       "Ko najdeš izdelek, klikni na gumb 'Dodaj v košarico' pri izbrani trgovini. V košarici potem vidiš skupno ceno in prihranke za vsako trgovino posebej.",
   },
   {
-    question: "Ali so cene vedno tocne?",
+    question: "Ali so cene vedno točne?",
     answer:
-      "Cene posodabljamo dnevno iz uradnih virov trgovin. Občasno lahko pride do manjših odstopanj zaradi lokalnih akcij ali zakasnitev. Priporočamo, da ceno preveriš tudi v trgovini.",
+      "Cene posodabljamo iz uradnih virov trgovin. Občasno lahko pride do manjših odstopanj zaradi lokalnih akcij ali zakasnitev. Priporočamo, da ceno preveriš tudi v trgovini.",
   },
   {
     question: "Kako prekličem Premium naročnino?",
@@ -186,7 +187,7 @@ export default function HelpScreen() {
           {/* App Info */}
           <View style={styles.appInfo}>
             <Text style={styles.appVersion}>Pr'Hran verzija 1.0.0</Text>
-            <Text style={styles.appCopyright}>(c) 2024 Pr'Hran. Vse pravice pridrzane.</Text>
+            <Text style={styles.appCopyright}>(c) 2024 Pr'Hran. Vse pravice pridržane.</Text>
           </View>
 
           {/* Debug Reset Button */}

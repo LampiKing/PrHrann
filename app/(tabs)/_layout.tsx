@@ -87,7 +87,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="cart"
           options={{
-            title: "Kosarica",
+            title: "Košarica",
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="cart" size={size} color={color} />

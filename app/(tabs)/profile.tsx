@@ -46,6 +46,7 @@ export default function ProfileScreen() {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [showSignOutToast, setShowSignOutToast] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -101,6 +102,15 @@ export default function ProfileScreen() {
     const day = `${now.getDate()}`.padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
+  const formatDateShort = (timestamp?: number) => {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return null;
+    const day = `${date.getDate()}`.padStart(2, "0");
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
   const displayNickname =
     profile?.nickname ??
     profile?.name ??
@@ -114,6 +124,10 @@ export default function ProfileScreen() {
   const todayKey = getLocalDateKey();
   const receiptsToday = receipts?.filter((receipt) => receipt.purchaseDateKey === todayKey) ?? [];
   const receiptsRemaining = Math.max(0, receiptLimit - receiptsToday.length);
+  const premiumUntilLabel = formatDateShort(profile?.premiumUntil);
+  const premiumUntilMessage = premiumUntilLabel
+    ? `Premium velja do ${premiumUntilLabel}.`
+    : "Premium velja do konca trenutnega obdobja.";
   const awardsByYear = (awards ?? []).reduce<Record<string, AwardEntry[]>>((acc, award) => {
     const key = `${award.year}`;
     if (!acc[key]) acc[key] = [];
@@ -240,7 +254,7 @@ export default function ProfileScreen() {
       return;
     }
     if (!receiptConfirmed) {
-      setReceiptError("Potrdi, da je slikani račun tvoj.");
+      setReceiptError("Potrdi da je slikani račun tvoj.");
       return;
     }
 
@@ -375,6 +389,7 @@ export default function ProfileScreen() {
       // Note: Subscription cancellation would require payment provider integration
       // For now just close modal - backend would handle actual cancellation
       setShowCancelModal(false);
+      setShowCancelSuccessModal(true);
     } catch (error) {
       console.error("Cancel subscription error:", error);
       setShowCancelModal(false);
@@ -480,6 +495,11 @@ export default function ProfileScreen() {
                 <Text style={styles.planPrice}>
                   {isPremium ? (premiumType === "family" ? "2,99  EUR/mesec" : "1,99  EUR/mesec") : "Brezplačno"}
                 </Text>
+                {isPremium && (
+                  <Text style={styles.planExpiry}>
+                    {premiumUntilLabel ? `Velja do ${premiumUntilLabel}` : "Velja do konca obdobja"}
+                  </Text>
+                )}
               </View>
               {(!isPremium || (isPremium && premiumType === "solo")) && (
                 <TouchableOpacity
@@ -504,7 +524,7 @@ export default function ProfileScreen() {
             {/* Search Progress */}
             <View style={styles.searchProgress}>
               <View style={styles.searchProgressHeader}>
-                <Text style={styles.searchProgressLabel}>Brezplacna iskanja</Text>
+                <Text style={styles.searchProgressLabel}>Brezplačna iskanja</Text>
                 <Text style={styles.searchProgressValue}>
                   {isPremium ? "neomejeno" : `${Math.max(0, searchesRemaining)}/${maxSearches}`}
                 </Text>
@@ -575,7 +595,7 @@ export default function ProfileScreen() {
 
         {/* Achievements */}
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Dosezki</Text>
+          <Text style={styles.sectionTitle}>Dosežki</Text>
           <Text style={styles.sectionSubtitle}>Letni dosežki iz varčevanja</Text>
           {awardYears.length === 0 ? (
             <View style={styles.emptyAwards}>
@@ -613,14 +633,14 @@ export default function ProfileScreen() {
 
         {/* Receipts */}
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Racuni</Text>
+          <Text style={styles.sectionTitle}>Računi</Text>
           <Text style={styles.sectionSubtitle}>
             Prihranek se računa iz potrjenih računov (max {receiptLimit}/dan).
           </Text>
           <View style={styles.receiptCard}>
             <View style={styles.receiptHeader}>
               <View>
-                <Text style={styles.receiptTitle}>Racuni danes</Text>
+                <Text style={styles.receiptTitle}>Računi danes</Text>
                 <Text style={styles.receiptMeta}>
                   {receiptsToday.length}/{receiptLimit} uporabljeno
                 </Text>
@@ -787,7 +807,7 @@ export default function ProfileScreen() {
                 <View style={[styles.receiptCheckBox, receiptConfirmed && styles.receiptCheckBoxChecked]}>
                   {receiptConfirmed && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
-                <Text style={styles.receiptCheckText}>Potrdi, da je slikani račun tvoj.</Text>
+                <Text style={styles.receiptCheckText}>Potrdi da je slikani račun tvoj.</Text>
               </TouchableOpacity>
 
               {receiptError ? <Text style={styles.receiptErrorText}>{receiptError}</Text> : null}
@@ -1092,7 +1112,7 @@ export default function ProfileScreen() {
 
               <Text style={styles.cancelTitle}>Prekliči Premium?</Text>
               <Text style={styles.cancelDescription}>
-                Ob preklicu bos izgubil dostop do:{"\n"}
+                Ob preklicu boš izgubil dostop do:{"\n"}
                 -  Neomejenega iskanja{"\n"}
                 -  Vseh trgovin{"\n"}
                 -  Ekskluzivnih kuponov
@@ -1107,7 +1127,7 @@ export default function ProfileScreen() {
                     colors={["#fbbf24", "#f59e0b"]}
                     style={styles.keepPremiumGradient}
                   >
-                    <Text style={styles.keepPremiumText}>Obdrzi Premium</Text>
+                    <Text style={styles.keepPremiumText}>Obdrži Premium</Text>
                   </LinearGradient>
                 </TouchableOpacity>
 
@@ -1118,6 +1138,49 @@ export default function ProfileScreen() {
                   <Text style={styles.confirmCancelText}>Prekliči naročnino</Text>
                 </TouchableOpacity>
               </View>
+            </LinearGradient>
+          </View>
+        </View>
+      )}
+
+      {showCancelSuccessModal && (
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.modalContent}>
+            <LinearGradient
+              colors={["rgba(16, 185, 129, 0.25)", "rgba(15, 23, 42, 0.75)"]}
+              style={styles.modalGradient}
+            >
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => setShowCancelSuccessModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#9ca3af" />
+              </TouchableOpacity>
+
+              <View style={styles.cancelIconContainer}>
+                <LinearGradient
+                  colors={["#34d399", "#10b981"]}
+                  style={styles.cancelIconBg}
+                >
+                  <Ionicons name="checkmark" size={32} color="#000" />
+                </LinearGradient>
+              </View>
+
+              <Text style={styles.cancelTitle}>Naročnina preklicana</Text>
+              <Text style={styles.cancelDescription}>{premiumUntilMessage}</Text>
+
+              <TouchableOpacity
+                style={styles.keepPremiumButton}
+                onPress={() => setShowCancelSuccessModal(false)}
+              >
+                <LinearGradient
+                  colors={["#34d399", "#10b981"]}
+                  style={styles.keepPremiumGradient}
+                >
+                  <Text style={styles.keepPremiumText}>Zapri</Text>
+                </LinearGradient>
+              </TouchableOpacity>
             </LinearGradient>
           </View>
         </View>
@@ -1278,6 +1341,12 @@ const styles = StyleSheet.create({
   planPrice: {
     fontSize: 14,
     color: "#9ca3af",
+  },
+  planExpiry: {
+    fontSize: 12,
+    color: "#a7f3d0",
+    marginTop: 4,
+    fontWeight: "600",
   },
   upgradeButton: {
     borderRadius: 12,
