@@ -20,6 +20,7 @@ import type * as emailVerification from "../emailVerification.js";
 import type * as functions from "../functions.js";
 import type * as http from "../http.js";
 import type * as leaderboard from "../leaderboard.js";
+import type * as notify from "../notify.js";
 import type * as priceAlerts from "../priceAlerts.js";
 import type * as products from "../products.js";
 import type * as receipts from "../receipts.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   functions: typeof functions;
   http: typeof http;
   leaderboard: typeof leaderboard;
+  notify: typeof notify;
   priceAlerts: typeof priceAlerts;
   products: typeof products;
   receipts: typeof receipts;
