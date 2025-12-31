@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { authMutation, authQuery } from "./functions";
 import { api } from "./_generated/api";
+import { sendAdminNotification } from "./notify";
 import { getDateKey, getEndOfDayTimestamp, getSeasonYear, isWithinSeason } from "./time";
 import { Id } from "./_generated/dataModel";
 
@@ -351,6 +352,26 @@ export const createReceipt = authMutation({
           });
         }
       }
+    }
+
+    if (!invalidReason) {
+      const email = profile.email || "-";
+      const nickname = profile.nickname || "-";
+      const subject = "Nov potrjen račun v Pr'Hran";
+      const html = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+          <h2 style="margin: 0 0 12px;">Nov račun</h2>
+          <p style="margin: 0 0 8px;"><strong>E-naslov:</strong> ${email}</p>
+          <p style="margin: 0 0 8px;"><strong>Vzdevek:</strong> ${nickname}</p>
+          <p style="margin: 0 0 8px;"><strong>Trgovina:</strong> ${storeName}</p>
+          <p style="margin: 0 0 8px;"><strong>Datum:</strong> ${purchaseDateKey}</p>
+          ${args.parsed.purchaseTime ? `<p style="margin: 0 0 8px;"><strong>Čas:</strong> ${args.parsed.purchaseTime}</p>` : ""}
+          <p style="margin: 0 0 8px;"><strong>Znesek:</strong> ${totalPaid.toFixed(2)} EUR</p>
+          <p style="margin: 0 0 8px;"><strong>Prihranek:</strong> ${savedAmount.toFixed(2)} EUR</p>
+          <p style="margin: 16px 0 0; color: #475569; font-size: 12px;">Samodejno obvestilo iz Pr'Hran.</p>
+        </div>
+      `;
+      await sendAdminNotification(subject, html);
     }
 
     return {

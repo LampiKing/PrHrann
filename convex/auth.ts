@@ -20,9 +20,16 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
                 const nickname = user.name ? user.name.trim() : undefined;
                 const nicknameLower = nickname ? nickname.toLowerCase() : undefined;
                 const normalizedEmail = user.email?.toLowerCase();
-                const adminEmail =
-                    (process.env.ADMIN_EMAIL || "lamprett69@gmail.com").toLowerCase();
-                const isAdmin = Boolean(normalizedEmail && normalizedEmail === adminEmail);
+                const defaultAdminEmails = ["lamprett69@gmail.com", "prrhran@gmail.com"];
+                const rawAdminEmails =
+                    process.env.ADMIN_EMAILS ||
+                    process.env.ADMIN_EMAIL ||
+                    defaultAdminEmails.join(",");
+                const adminEmails = rawAdminEmails
+                    .split(",")
+                    .map((email) => email.trim().toLowerCase())
+                    .filter(Boolean);
+                const isAdmin = Boolean(normalizedEmail && adminEmails.includes(normalizedEmail));
                 await ctx.db.insert("userProfiles", {
                     userId: user._id,
                     name: user.name || undefined,
@@ -42,8 +49,11 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
                 });
 
                 if (normalizedEmail && !user.isAnonymous) {
-                    const adminNotify = (process.env.ADMIN_NOTIFY_EMAIL || adminEmail).trim();
-                    if (adminNotify) {
+                    const adminNotify = (process.env.ADMIN_NOTIFY_EMAIL || "prrhran@gmail.com")
+                        .split(",")
+                        .map((email) => email.trim())
+                        .filter(Boolean);
+                    if (adminNotify.length > 0) {
                         const subject = "Nova registracija v Pr'Hran";
                         const html = `
                           <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
@@ -103,7 +113,7 @@ const fromEmail = process.env.FROM_EMAIL;
 const fromName = process.env.FROM_NAME || "PrHran";
 const resendApiKey = process.env.RESEND_API_KEY;
 
-async function sendEmail(to: string, subject: string, html: string) {
+async function sendEmail(to: string | string[], subject: string, html: string) {
     if (!fromEmail) {
         console.warn("Email disabled or FROM_EMAIL not set. Skipping send.");
         return;

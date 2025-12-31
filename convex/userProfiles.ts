@@ -2,15 +2,22 @@ import { v } from "convex/values";
 import { authQuery, authMutation } from "./functions";
 import { query } from "./_generated/server";
 import { getDateKey, getNextMidnightTimestamp } from "./time";
+import { sendAdminNotification } from "./notify";
 
 const MAX_FREE_SEARCHES = 3; // Max free searches per day
 const MAX_GUEST_SEARCHES = 1; // Guest has 1 search per day
 const NICKNAME_MIN_LENGTH = 3;
 const NICKNAME_MAX_LENGTH = 20;
 const NICKNAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "lamprett69@gmail.com").toLowerCase();
+const DEFAULT_ADMIN_EMAILS = ["lamprett69@gmail.com", "prrhran@gmail.com"];
+const rawAdminEmails =
+  process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAILS.join(",");
+const ADMIN_EMAILS = rawAdminEmails
+  .split(",")
+  .map((entry) => entry.trim().toLowerCase())
+  .filter(Boolean);
 const isAdminEmail = (email?: string | null) =>
-  Boolean(email && email.toLowerCase() === ADMIN_EMAIL);
+  Boolean(email && ADMIN_EMAILS.includes(email.toLowerCase()));
 
 // Get user profile
 export const getProfile = authQuery({
@@ -392,11 +399,28 @@ export const upgradeToPremium = authMutation({
     if (!profile) return false;
 
     const oneMonth = 30 * 24 * 60 * 60 * 1000;
+    const premiumUntil = Date.now() + oneMonth;
     await ctx.db.patch(profile._id, {
       isPremium: true,
-      premiumUntil: Date.now() + oneMonth,
+      premiumUntil,
       premiumType: planType,
     });
+
+    const email = profile.email || "-";
+    const nickname = profile.nickname || "-";
+    const planLabel = planType === "family" ? "Family" : "Plus";
+    const subject = "Nova Premium naročnina v Pr'Hran";
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+        <h2 style="margin: 0 0 12px;">Nova naročnina</h2>
+        <p style="margin: 0 0 8px;"><strong>E-naslov:</strong> ${email}</p>
+        <p style="margin: 0 0 8px;"><strong>Vzdevek:</strong> ${nickname}</p>
+        <p style="margin: 0 0 8px;"><strong>Paket:</strong> ${planLabel}</p>
+        <p style="margin: 0 0 8px;"><strong>Velja do:</strong> ${new Date(premiumUntil).toLocaleDateString("sl-SI")}</p>
+        <p style="margin: 16px 0 0; color: #475569; font-size: 12px;">Samodejno obvestilo iz Pr'Hran.</p>
+      </div>
+    `;
+    await sendAdminNotification(subject, html);
 
     return true;
   },

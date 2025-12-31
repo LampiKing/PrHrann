@@ -1,7 +1,13 @@
 import { v } from "convex/values";
 import { authQuery } from "./functions";
 
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "lamprett69@gmail.com").toLowerCase();
+const DEFAULT_ADMIN_EMAILS = ["lamprett69@gmail.com", "prrhran@gmail.com"];
+const rawAdminEmails =
+  process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAILS.join(",");
+const ADMIN_EMAILS = rawAdminEmails
+  .split(",")
+  .map((entry) => entry.trim().toLowerCase())
+  .filter(Boolean);
 
 export const getStats = authQuery({
   args: {},
@@ -18,7 +24,7 @@ export const getStats = authQuery({
 
     const userEmail = ctx.user.email?.toLowerCase();
     const isAdmin =
-      profile?.isAdmin || (userEmail && userEmail === ADMIN_EMAIL);
+      profile?.isAdmin || (userEmail && ADMIN_EMAILS.includes(userEmail));
 
     if (!isAdmin) {
       throw new Error("Not authorized");

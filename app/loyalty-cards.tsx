@@ -154,7 +154,7 @@ const barcodeStyles = StyleSheet.create({
 export default function LoyaltyCardsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const isCompact = width < 420;
+  const isCompact = width < 520;
   const { isAuthenticated } = useConvexAuth();
   const profile = useQuery(
     api.userProfiles.getProfile,
@@ -973,6 +973,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    flexWrap: "wrap",
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 12,
     paddingVertical: 14,
@@ -989,17 +990,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     flex: 1,
+    minWidth: 0,
   },
   cardNumberText: {
     fontSize: 15,
     color: "#fff",
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     letterSpacing: 1,
+    flexShrink: 1,
   },
   cardActions: {
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
+    flexShrink: 0,
+    zIndex: 2,
+    position: "relative",
   },
   cardActionsCompact: {
     width: "100%",
