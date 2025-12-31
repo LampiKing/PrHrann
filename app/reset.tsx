@@ -45,7 +45,7 @@ export default function ResetScreen() {
   const passwordStrengthLevel =
     newPassword.length === 0 ? 0 : passwordStrengthScore <= 1 ? 1 : passwordStrengthScore <= 3 ? 2 : 3;
   const passwordStrengthLabel =
-    passwordStrengthLevel === 1 ? "Sibko" : passwordStrengthLevel === 2 ? "Dobro" : "Mocno";
+    passwordStrengthLevel === 1 ? "Šibko" : passwordStrengthLevel === 2 ? "Dobro" : "Močno";
   const passwordStrengthColor =
     passwordStrengthLevel === 1 ? "#f97316" : passwordStrengthLevel === 2 ? "#fbbf24" : "#22c55e";
 

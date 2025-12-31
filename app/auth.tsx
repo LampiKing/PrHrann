@@ -33,6 +33,15 @@ const FACTS = [
   "Z rednim spremljanjem cen hitreje opaziš prave akcije.",
 ];
 
+const FACTS_LEGACY = [
+  "Pametna primerjava cen ti prihrani čas in denar.",
+  "Prihranek na lestvici se šteje samo iz potrjenih računov.",
+  "Košarica pokaže potencialni prihranek pred nakupom.",
+  "Slikanje računa traja manj kot minuto.",
+  "Cene istega izdelka se razlikujejo med trgovinami.",
+  "Z rednim spremljanjem cen hitreje opaziš prave akcije.",
+];
+
 
 export default function AuthScreen() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
@@ -50,6 +59,7 @@ export default function AuthScreen() {
     null
   );
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [currentFact, setCurrentFact] = useState(0);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const { mode } = useLocalSearchParams<{ mode?: string }>();
@@ -290,7 +300,7 @@ export default function AuthScreen() {
   const passwordStrengthLevel =
     password.length === 0 ? 0 : passwordStrengthScore <= 1 ? 1 : passwordStrengthScore <= 3 ? 2 : 3;
   const passwordStrengthLabelSafe =
-    passwordStrengthLevel === 1 ? "Sibko" : passwordStrengthLevel === 2 ? "Dobro" : "Močno";
+    passwordStrengthLevel === 1 ? "Šibko" : passwordStrengthLevel === 2 ? "Dobro" : "Močno";
   const passwordStrengthColor =
     passwordStrengthLevel === 1 ? "#f97316" : passwordStrengthLevel === 2 ? "#fbbf24" : "#22c55e";
 
@@ -877,28 +887,6 @@ export default function AuthScreen() {
                       <Text style={styles.helperText}>Vsaj 6 znakov; najbolj varno je črke + številke.</Text>
                     </View>
 
-                    {isLogin && (
-                      <View style={styles.forgotRow}>
-                        <TouchableOpacity
-                          onPress={handleForgotPassword}
-                          disabled={resetLoading}
-                          activeOpacity={0.8}
-                        >
-                          <Text
-                            style={[
-                              styles.forgotText,
-                              resetLoading && styles.forgotTextDisabled,
-                            ]}
-                          >
-                            {resetLoading ? "Pošiljam povezavo..." : "Pozabljeno geslo?"}
-                          </Text>
-                        </TouchableOpacity>
-                        {resetLoading && (
-                          <ActivityIndicator size="small" color="#a78bfa" />
-                        )}
-                      </View>
-                    )}
-
                     {!isLogin && password.length > 0 && (
                       <View style={styles.strengthRow}>
                         <View style={styles.strengthBars}>
@@ -920,7 +908,7 @@ export default function AuthScreen() {
 
                     {!isLogin && (
                       <Text style={styles.legalText}>
-                        Z nadaljevanjem se strinjas s{" "}
+                        Z nadaljevanjem se strinjaš s{" "}
                         <Text style={styles.termsLink} onPress={handleTermsPress}>
                           Pogoji uporabe
                         </Text>{" "}
@@ -980,6 +968,48 @@ export default function AuthScreen() {
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
+
+                  {isLogin && (
+                    <View style={styles.loginAssist}>
+                      <TouchableOpacity
+                        style={styles.rememberRow}
+                        onPress={() => setRememberMe((prev) => !prev)}
+                        activeOpacity={0.8}
+                      >
+                        <View
+                          style={[
+                            styles.rememberCheckbox,
+                            rememberMe && styles.rememberCheckboxChecked,
+                          ]}
+                        >
+                          {rememberMe && (
+                            <Ionicons name="checkmark" size={14} color="#fff" />
+                          )}
+                        </View>
+                        <Text style={styles.rememberText}>Ostani prijavljen</Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.forgotRow}>
+                        <TouchableOpacity
+                          onPress={handleForgotPassword}
+                          disabled={resetLoading}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.forgotText,
+                              resetLoading && styles.forgotTextDisabled,
+                            ]}
+                          >
+                            {resetLoading ? "Pošiljam povezavo..." : "Pozabljeno geslo?"}
+                          </Text>
+                        </TouchableOpacity>
+                        {resetLoading && (
+                          <ActivityIndicator size="small" color="#a78bfa" />
+                        )}
+                      </View>
+                    </View>
+                  )}
 
                   {/* Anonymous Sign In */}
                   <View style={styles.anonymousDivider}>
@@ -1445,12 +1475,37 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 16,
   },
+  loginAssist: {
+    marginTop: 14,
+    gap: 10,
+  },
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  rememberCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#8b5cf6",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(139, 92, 246, 0.12)",
+  },
+  rememberCheckboxChecked: {
+    backgroundColor: "#8b5cf6",
+  },
+  rememberText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#cbd5e1",
+  },
   forgotRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: -2,
-    marginBottom: 8,
   },
   forgotText: {
     color: "#a78bfa",

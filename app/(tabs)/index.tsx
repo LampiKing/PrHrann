@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   Platform,
+  useWindowDimensions,
   Animated as RNAnimated,
   Easing,
   Modal,
@@ -124,8 +125,27 @@ const FUN_FACTS = [
   "Ali veš, da primerjava cen pogosto prihrani več, kot pričakuješ?",
 ];
 
+const FUN_FACTS_LEGACY = [
+  "Ali veš, da primerjava cen pred tedenskim nakupom prinese največ prihrankov?",
+  "Ali veš, da se prihranek na lestvici šteje le iz potrjenih računov?",
+  "Ali veš, da košarica pokaže potencialni prihranek, račun pa potrdi dejanski?",
+  "Ali veš, da se akcije in cene pogosto zamenjajo čez vikend?",
+  "Ali veš, da redno preverjanje cen zmanjša nepotrebne nakupe?",
+  "Ali veš, da je slikanje računa dovoljeno le isti dan do 23:00?",
+  "Ali veš, da kombinacija kuponov in akcij pogosto prinese največ?",
+  "Ali veš, da tudi majhni prihranki skozi leto ustvarijo velik rezultat?",
+  "Ali veš, da načrtovana košarica pomaga pri pametnem nakupu?",
+  "Ali veš, da lahko preveriš cene tik pred odhodom v trgovino?",
+  "Ali veš, da prihranek temelji na dejanskem nakupu, ne na košarici?",
+  "Ali veš, da je tvoj rezultat vedno pošten, ker upošteva le račune?",
+  "Ali veš, da pameten načrt nakupa zmanjša impulzivne odločitve?",
+  "Ali veš, da primerjava cen pogosto prihrani več, kot pričakuješ?",
+];
+
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 420;
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -203,6 +223,16 @@ export default function SearchScreen() {
   const showWaitOption = isGuestLimitContext;
   const guestOptionsCount = (showRegistrationCta ? 1 : 0) + (showPlusCta ? 1 : 0);
   const guestOptionsSingle = guestOptionsCount === 1;
+  const showTopFabs = !isPremium || isGuestMode;
+  const fabTop = insets.top + (isCompact ? 4 : 12);
+  const fabHorizontal = isCompact ? 10 : 16;
+  const premiumIconSize = isCompact ? 16 : 18;
+  const authIconSize = isCompact ? 16 : 18;
+  const premiumFabLabel = isCompact ? "Premium" : "Kupi Premium";
+  const authFabLabel = isCompact ? "Prijava" : "Prijava / Registracija";
+  const fabScaleMin = isCompact ? 0.92 : 0.98;
+  const fabScaleMax = isCompact ? 1.02 : 1.04;
+  const scrollTopPadding = insets.top + (showTopFabs ? (isCompact ? 140 : 104) : 20);
   const cart = useQuery(
     api.cart.getCart,
     isAuthenticated && !isGuestMode ? {} : "skip"
@@ -283,12 +313,16 @@ export default function SearchScreen() {
 
   const handleGuestAuthPress = useCallback(() => {
     closeGuestModal();
-    router.push({ pathname: "/auth", params: { mode: "register" } });
+    setTimeout(() => {
+      router.push({ pathname: "/auth", params: { mode: "register" } });
+    }, 80);
   }, [closeGuestModal, router]);
 
   const handleGuestPremiumPress = useCallback(() => {
     closeGuestModal();
-    router.push("/premium");
+    setTimeout(() => {
+      router.push("/premium");
+    }, 80);
   }, [closeGuestModal, router]);
 
   const triggerCartToast = useCallback((message: string) => {
@@ -333,13 +367,16 @@ export default function SearchScreen() {
   
   // Debounce search input
   useEffect(() => {
+    if (!isPremium) {
+      return;
+    }
     const timer = setTimeout(() => {
       if (searchQuery.length >= 2 && !searching) {
         handleSearch();
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, searching, isPremium]);
   
   // Handle search with recordSearch call
   const handleSearch = async () => {
@@ -347,12 +384,6 @@ export default function SearchScreen() {
     
     // Validate query
     if (trimmedQuery.length < 2 || trimmedQuery.length > 100) {
-      return;
-    }
-    
-    // Check search limits
-    if (!isPremium && searchesRemaining <= 0) {
-      openGuestModal("search");
       return;
     }
     
@@ -365,9 +396,6 @@ export default function SearchScreen() {
         openGuestModal("search");
         setSearching(false);
         return;
-      }
-      if (!isPremium && recordResult.searchesRemaining <= 0) {
-        openGuestModal("search");
       }
       setApprovedQuery(trimmedQuery);
       
@@ -394,10 +422,6 @@ export default function SearchScreen() {
     : [];
 
   const handleSearchFocus = () => {
-    if (!isPremium && searchesRemaining <= 0) {
-      openGuestModal("search");
-      return;
-    }
     RNAnimated.spring(searchBarScale, {
       toValue: 1.02,
       useNativeDriver: true,
@@ -1047,7 +1071,8 @@ export default function SearchScreen() {
           style={[
             styles.premiumFab,
             {
-              top: insets.top + 12,
+              top: fabTop,
+              left: fabHorizontal,
               transform: [
                 {
                   translateX: shakeAnim.interpolate({
@@ -1058,7 +1083,7 @@ export default function SearchScreen() {
                 {
                   scale: glowAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0.98, 1.04],
+                    outputRange: [fabScaleMin, fabScaleMax],
                   }),
                 },
               ],
@@ -1078,10 +1103,15 @@ export default function SearchScreen() {
               colors={["#fbbf24", "#f59e0b", "#d97706"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.premiumFabGradient}
+              style={[
+                styles.premiumFabGradient,
+                isCompact && styles.premiumFabGradientCompact,
+              ]}
             >
-              <Ionicons name="diamond" size={18} color="#000" />
-              <Text style={styles.premiumFabText}>Kupi Premium</Text>
+              <Ionicons name="diamond" size={premiumIconSize} color="#000" />
+              <Text style={[styles.premiumFabText, isCompact && styles.premiumFabTextCompact]}>
+                {premiumFabLabel}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         </RNAnimated.View>
@@ -1092,12 +1122,13 @@ export default function SearchScreen() {
           style={[
             styles.authFab,
             {
-              top: insets.top + 12,
+              top: fabTop,
+              right: fabHorizontal,
               transform: [
                 {
                   scale: glowAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0.98, 1.04],
+                    outputRange: [fabScaleMin, fabScaleMax],
                   }),
                 },
               ],
@@ -1117,10 +1148,15 @@ export default function SearchScreen() {
               colors={["#8b5cf6", "#7c3aed"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
-              style={styles.authFabGradient}
+              style={[
+                styles.authFabGradient,
+                isCompact && styles.authFabGradientCompact,
+              ]}
             >
-              <Ionicons name="person-add" size={18} color="#fff" />
-              <Text style={styles.authFabText}>Prijava / Registracija</Text>
+              <Ionicons name="person-add" size={authIconSize} color="#fff" />
+              <Text style={[styles.authFabText, isCompact && styles.authFabTextCompact]}>
+                {authFabLabel}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         </RNAnimated.View>
@@ -1128,7 +1164,7 @@ export default function SearchScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: scrollTopPadding }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         stickyHeaderIndices={[1]}
@@ -1150,15 +1186,17 @@ export default function SearchScreen() {
               colors={["rgba(139, 92, 246, 0.18)", "rgba(88, 28, 135, 0.28)"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.guestBanner}
+              style={[styles.guestBanner, isCompact && styles.guestBannerCompact]}
             >
               <View style={styles.guestBannerRow}>
                 <View style={styles.guestBannerBadge}>
                   <Ionicons name="lock-closed" size={14} color="#c4b5fd" />
                   <Text style={styles.guestBannerBadgeText}>GOST</Text>
                 </View>
-                <Text style={styles.guestBannerTitle}>Odkleni Košarico in Profil</Text>
-                <Text style={styles.guestBannerText}>
+                <Text style={[styles.guestBannerTitle, isCompact && styles.guestBannerTitleCompact]}>
+                  Odkleni košarico in profil
+                </Text>
+                <Text style={[styles.guestBannerText, isCompact && styles.guestBannerTextCompact]}>
                   Registracija odklene še 2 iskanji danes + Košarica + Profil.
                 </Text>
               </View>
@@ -1171,10 +1209,15 @@ export default function SearchScreen() {
                   colors={["#8b5cf6", "#7c3aed"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.guestBannerCtaGradient}
+                  style={[
+                    styles.guestBannerCtaGradient,
+                    isCompact && styles.guestBannerCtaGradientCompact,
+                  ]}
                 >
                   <Ionicons name="person-add" size={16} color="#fff" />
-                  <Text style={styles.guestBannerCtaText}>Prijava / Registracija</Text>
+                  <Text style={[styles.guestBannerCtaText, isCompact && styles.guestBannerCtaTextCompact]}>
+                    Prijava / Registracija
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             </LinearGradient>
@@ -2437,11 +2480,20 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 22,
   },
+  premiumFabGradientCompact: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
   premiumFabText: {
     fontSize: 15,
     fontWeight: "800",
     color: "#000",
     letterSpacing: 0.2,
+  },
+  premiumFabTextCompact: {
+    fontSize: 12,
+    letterSpacing: 0,
   },
   authFab: {
     position: "absolute",
@@ -2462,11 +2514,20 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 22,
   },
+  authFabGradientCompact: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
   authFabText: {
     fontSize: 14,
     fontWeight: "800",
     color: "#fff",
     letterSpacing: 0.1,
+  },
+  authFabTextCompact: {
+    fontSize: 12,
+    letterSpacing: 0,
   },
   cartToast: {
     position: "absolute",
@@ -2908,6 +2969,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(139, 92, 246, 0.28)",
     ...createShadow("#8b5cf6", 0, 6, 0.25, 12, 8),
   },
+  guestBannerCompact: {
+    padding: 10,
+    borderRadius: 14,
+  },
   guestBannerRow: {
     gap: 6,
   },
@@ -2934,10 +2999,17 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#fff",
   },
+  guestBannerTitleCompact: {
+    fontSize: 13,
+  },
   guestBannerText: {
     fontSize: 12,
     color: "#cbd5e1",
     lineHeight: 18,
+  },
+  guestBannerTextCompact: {
+    fontSize: 10,
+    lineHeight: 14,
   },
   guestBannerCta: {
     marginTop: 12,
@@ -2951,10 +3023,17 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
   },
+  guestBannerCtaGradientCompact: {
+    paddingVertical: 8,
+    gap: 6,
+  },
   guestBannerCtaText: {
     fontSize: 14,
     fontWeight: "700",
     color: "#fff",
+  },
+  guestBannerCtaTextCompact: {
+    fontSize: 11,
   },
   statusBanner: {
     borderRadius: 18,

@@ -8,6 +8,7 @@ import {
   Platform,
   TextInput,
   Modal,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -28,7 +29,7 @@ const FREE_LOYALTY_CARDS = [
     store: "Spar",
     color: "#c8102e",
     icon: "card",
-    description: "Priljubljena kartica za zbiranje tock in popuste",
+    description: "Priljubljena kartica za zbiranje točk in popuste",
     perks: "Tedenske akcije in kuponi",
   },
   {
@@ -38,12 +39,12 @@ const FREE_LOYALTY_CARDS = [
     color: "#d3003c",
     icon: "card",
     description: "Zbiraj pike in prihrani pri vsakem nakupu",
-    perks: "Pika popusti in tocke",
+    perks: "Pika popusti in točke",
   },
   {
     id: "tus",
-    name: "Tus Klub",
-    store: "Tus",
+    name: "Tuš Klub",
+    store: "Tuš",
     color: "#0d8a3c",
     icon: "card",
     description: "Družinske ugodnosti in posebni popusti",
@@ -79,8 +80,8 @@ const PREMIUM_LOYALTY_CARDS = [
     store: "Jager",
     color: "#1f8a3c",
     icon: "leaf",
-    description: "Tocke zvestobe in klub popusti",
-    perks: "Klubski popusti in tocke",
+    description: "Točke zvestobe in klub popusti",
+    perks: "Klubski popusti in točke",
     isPremium: true,
   },
 ];
@@ -152,6 +153,8 @@ const barcodeStyles = StyleSheet.create({
 
 export default function LoyaltyCardsScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 420;
   const { isAuthenticated } = useConvexAuth();
   const profile = useQuery(
     api.userProfiles.getProfile,
@@ -301,7 +304,7 @@ export default function LoyaltyCardsScreen() {
                     setLabelInput("");
                   }}
                 >
-                  <Text style={styles.cancelButtonText}>Preklici</Text>
+                  <Text style={styles.cancelButtonText}>Prekliči</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.saveButton, { backgroundColor: card.color }]}
@@ -317,7 +320,11 @@ export default function LoyaltyCardsScreen() {
               {cards[card.id].map((entry) => (
                 <View
                   key={`${entry.number}-${entry.label ?? ""}`}
-                  style={[styles.cardNumberDisplay, { backgroundColor: `${card.color}10`, borderColor: `${card.color}30` }]}
+                  style={[
+                    styles.cardNumberDisplay,
+                    isCompact && styles.cardNumberDisplayCompact,
+                    { backgroundColor: `${card.color}10`, borderColor: `${card.color}30` },
+                  ]}
                 >
                   <View style={styles.cardNumberLeft}>
                     <Ionicons name="card-outline" size={20} color={card.color} />
@@ -330,18 +337,20 @@ export default function LoyaltyCardsScreen() {
                       ) : null}
                     </View>
                   </View>
-                  <View style={styles.cardActions}>
+                  <View style={[styles.cardActions, isCompact && styles.cardActionsCompact]}>
                     <TouchableOpacity
-                      style={styles.actionBtn}
+                      style={[styles.actionBtn, isCompact && styles.actionBtnWide]}
                       onPress={() => handleShowBarcode(card.id, entry.number)}
                     >
                       <Ionicons name="card" size={16} color="#10b981" />
+                      <Text style={styles.actionBtnText}>Prikaži kartico</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.actionBtn}
+                      style={[styles.actionBtn, styles.actionBtnDanger, isCompact && styles.actionBtnWide]}
                       onPress={() => handleRemoveCardNumber(card.id, entry.number)}
                     >
                       <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                      <Text style={[styles.actionBtnText, styles.actionBtnTextDanger]}>Izbriši</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -354,7 +363,7 @@ export default function LoyaltyCardsScreen() {
               >
                 <Ionicons name="add-circle-outline" size={22} color={card.color} />
                 <Text style={[styles.addButtonText, { color: card.color }]}> 
-                  Dodaj se eno kartico
+                  Dodaj še eno kartico
                 </Text>
               </TouchableOpacity>
             </View>
@@ -523,7 +532,7 @@ export default function LoyaltyCardsScreen() {
                   <View style={styles.barcodeInstructionBox}>
                     <Ionicons name="scan-outline" size={20} color="#a78bfa" />
                     <Text style={styles.barcodeModalHint}>
-                      Crtna koda pripravljena
+                      Črtna koda pripravljena
                     </Text>
                   </View>
                   
@@ -970,10 +979,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderWidth: 1,
   },
+  cardNumberDisplayCompact: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 10,
+  },
   cardNumberLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    flex: 1,
   },
   cardNumberText: {
     fontSize: 15,
@@ -984,11 +999,38 @@ const styles = StyleSheet.create({
   cardActions: {
     flexDirection: "row",
     gap: 8,
+    alignItems: "center",
+  },
+  cardActionsCompact: {
+    width: "100%",
+    flexDirection: "column",
+    alignItems: "stretch",
+    marginTop: 10,
+    gap: 8,
   },
   actionBtn: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
+  actionBtnWide: {
+    width: "100%",
+    justifyContent: "center",
+  },
+  actionBtnDanger: {
+    backgroundColor: "rgba(239, 68, 68, 0.12)",
+  },
+  actionBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#e2e8f0",
+  },
+  actionBtnTextDanger: {
+    color: "#fecaca",
   },
   inputButtons: {
     flexDirection: "row",

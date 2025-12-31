@@ -259,7 +259,7 @@ export default function ProfileScreen() {
       return;
     }
     if (!receiptConfirmed) {
-      setReceiptError("Potrdi da je slikani račun tvoj.");
+      setReceiptError("Potrdi, da je slikani račun tvoj.");
       return;
     }
 
@@ -352,23 +352,16 @@ export default function ProfileScreen() {
 
   const handleSignOut = async () => {
     setSigningOut(true);
-    const timeout = new Promise<void>((resolve) => setTimeout(resolve, 2500));
     try {
-      // Race signOut with a short timeout so UI is responsive even if network/storage hangs
-      await Promise.race([authClient.signOut(), timeout]);
+      await authClient.signOut();
     } catch (error) {
       console.error("Napaka pri odjavi:", error);
     } finally {
-      // Show a brief toast and haptic feedback before navigating
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      setShowSignOutToast(true);
-      setTimeout(() => {
-        setShowSignOutToast(false);
-        router.replace("/auth");
-        setSigningOut(false);
-      }, 800);
+      router.replace({ pathname: "/auth", params: { mode: "login" } });
+      setSigningOut(false);
     }
   };
 
@@ -760,7 +753,7 @@ export default function ProfileScreen() {
               <View style={styles.settingIcon}>
                 <Ionicons name="help-circle-outline" size={20} color="#a78bfa" />
               </View>
-              <Text style={styles.settingText}>Pomoc</Text>
+              <Text style={styles.settingText}>Pomoč</Text>
               <Ionicons name="chevron-forward" size={20} color="#6b7280" />
             </TouchableOpacity>
 
@@ -846,7 +839,7 @@ export default function ProfileScreen() {
                 <View style={[styles.receiptCheckBox, receiptConfirmed && styles.receiptCheckBoxChecked]}>
                   {receiptConfirmed && <Ionicons name="checkmark" size={14} color="#fff" />}
                 </View>
-                <Text style={styles.receiptCheckText}>Potrdi da je slikani račun tvoj.</Text>
+                <Text style={styles.receiptCheckText}>Potrdi, da je slikani račun tvoj.</Text>
               </TouchableOpacity>
 
               {receiptError ? <Text style={styles.receiptErrorText}>{receiptError}</Text> : null}

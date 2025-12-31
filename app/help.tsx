@@ -70,9 +70,9 @@ export default function HelpScreen() {
     
     Alert.alert(
       "Resetiraj podatke",
-      "Ali si preprican, da zelis resetirati in ponovno naloziti vse podatke? To bo izbrisalo vse obstojece podatke.",
+      "Ali si prepričan, da želiš resetirati in ponovno naložiti vse podatke? To bo izbrisalo vse obstoječe podatke.",
       [
-        { text: "Preklici", style: "cancel" },
+        { text: "Prekliči", style: "cancel" },
         {
           text: "Resetiraj",
           style: "destructive",
@@ -85,7 +85,7 @@ export default function HelpScreen() {
                 `Nalozenih:\n${result.stores} trgovin\n${result.products} izdelkov\n${result.prices} cen\n${result.coupons} kuponov`
               );
             } catch {
-              Alert.alert("Napaka", "Ni bilo mogoce resetirati podatkov.");
+              Alert.alert("Napaka", "Ni bilo mogoče resetirati podatkov.");
             } finally {
               setIsResetting(false);
             }
@@ -120,7 +120,7 @@ export default function HelpScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Pomoc</Text>
+          <Text style={styles.headerTitle}>Pomoč</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -138,7 +138,7 @@ export default function HelpScreen() {
               <View style={styles.contactIcon}>
                 <Ionicons name="headset" size={32} color="#a78bfa" />
               </View>
-              <Text style={styles.contactTitle}>Potrebujes pomoc?</Text>
+              <Text style={styles.contactTitle}>Potrebuješ pomoč?</Text>
               <Text style={styles.contactText}>
                 Naša ekipa ti je na voljo za vsa vprašanja in težave.
               </Text>
@@ -185,7 +185,7 @@ export default function HelpScreen() {
 
           {/* App Info */}
           <View style={styles.appInfo}>
-            <Text style={styles.appVersion}>Pr'Hran verzija 1.0.0</Text>
+            <Text style={styles.appVersion}>Pr'Hran verzija 1.3.0</Text>
             <Text style={styles.appCopyright}>(c) 2024 Pr'Hran. Vse pravice pridržane.</Text>
           </View>
 
