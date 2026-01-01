@@ -2,13 +2,25 @@
 
 Ta skripta tedensko pobere cene iz spletnih trgovin in jih pošlje v Convex.
 
-## 1) Namesti knjižnice
+## 1) Avtomatika (GitHub Actions)
+
+V repozitorij je dodan workflow `.github/workflows/grocery-scan.yml`, ki teče
+vsako nedeljo ob 21:00 UTC in sam pošlje podatke v Convex.
+
+**Nujno nastavi GitHub Secrets:**
+
+- `PRHRAN_INGEST_URL` = `https://vibrant-dolphin-871.convex.site/api/ingest/grocery`
+- `PRHRAN_INGEST_TOKEN` = tvoj skrivni token
+
+Nato dodaj isti `PRHRAN_INGEST_TOKEN` še v Convex okolje (Environment Variables).
+
+## 2) Namesti knjižnice (samo če želiš ročno testirati lokalno)
 
 ```bash
 pip install requests beautifulsoup4
 ```
 
-## 2) Nastavi okoljske spremenljivke
+## 3) Nastavi okoljske spremenljivke (lokalno)
 
 V `.env.local` ali v System Environment Variables dodaj:
 
@@ -23,7 +35,7 @@ PRHRAN_INGEST_TOKEN=USTVARI_DOLG_SKRIT_TOKEN
 PRHRAN_INGEST_TOKEN=USTVARI_DOLG_SKRIT_TOKEN
 ```
 
-## 3) Ročni zagon
+## 4) Ročni zagon
 
 ```bash
 python grocery_scanner.py --upload
@@ -38,7 +50,7 @@ cene_data/
   spremembe/
 ```
 
-## 4) Tedenski zagon (Windows Task Scheduler)
+## 5) Tedenski zagon (Windows Task Scheduler)
 
 - Create Basic Task → Weekly → Sunday 06:00
 - Action: Start a program
