@@ -1,4 +1,5 @@
-import { httpRouter } from "convex/server";
+import { httpAction, httpRouter } from "convex/server";
+import { internal } from "./_generated/api";
 import { authComponent, createAuth } from "./auth";
 
 const http = httpRouter();
@@ -48,6 +49,48 @@ authComponent.registerRoutes(http, createAuth, {
       "Set-Better-Auth-Cookie",
     ],
   },
+});
+
+http.route({
+  path: "/api/ingest/grocery",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const expectedToken = process.env.PRHRAN_INGEST_TOKEN;
+    if (!expectedToken) {
+      return new Response("Ingest token not configured", { status: 500 });
+    }
+
+    const authHeader = request.headers.get("authorization") || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : authHeader.trim();
+
+    if (token !== expectedToken) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    let payload: any = null;
+    try {
+      payload = await request.json();
+    } catch {
+      return new Response("Invalid JSON", { status: 400 });
+    }
+
+    const items = payload?.izdelki || payload?.items || [];
+    if (!Array.isArray(items)) {
+      return new Response("Missing items", { status: 400 });
+    }
+
+    const result = await ctx.runMutation(
+      internal.groceryImport.importFromScanner,
+      { items }
+    );
+
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
 });
 
 export default http;

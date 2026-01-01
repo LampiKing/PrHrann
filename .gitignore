@@ -24,6 +24,7 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+scan.log
 
 # macOS
 .DS_Store
@@ -32,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 .env
+
+# grocery scanner output
+cene_data/
 
 # typescript
 *.tsbuildinfo
