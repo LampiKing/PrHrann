@@ -1,4 +1,4 @@
-import { httpAction, httpRouter } from "convex/server";
+import { httpActionGeneric, httpRouter } from "convex/server";
 import { internal } from "./_generated/api";
 import { authComponent, createAuth } from "./auth";
 
@@ -54,7 +54,7 @@ authComponent.registerRoutes(http, createAuth, {
 http.route({
   path: "/api/ingest/grocery",
   method: "POST",
-  handler: httpAction(async (ctx, request) => {
+  handler: httpActionGeneric(async (ctx, request) => {
     const expectedToken = process.env.PRHRAN_INGEST_TOKEN;
     if (!expectedToken) {
       return new Response("Ingest token not configured", { status: 500 });

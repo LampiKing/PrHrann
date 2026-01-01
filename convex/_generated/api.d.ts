@@ -18,6 +18,7 @@ import type * as coupons from "../coupons.js";
 import type * as crons from "../crons.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as functions from "../functions.js";
+import type * as groceryImport from "../groceryImport.js";
 import type * as http from "../http.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as notify from "../notify.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   emailVerification: typeof emailVerification;
   functions: typeof functions;
+  groceryImport: typeof groceryImport;
   http: typeof http;
   leaderboard: typeof leaderboard;
   notify: typeof notify;
