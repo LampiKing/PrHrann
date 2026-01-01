@@ -2,6 +2,8 @@ import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 
+const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
+
 // Pridobi vse trgovine
 export const getAll = query({
   args: {},
@@ -16,7 +18,8 @@ export const getAll = query({
     })
   ),
   handler: async (ctx) => {
-    return await ctx.db.query("stores").collect();
+    const stores = await ctx.db.query("stores").collect();
+    return stores.filter((store) => ALLOWED_STORE_NAMES.has(store.name));
   },
 });
 
@@ -32,9 +35,6 @@ export const seedStores = mutation({
       { name: "Spar", color: "#FDB913", isPremium: false }, // Rumeno-rdeč
       { name: "Mercator", color: "#E31E24", isPremium: false }, // Belo-rdeč s pikicami
       { name: "Tus", color: "#1B5E20", isPremium: false }, // Temno zelen
-      { name: "Lidl", color: "#0050AA", isPremium: false }, // Moder
-      { name: "Hofer", color: "#FFD500", isPremium: true }, // Rumen
-      { name: "Jager", color: "#8B4513", isPremium: true },
     ];
 
     for (const store of stores) {

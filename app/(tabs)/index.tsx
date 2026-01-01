@@ -125,6 +125,7 @@ const FUN_FACTS = [
   "Ali veš, da primerjava cen pogosto prihrani več, kot pričakuješ?",
 ];
 
+/*
 const FUN_FACTS_LEGACY = [
   "Ali veš, da primerjava cen pred tedenskim nakupom prinese največ prihrankov?",
   "Ali veš, da se prihranek na lestvici šteje le iz potrjenih računov?",
@@ -141,6 +142,7 @@ const FUN_FACTS_LEGACY = [
   "Ali veš, da pameten načrt nakupa zmanjša impulzivne odločitve?",
   "Ali veš, da primerjava cen pogosto prihrani več, kot pričakuješ?",
 ];
+*/
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
@@ -1396,8 +1398,8 @@ export default function SearchScreen() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>Posodobitev</Text>
-                <Text style={styles.statLabel}>Izdelki: vsako nedeljo ob 22:00</Text>
+                <Text style={styles.statNumber}>Dnevno</Text>
+                <Text style={styles.statLabel}>posodabljanje</Text>
               </View>
             </View>
           </View>
@@ -1872,6 +1874,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
+    paddingBottom: 40,
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
   },
   glowOrb: {
     position: "absolute",

@@ -636,50 +636,6 @@ export const seedCoupons = mutation({
         isPremiumOnly: false,
       },
 
-      // HOFER kuponi (Premium trgovina)
-      {
-        storeId: stores.find(s => s.name === "Hofer")?._id,
-        code: "HOFER20",
-        description: "20% popust na celoten nakup",
-        couponType: "percentage_total" as const,
-        discountValue: 20,
-        minPurchase: 15,
-        validUntil: oneMonthFromNow,
-        excludeSaleItems: false,
-        requiresLoyaltyCard: false,
-        canCombine: false,
-        isPremiumOnly: true,
-      },
-
-      // LIDL kuponi (Premium trgovina)
-      {
-        storeId: stores.find(s => s.name === "Lidl")?._id,
-        code: "LIDL18",
-        description: "18% popust na celoten nakup",
-        couponType: "percentage_total" as const,
-        discountValue: 18,
-        minPurchase: 20,
-        validUntil: oneMonthFromNow,
-        excludeSaleItems: false,
-        requiresLoyaltyCard: false,
-        canCombine: false,
-        isPremiumOnly: true,
-      },
-
-      // JAGER kuponi (Premium trgovina)
-      {
-        storeId: stores.find(s => s.name === "Jager")?._id,
-        code: "JAGER25",
-        description: "25% popust na celoten nakup",
-        couponType: "percentage_total" as const,
-        discountValue: 25,
-        minPurchase: 30,
-        validUntil: oneMonthFromNow,
-        excludeSaleItems: false,
-        requiresLoyaltyCard: false,
-        canCombine: false,
-        isPremiumOnly: true,
-      },
     ];
 
     // Vstavi kupone

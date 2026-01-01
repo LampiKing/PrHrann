@@ -1,14 +1,14 @@
 import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
+const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
+
 const STORE_NAME_MAP: Record<string, string> = {
   "spar online": "Spar",
   "mercator online": "Mercator",
   "hitri nakup": "Tus",
   "tuš": "Tus",
   "tus": "Tus",
-  "trgovine jager": "Jager",
-  "jager": "Jager",
 };
 
 const normalize = (value: string) =>
@@ -85,7 +85,7 @@ export const importFromScanner = internalMutation({
       const rawStore = normalize(item.trgovina || "");
       const mappedStoreName = STORE_NAME_MAP[rawStore] || item.trgovina;
       const store = storeMap.get(normalize(mappedStoreName));
-      if (!store) {
+      if (!store || !ALLOWED_STORE_NAMES.has(store.name)) {
         unknownStores += 1;
         continue;
       }

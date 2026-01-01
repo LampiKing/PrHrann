@@ -1,4 +1,4 @@
-# Grocery Scanner (Spar, Mercator, Hitri Nakup, Jager)
+# Grocery Scanner (Spar, Mercator, Hitri Nakup)
 
 Ta skripta tedensko pobere cene iz spletnih trgovin in jih pošlje v Convex.
 
@@ -61,4 +61,26 @@ cene_data/
 ## Opombe
 
 - Tuš spletna trgovina = Hitri Nakup (`hitrinakup.com`)
-- Hofer in Lidl nimata online trgovine → dodajanje ročno ali prek letakov.
+
+## Kategorije po trgovinah
+
+Če želiš ročno kontrolirati kategorije (npr. "živila only"), uredi:
+
+`grocery_categories.json`
+
+Primer:
+```json
+{
+  "spar": ["/sadje-in-zelenjava", "/kruh-pecivo-in-slascice"],
+  "mercator": [],
+  "hitri_nakup": []
+}
+```
+
+Če je seznam prazen, se uporabi avtomatsko iskanje kategorij.
+
+Opcijsko lahko omejiš skeniranje na eno trgovino ali kategorijo:
+
+```bash
+python grocery_scanner.py --store spar --category zelenjava --upload
+```

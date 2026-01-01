@@ -100,7 +100,7 @@ export function getSeasonWindow(year: number, timeZone = DEFAULT_TIMEZONE): {
   startAt: number;
   endAt: number;
 } {
-  const startAt = getZonedTimestamp(year, 1, 15, 8, 0, 0, timeZone);
+  const startAt = getZonedTimestamp(year, 1, 1, 0, 0, 0, timeZone);
   const endAt = getZonedTimestamp(year, 12, 24, 17, 0, 0, timeZone);
   return { startAt, endAt };
 }

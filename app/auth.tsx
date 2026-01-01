@@ -33,6 +33,7 @@ const FACTS = [
   "Z rednim spremljanjem cen hitreje opaziš prave akcije.",
 ];
 
+/*
 const FACTS_LEGACY = [
   "Pametna primerjava cen ti prihrani čas in denar.",
   "Prihranek na lestvici se šteje samo iz potrjenih računov.",
@@ -41,6 +42,7 @@ const FACTS_LEGACY = [
   "Cene istega izdelka se razlikujejo med trgovinami.",
   "Z rednim spremljanjem cen hitreje opaziš prave akcije.",
 ];
+*/
 
 
 export default function AuthScreen() {
@@ -1159,6 +1161,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     alignItems: "center",
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
   },
   backgroundOrb: {
     position: "absolute",

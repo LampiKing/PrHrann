@@ -21,7 +21,7 @@ const FAQ_ITEMS = [
   {
     question: "Kako deluje primerjava cen?",
     answer:
-      "Pr'Hran avtomatsko primerja cene izdelkov v trgovinah (Spar, Mercator, Tuš, Hofer, Lidl, Jager). Cene se posodabljajo vsako nedeljo ob 22:00, da vedno vidiš najnovejše podatke.",
+      "Pr'Hran avtomatsko primerja cene izdelkov v trgovinah (Spar, Mercator, Tuš). Cene se posodabljajo dnevno, da vedno vidiš najnovejše podatke.",
   },
   {
     question: "Kako delujejo kuponi?",

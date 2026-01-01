@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { authQuery, authMutation } from "./functions";
 import { Id } from "./_generated/dataModel";
 
+const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
+
 // Pridobi košarico uporabnika
 export const getCart = authQuery({
   args: {},
@@ -63,6 +65,10 @@ export const getCart = authQuery({
   }),
   handler: async (ctx) => {
     const userId = ctx.user._id;
+    const store = await ctx.db.get(args.storeId);
+    if (!store || !ALLOWED_STORE_NAMES.has(store.name)) {
+      throw new Error("Trgovina ni na voljo.");
+    }
 
     // Pridobi uporabniški profil za premium status in loyalty cards
     const profile = await ctx.db
@@ -77,35 +83,40 @@ export const getCart = authQuery({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    const items = await Promise.all(
-      cartItems.map(async (item) => {
-        const product = await ctx.db.get(item.productId);
-        const store = await ctx.db.get(item.storeId);
-        
-        // Pridobi trenutno ceno
-        const currentPriceDoc = await ctx.db
-          .query("prices")
-          .withIndex("by_product_and_store", (q) =>
-            q.eq("productId", item.productId).eq("storeId", item.storeId)
-          )
-          .first();
+    const items = (
+      await Promise.all(
+        cartItems.map(async (item) => {
+          const product = await ctx.db.get(item.productId);
+          const store = await ctx.db.get(item.storeId);
+          if (!store || !ALLOWED_STORE_NAMES.has(store.name)) {
+            return null;
+          }
+          
+          // Pridobi trenutno ceno
+          const currentPriceDoc = await ctx.db
+            .query("prices")
+            .withIndex("by_product_and_store", (q) =>
+              q.eq("productId", item.productId).eq("storeId", item.storeId)
+            )
+            .first();
 
-        return {
-          _id: item._id,
-          productId: item.productId,
-          productName: product?.name || "Neznano",
-          productUnit: product?.unit || "",
-          productCategory: product?.category || "Ostalo",
-          storeId: item.storeId,
-          storeName: store?.name || "Neznano",
-          storeColor: store?.color || "#666",
-          quantity: item.quantity,
-          priceAtAdd: item.priceAtAdd,
-          currentPrice: currentPriceDoc?.price || item.priceAtAdd,
-          isOnSale: currentPriceDoc?.isOnSale ?? false,
-        };
-      })
-    );
+          return {
+            _id: item._id,
+            productId: item.productId,
+            productName: product?.name || "Neznano",
+            productUnit: product?.unit || "",
+            productCategory: product?.category || "Ostalo",
+            storeId: item.storeId,
+            storeName: store.name,
+            storeColor: store.color,
+            quantity: item.quantity,
+            priceAtAdd: item.priceAtAdd,
+            currentPrice: currentPriceDoc?.price || item.priceAtAdd,
+            isOnSale: currentPriceDoc?.isOnSale ?? false,
+          };
+        })
+      )
+    ).filter((item): item is NonNullable<typeof item> => item !== null);
 
     // Grupiraj po trgovinah
     const storeGroups = new Map<

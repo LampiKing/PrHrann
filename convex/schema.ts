@@ -2,7 +2,7 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  // Trgovine (Spar, Mercator, Tuš, Lidl, Hofer, Jager)
+  // Trgovine (Spar, Mercator, Tus)
   stores: defineTable({
     name: v.string(),
     logo: v.optional(v.string()),

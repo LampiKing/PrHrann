@@ -56,7 +56,7 @@ Seznam: "Tedenski nakup"
 - Jajca (10 kom)
 - Paradižnik (1kg)
 
-App pove: "Najceneje v Hofru - 12,45€"
+App pove: "Najceneje v Sparu - 12,45€"
           (V Mercatorju bi bilo 14,80€)
 ```
 
@@ -100,9 +100,9 @@ Ko pade pod 5€ →
 💸 Letos skupaj: 584€
 
 🏆 Top prihranek:
-    Kava v Hofru (-40%) → 4,20€ prihraneno
+    Kava v Sparu (-40%) → 4,20€ prihraneno
 
-🏪 Trgovina meseca: Hofer
+🏪 Trgovina meseca: Spar
     15 nakupov → 89,30€ prihrankov
 ```
 
@@ -116,7 +116,7 @@ Ko pade pod 5€ →
 
 **Kaj prikaže:**
 - Vse trgovine v okolici (Google Maps)
-- Filter po trgovini (Spar, Hofer, Lidl...)
+- Filter po trgovini (Spar, Mercator, Tuš...)
 - **Priporočilo:** Najboljša trgovina za tvoj seznam
 - Navigation do trgovine
 - Odpiralni čas
@@ -126,11 +126,11 @@ Ko pade pod 5€ →
 Tvoj seznam: "Vikend"
 
 Zemljevid prikaže:
-🟢 Hofer (1,2 km) - 18,90€ ⭐ NAJCENEJE
+🟢 Spar (1,2 km) - 18,90€ ⭐ NAJCENEJE
 🔵 Mercator (0,8 km) - 22,40€
 🟡 Tuš (2,1 km) - 21,10€
 
-Klikneš Hofer → Navigation
+Klikneš Spar → Navigation
 ```
 
 ---

@@ -23,6 +23,7 @@ DATA_DIR = "cene_data"
 CURRENT_FILE = os.path.join(DATA_DIR, "trenutne_cene.json")
 HISTORY_DIR = os.path.join(DATA_DIR, "zgodovina")
 CHANGES_DIR = os.path.join(DATA_DIR, "spremembe")
+CATEGORY_CONFIG_FILE = "grocery_categories.json"
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -37,6 +38,8 @@ class GroceryScanner:
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
         self.products = []
+        self.store_key = ""
+        self.category_filter: Optional[str] = None
     
     def get_page(self, url: str, delay: float = 1.0) -> Optional[BeautifulSoup]:
         try:
@@ -57,19 +60,76 @@ class GroceryScanner:
         except:
             return None
 
+    def get_override_categories(self) -> List[Dict]:
+        overrides = CATEGORY_OVERRIDES.get(self.store_key, [])
+        if not overrides:
+            return []
+
+        categories = []
+        for entry in overrides:
+            entry = (entry or "").strip()
+            if not entry:
+                continue
+
+            if entry.startswith("http"):
+                url = entry
+                path = re.sub(r"^https?://[^/]+", "", entry)
+            else:
+                path = entry
+                if not path.startswith("/"):
+                    path = f"/{path}"
+                url = urljoin(self.base_url, path)
+
+            slug = path.strip("/").split("/")[-1] or path.strip("/")
+            name = slug.replace("-", " ").replace("_", " ").title() or "Kategorija"
+            categories.append({"name": name, "url": url})
+
+        return categories
+
+    def filter_categories(self, categories: List[Dict]) -> List[Dict]:
+        if not self.category_filter:
+            return categories
+        needle = self.category_filter.lower()
+        return [
+            category
+            for category in categories
+            if needle in category.get("name", "").lower()
+            or needle in category.get("url", "").lower()
+        ]
+
+
+def load_category_overrides() -> Dict[str, List[str]]:
+    if not os.path.exists(CATEGORY_CONFIG_FILE):
+        return {}
+    try:
+        with open(CATEGORY_CONFIG_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return data
+    except Exception as e:
+        logger.warning(f"Napaka pri branju {CATEGORY_CONFIG_FILE}: {e}")
+    return {}
+
+
+CATEGORY_OVERRIDES = load_category_overrides()
+
 
 class SparScanner(GroceryScanner):
     def __init__(self):
         super().__init__("Spar Online", "https://online.spar.si")
+        self.store_key = "spar"
     
     def get_categories(self) -> List[Dict]:
+        overrides = self.get_override_categories()
+        if overrides:
+            return self.filter_categories(overrides)
         categories = []
         known = ['/sadje-in-zelenjava', '/hlajeni-in-mlecni-izdelki', '/sveze-meso-mesni-izdelki-in-ribe',
                  '/vse-za-zajtrk', '/pijace', '/kruh-pecivo-in-slascice', '/shramba',
                  '/bio-in-druga-posebna-hrana', '/zamrznjeni-izdelki', '/sladki-in-slani-prigrizki']
         for cat in known:
             categories.append({'name': cat.strip('/').replace('-', ' ').title(), 'url': f"{self.base_url}{cat}"})
-        return categories
+        return self.filter_categories(categories)
     
     def scan_category(self, category: Dict) -> List[Dict]:
         products = []
@@ -116,8 +176,12 @@ class SparScanner(GroceryScanner):
 class MercatorScanner(GroceryScanner):
     def __init__(self):
         super().__init__("Mercator Online", "https://mercatoronline.si")
+        self.store_key = "mercator"
     
     def get_categories(self) -> List[Dict]:
+        overrides = self.get_override_categories()
+        if overrides:
+            return self.filter_categories(overrides)
         categories = []
         soup = self.get_page(f"{self.base_url}/brskaj")
         if soup:
@@ -125,7 +189,7 @@ class MercatorScanner(GroceryScanner):
                 href, name = item.get('href', ''), item.get_text(strip=True)
                 if href and name:
                     categories.append({'name': name, 'url': urljoin(self.base_url, href)})
-        return categories
+        return self.filter_categories(categories)
     
     def scan_category(self, category: Dict) -> List[Dict]:
         products = []
@@ -167,8 +231,12 @@ class MercatorScanner(GroceryScanner):
 class HitriNakupScanner(GroceryScanner):
     def __init__(self):
         super().__init__("Hitri Nakup", "https://hitrinakup.com")
+        self.store_key = "hitri_nakup"
     
     def get_categories(self) -> List[Dict]:
+        overrides = self.get_override_categories()
+        if overrides:
+            return self.filter_categories(overrides)
         categories = []
         soup = self.get_page(self.base_url)
         if soup:
@@ -176,7 +244,7 @@ class HitriNakupScanner(GroceryScanner):
                 href, name = item.get('href', ''), item.get_text(strip=True)
                 if href and name:
                     categories.append({'name': name, 'url': urljoin(self.base_url, href)})
-        return categories
+        return self.filter_categories(categories)
     
     def scan_category(self, category: Dict) -> List[Dict]:
         products = []
@@ -197,74 +265,6 @@ class HitriNakupScanner(GroceryScanner):
                     'kategorija': category['name'], 'trgovina': self.name,
                     'url': urljoin(self.base_url, link.get('href', '')) if link else None
                 })
-        return products
-    
-    def scan(self) -> List[Dict]:
-        logger.info(f"Skeniram: {self.name}")
-        for cat in self.get_categories():
-            self.products.extend(self.scan_category(cat))
-        return self.products
-
-
-class JagerScanner(GroceryScanner):
-    def __init__(self):
-        super().__init__("Trgovine Jager", "https://www.trgovinejager.com")
-    
-    def get_categories(self) -> List[Dict]:
-        categories = []
-        soup = self.get_page(f"{self.base_url}/zivila/")
-        if not soup:
-            return categories
-        seen = set()
-        for item in soup.select('a[href*="/zivila/"]'):
-            href, name = item.get('href', ''), item.get_text(strip=True)
-            if not href:
-                continue
-            url = urljoin(self.base_url, href)
-            if "/zivila/" not in url:
-                continue
-            if url.rstrip("/") == f"{self.base_url}/zivila":
-                continue
-            if url in seen:
-                continue
-            seen.add(url)
-            categories.append({'name': name or "Živila", 'url': url})
-        return categories
-    
-    def scan_category(self, category: Dict) -> List[Dict]:
-        products = []
-        page = 1
-        while True:
-            url = category['url']
-            page_url = f"{url}?page={page}"
-            soup = self.get_page(page_url)
-            if not soup:
-                break
-            items = soup.select('.product, .product-item, .product-card, li.product, .item')
-            if not items:
-                break
-            for item in items:
-                name_el = item.select_one('.product-name, .product-title, .woocommerce-loop-product__title, h2, h3')
-                if not name_el:
-                    continue
-                name = name_el.get_text(strip=True)
-                price_el = item.select_one('.price, .product-price, .woocommerce-Price-amount')
-                price = self.parse_price(price_el.get_text() if price_el else '')
-                sale_el = item.select_one('.old-price, del .woocommerce-Price-amount, .sale-price')
-                if sale_el:
-                    old = self.parse_price(sale_el.get_text())
-                    regular, sale = (old, price) if old and price and old > price else (price, None)
-                else:
-                    regular, sale = price, None
-                link = item.select_one('a')
-                products.append({
-                    'ime': name, 'redna_cena': regular, 'akcijska_cena': sale,
-                    'kategorija': category['name'], 'trgovina': self.name,
-                    'url': urljoin(self.base_url, link.get('href', '')) if link else None
-                })
-            if not soup.select_one('.pagination .next:not(.disabled)'):
-                break
-            page += 1
         return products
     
     def scan(self) -> List[Dict]:
@@ -358,15 +358,34 @@ def upload_to_convex(data: Dict) -> bool:
 def main():
     parser = argparse.ArgumentParser(description="Tedenski skener cen.")
     parser.add_argument("--upload", action="store_true", help="Poslji rezultate v Convex.")
+    parser.add_argument(
+        "--store",
+        action="append",
+        help="Omeji na trgovino (spar, mercator, hitri_nakup).",
+    )
+    parser.add_argument(
+        "--category",
+        help="Omeji na kategorije, ki vsebujejo ta niz (ime ali URL).",
+    )
     args = parser.parse_args()
 
     ensure_dirs()
     old_data = load_previous_data()
     all_products = []
-    
-    for Scanner in [SparScanner, MercatorScanner, HitriNakupScanner, JagerScanner]:
+
+    store_filter = None
+    if args.store:
+        store_filter = {s.strip().lower() for s in args.store if s.strip()}
+
+    scanners = [SparScanner(), MercatorScanner(), HitriNakupScanner()]
+
+    for scanner in scanners:
+        if store_filter and scanner.store_key not in store_filter and scanner.name.lower() not in store_filter:
+            continue
+        if args.category:
+            scanner.category_filter = args.category
         try:
-            all_products.extend(Scanner().scan())
+            all_products.extend(scanner.scan())
         except Exception as e:
             logger.error(f"Napaka: {e}")
     
@@ -376,8 +395,7 @@ def main():
         'statistika': {
             'spar': len([p for p in all_products if 'Spar' in p['trgovina']]),
             'mercator': len([p for p in all_products if 'Mercator' in p['trgovina']]),
-            'hitri_nakup': len([p for p in all_products if 'Hitri' in p['trgovina']]),
-            'jager': len([p for p in all_products if 'Jager' in p['trgovina']])
+            'hitri_nakup': len([p for p in all_products if 'Hitri' in p['trgovina']])
         },
         'izdelki': all_products
     }

@@ -1,6 +1,8 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
+
 // Iskanje izdelkov
 export const search = query({
   args: { 
@@ -43,7 +45,11 @@ export const search = query({
     );
 
     const stores = await ctx.db.query("stores").collect();
-    const storeMap = new Map(stores.map((s) => [s._id, s]));
+    const storeMap = new Map(
+      stores
+        .filter((store) => ALLOWED_STORE_NAMES.has(store.name))
+        .map((store) => [store._id, store])
+    );
 
     const results = await Promise.all(
       matchedProducts.map(async (product) => {

@@ -15,8 +15,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useQuery, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import Svg, { Rect } from "react-native-svg";
 import { createShadow } from "@/lib/shadow-helper";
 import Logo from "@/lib/Logo";
@@ -52,12 +50,13 @@ const FREE_LOYALTY_CARDS = [
   },
 ];
 
+/*
 // Premium kartice - samo za Premium uporabnike
 const PREMIUM_LOYALTY_CARDS = [
   {
-    id: "hofer",
-    name: "Hofer kartica",
-    store: "Hofer",
+    id: "premium-1",
+    name: "Premium kartica",
+    store: "Premium",
     color: "#0b3d7a",
     icon: "card",
     description: "Ekskluzivni popusti in tedenske akcije",
@@ -65,9 +64,9 @@ const PREMIUM_LOYALTY_CARDS = [
     isPremium: true,
   },
   {
-    id: "lidl",
-    name: "Lidl Plus",
-    store: "Lidl",
+    id: "premium-2",
+    name: "Premium kartica",
+    store: "Premium",
     color: "#0047ba",
     icon: "card",
     description: "Digitalni kuponi in posebne ponudbe",
@@ -75,9 +74,9 @@ const PREMIUM_LOYALTY_CARDS = [
     isPremium: true,
   },
   {
-    id: "jager",
-    name: "Jager Klub",
-    store: "Jager",
+    id: "premium-3",
+    name: "Premium kartica",
+    store: "Premium",
     color: "#1f8a3c",
     icon: "leaf",
     description: "Točke zvestobe in klub popusti",
@@ -85,6 +84,7 @@ const PREMIUM_LOYALTY_CARDS = [
     isPremium: true,
   },
 ];
+*/
 
 // Generate barcode pattern from card number
 const generateBarcodePattern = (number: string): number[] => {
@@ -155,12 +155,6 @@ export default function LoyaltyCardsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isCompact = width < 520;
-  const { isAuthenticated } = useConvexAuth();
-  const profile = useQuery(
-    api.userProfiles.getProfile,
-    isAuthenticated ? {} : "skip"
-  );
-  const isPremium = profile?.isPremium ?? false;
 
   const [cards, setCards] = useState<Record<string, { number: string; label?: string }[]>>({});
   const [editingCard, setEditingCard] = useState<string | null>(null);
@@ -171,8 +165,8 @@ export default function LoyaltyCardsScreen() {
   >(null);
 
   // Get card data for modal
-  const activeCard = showBarcodeModal 
-    ? [...FREE_LOYALTY_CARDS, ...PREMIUM_LOYALTY_CARDS].find(c => c.id === showBarcodeModal.cardId)
+  const activeCard = showBarcodeModal
+    ? FREE_LOYALTY_CARDS.find(c => c.id === showBarcodeModal.cardId)
     : null;
   const activeNumber = showBarcodeModal?.number;
 
@@ -437,58 +431,6 @@ export default function LoyaltyCardsScreen() {
             </View>
             {FREE_LOYALTY_CARDS.map(renderCard)}
 
-            {/* Premium cards: show real cards if premium, otherwise gentle unlock callout */}
-            {isPremium ? (
-              <>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Premium kartice</Text>
-                  <Text style={styles.sectionTag}>Plus / Family</Text>
-                </View>
-                {PREMIUM_LOYALTY_CARDS.map(renderCard)}
-              </>
-            ) : (
-              <View style={styles.premiumLockedContainer}>
-                <LinearGradient
-                  colors={["rgba(251, 191, 36, 0.1)", "rgba(245, 158, 11, 0.05)"]}
-                  style={styles.premiumLockedGradient}
-                >
-                  <View style={styles.premiumLockedIcon}>
-                    <Ionicons name="lock-closed" size={32} color="#fbbf24" />
-                  </View>
-                  <Text style={styles.premiumLockedTitle}>Odkleni Hofer, Lidl, Jager</Text>
-                  <Text style={styles.premiumLockedText}>
-                    Nadgradi na Premium (1,99 EUR/mesec) in dodaj kartice Hofer, Lidl Plus in Jager klub.
-                  </Text>
-
-                  <View style={styles.lockedCardsPreview}>
-                    {PREMIUM_LOYALTY_CARDS.map((card) => (
-                      <View key={card.id} style={styles.lockedCardPreview}>
-                        <View style={[styles.lockedCardIcon, { backgroundColor: `${card.color}30` }]}>
-                          <Ionicons name="card" size={20} color={card.color} />
-                        </View>
-                        <Text style={styles.lockedCardName}>{card.name}</Text>
-                        <Ionicons name="lock-closed" size={14} color="#6b7280" />
-                      </View>
-                    ))}
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.premiumButton}
-                    onPress={() => router.push("/premium")}
-                  >
-                    <LinearGradient
-                      colors={["#fbbf24", "#f59e0b"]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.premiumButtonGradient}
-                    >
-                      <Ionicons name="star" size={18} color="#000" />
-                      <Text style={styles.premiumButtonText}>Nadgradi na Premium - 1,99 EUR/mesec</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </LinearGradient>
-              </View>
-            )}
           </View>
 
           <View style={{ height: 40 }} />

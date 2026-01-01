@@ -48,7 +48,7 @@ export default function ProfileScreen() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [showSignOutToast, setShowSignOutToast] = useState(false);
+  const [showSignOutToast] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [receiptConfirmed, setReceiptConfirmed] = useState(false);
@@ -1016,7 +1016,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.modalFeature}>
                       <Ionicons name="close" size={16} color="#ef4444" />
-                      <Text style={styles.modalFeatureTextDisabled}>Hofer, Lidl, Jager</Text>
+                      <Text style={styles.modalFeatureTextDisabled}>Omejeno število trgovin</Text>
                     </View>
                     <View style={styles.modalFeature}>
                       <Ionicons name="close" size={16} color="#ef4444" />
@@ -1231,6 +1231,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
+    paddingBottom: 40,
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
   },
   glowOrb: {
     position: "absolute",
