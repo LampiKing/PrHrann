@@ -1459,12 +1459,6 @@ export default function SearchScreen() {
           </View>
         ) : (
           <View style={styles.resultsContainer}>
-            {isSearchResultsLoading && (
-              <View style={styles.searchingHintInline}>
-                <Ionicons name="time-outline" size={14} color="#fbbf24" />
-                <Text style={styles.searchingHintTextInline}>Posodabljam rezultate...</Text>
-              </View>
-            )}
             <Text style={styles.resultsCount}>
               {sortedResults.length} {sortedResults.length === 1 ? "rezultat" : "rezultatov"}
             </Text>
@@ -1975,17 +1969,6 @@ const styles = StyleSheet.create({
   searchingHintText: {
     color: "#fcd34d",
     fontSize: 15,
-    fontWeight: "600",
-  },
-  searchingHintInline: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 10,
-  },
-  searchingHintTextInline: {
-    color: "#fcd34d",
-    fontSize: 13,
     fontWeight: "600",
   },
   title: {
