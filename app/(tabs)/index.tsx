@@ -1477,17 +1477,17 @@ export default function SearchScreen() {
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>3</Text>
-                <Text style={styles.statLabel}>Trgovin</Text>
+                <Text style={styles.statLabel}>Trgovin (več kmalu)</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>1000+</Text>
+                <Text style={styles.statNumber}>10000+</Text>
                 <Text style={styles.statLabel}>Izdelkov</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>Dnevno</Text>
-                <Text style={styles.statLabel}>posodabljanje</Text>
+                <Text style={styles.statLabel}>posodabljanje izdelkov</Text>
               </View>
             </View>
           </View>
@@ -2000,9 +2000,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logo: {
-    width: 160,
-    height: 160,
-    marginBottom: 8,
+    width: 200,
+    height: 200,
+    marginBottom: 12,
   },
   searchingHint: {
     flexDirection: "row",

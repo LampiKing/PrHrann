@@ -294,7 +294,7 @@ export default function AuthScreen() {
   const trimmedEmail = email.trim().toLowerCase();
   const trimmedNickname = nickname.trim();
   const emailValid = validateEmail(trimmedEmail);
-  const passwordValid = password.length >= 6;
+  const passwordValid = password.length >= 8;
   const nicknameValid = isLogin
     ? true
     : trimmedNickname.length >= 3 && trimmedNickname.length <= 20;
@@ -337,8 +337,8 @@ export default function AuthScreen() {
       return;
     }
 
-    if (!password || password.length < 6) {
-      setError("Geslo mora imeti vsaj 6 znakov");
+    if (!password || password.length < 8) {
+      setError("Geslo mora imeti vsaj 8 znakov");
       shakeError();
       return;
     }
@@ -865,7 +865,7 @@ export default function AuthScreen() {
                       <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
-                        placeholder="Geslo (min. 6 znakov)"
+                        placeholder="Geslo (min. 8 znakov)"
                         placeholderTextColor="#6b7280"
                         value={password}
                         onChangeText={setPassword}
@@ -896,7 +896,7 @@ export default function AuthScreen() {
 
                     <View style={styles.helperRow}>
                       <Ionicons name="shield-checkmark-outline" size={16} color="#6b7280" />
-                      <Text style={styles.helperText}>Vsaj 6 znakov; najbolj varno je črke + številke.</Text>
+                      <Text style={styles.helperText}>Vsaj 8 znakov; najbolj varno je črke + številke + posebni znaki.</Text>
                     </View>
 
                     {!isLogin && password.length > 0 && (
