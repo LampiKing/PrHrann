@@ -15,6 +15,12 @@ export const getStats = authQuery({
     totalUsers: v.number(),
     activeUsers: v.number(),
     totalGuests: v.number(),
+    topCountries: v.array(
+      v.object({
+        country: v.string(),
+        count: v.number(),
+      })
+    ),
   }),
   handler: async (ctx) => {
     const profile = await ctx.db
@@ -40,6 +46,18 @@ export const getStats = authQuery({
       (p) => !p.isAnonymous && p.email && activeUserIds.has(p.userId)
     ).length;
 
-    return { totalUsers, activeUsers, totalGuests };
+    // Get location statistics from active sessions
+    const countryCounts = new Map<string, number>();
+    for (const session of sessions) {
+      const country = session.location?.country || "Unknown";
+      countryCounts.set(country, (countryCounts.get(country) || 0) + 1);
+    }
+
+    const topCountries = Array.from(countryCounts.entries())
+      .map(([country, count]) => ({ country, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5); // Top 5 countries
+
+    return { totalUsers, activeUsers, totalGuests, topCountries };
   },
 });

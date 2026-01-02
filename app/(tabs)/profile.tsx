@@ -730,6 +730,26 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               </View>
+
+              {adminStats?.topCountries && adminStats.topCountries.length > 0 && (
+                <View style={styles.geoSection}>
+                  <View style={styles.geoHeader}>
+                    <Ionicons name="globe-outline" size={18} color="#cbd5e1" />
+                    <Text style={styles.geoTitle}>Top Države</Text>
+                  </View>
+                  <View style={styles.geoList}>
+                    {adminStats.topCountries.map((item, index) => (
+                      <View key={item.country} style={styles.geoItem}>
+                        <View style={styles.geoRank}>
+                          <Text style={styles.geoRankText}>{index + 1}</Text>
+                        </View>
+                        <Text style={styles.geoCountry}>{item.country}</Text>
+                        <Text style={styles.geoCount}>{item.count}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
             </LinearGradient>
           </Animated.View>
         )}
@@ -1479,6 +1499,62 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     color: "#fff",
+  },
+  geoSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(139, 92, 246, 0.2)",
+  },
+  geoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  geoTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#cbd5e1",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  geoList: {
+    gap: 8,
+  },
+  geoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(15, 23, 42, 0.4)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.15)",
+  },
+  geoRank: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(139, 92, 246, 0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  geoRankText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#a78bfa",
+  },
+  geoCountry: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#e2e8f0",
+  },
+  geoCount: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#8b5cf6",
   },
   emptyAwards: {
     padding: 16,
