@@ -78,8 +78,16 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>4. Plačila in naročnine</Text>
             <Text style={styles.sectionText}>
-              Naročnina se obračunava mesečno. Preklic je mogoč kadarkoli in velja do konca
-              obračunskega obdobja. Cene so navedene z DDV.
+              Naročnina se obračunava mesečno in se avtomatsko podaljšuje vsak mesec,
+              razen če jo ne prekličeš. Preklic je mogoč kadarkoli in velja do konca
+              obračunskega obdobja. {"\n\n"}
+              <Text style={styles.boldText}>POMEMBNO:</Text> Vračila plačanih naročnin niso mogoča.
+              Ko kupiš Premium ali Family naročnino, je plačilo dokončno in ne moraš dobiti vračila.
+              {"\n\n"}
+              Naročnina se avtomatsko podaljšuje vsak mesec, dokler je ne prekličeš v nastavitvah profila.
+              Če prekličeš naročnino, ostane aktivna do konca obračunskega obdobja.
+              {"\n\n"}
+              Cene so navedene z DDV.
             </Text>
           </View>
 
@@ -179,5 +187,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#cbd5e1",
     lineHeight: 20,
+  },
+  boldText: {
+    fontWeight: "800",
+    color: "#fbbf24",
   },
 });

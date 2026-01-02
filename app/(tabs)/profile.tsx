@@ -454,17 +454,7 @@ export default function ProfileScreen() {
           <Text style={styles.title}>Moj profil</Text>
           <View style={styles.nicknameRow}>
             <Text style={styles.nicknameText}>{displayNickname}</Text>
-            <TouchableOpacity
-              style={[styles.nicknameEditButton, !canChangeNickname && styles.nicknameEditButtonDisabled]}
-              onPress={() => setShowNicknameModal(true)}
-              disabled={!canChangeNickname}
-            >
-              <Ionicons name="create-outline" size={16} color={canChangeNickname ? "#fff" : "#9ca3af"} />
-            </TouchableOpacity>
           </View>
-          {!canChangeNickname && nextNicknameChangeLabel && (
-            <Text style={styles.nicknameHint}>Naslednja sprememba: {nextNicknameChangeLabel}</Text>
-          )}
         </Animated.View>
 
         {/* Plan Card */}
@@ -898,79 +888,6 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {showNicknameModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.nicknameModal}>
-            <LinearGradient
-              colors={["rgba(139, 92, 246, 0.18)", "rgba(15, 23, 42, 0.9)"]}
-              style={styles.nicknameModalGradient}
-            >
-              <TouchableOpacity
-                style={styles.modalClose}
-                onPress={() => {
-                  setShowNicknameModal(false);
-                  setNicknameError("");
-                }}
-              >
-                <Ionicons name="close" size={22} color="#9ca3af" />
-              </TouchableOpacity>
-
-              <Text style={styles.nicknameModalTitle}>Spremeni vzdevek</Text>
-              <View style={styles.nicknameInputContainer}>
-                <TextInput
-                  style={styles.nicknameInput}
-                  value={nicknameInput}
-                  onChangeText={setNicknameInput}
-                  placeholder="Nov vzdevek"
-                  placeholderTextColor="#6b7280"
-                  autoCapitalize="none"
-                />
-              </View>
-              {nicknameAvailability && nicknameInput.trim().length >= 3 && (
-                <Text
-                  style={[
-                    styles.nicknameAvailabilityText,
-                    nicknameAvailability.available
-                      ? styles.nicknameAvailable
-                      : styles.nicknameUnavailable,
-                  ]}
-                >
-                  {nicknameAvailability.available ? "Vzdevek je na voljo" : "Vzdevek je zaseden"}
-                </Text>
-              )}
-              {nicknameError ? <Text style={styles.nicknameErrorText}>{nicknameError}</Text> : null}
-
-              <View style={styles.nicknameActionRow}>
-                <TouchableOpacity
-                  style={styles.nicknameCancelButton}
-                  onPress={() => setShowNicknameModal(false)}
-                >
-                  <Text style={styles.nicknameCancelText}>Prekliči</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.nicknameSaveButton}
-                  onPress={handleNicknameSave}
-                  disabled={nicknameSaving}
-                >
-                  <LinearGradient
-                    colors={["#8b5cf6", "#7c3aed"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.nicknameSaveGradient}
-                  >
-                    {nicknameSaving ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.nicknameSaveText}>Shrani</Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
 
       {showSignOutToast && (
         <View style={styles.toastOverlay}>
