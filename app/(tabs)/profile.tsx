@@ -351,9 +351,14 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = async () => {
+    if (signingOut) return;
     setSigningOut(true);
+    const timeoutMs = 6000;
     try {
-      await authClient.signOut();
+      await Promise.race([
+        authClient.signOut(),
+        new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+      ]);
     } catch (error) {
       console.error("Napaka pri odjavi:", error);
     } finally {
@@ -574,7 +579,7 @@ export default function ProfileScreen() {
                   color={isPremium ? "#10b981" : "#6b7280"}
                 />
                 <Text style={[styles.planFeatureText, !isPremium && styles.planFeatureTextDisabled]}>
-                  {isPremium ? "Vse trgovine" : "Samo osnovne trgovine"}
+                  {isPremium ? "Vse razpoložljive trgovine" : "Samo osnovne trgovine"}
                 </Text>
               </View>
               <View style={styles.planFeature}>
@@ -745,7 +750,7 @@ export default function ProfileScreen() {
               <View style={styles.settingIcon}>
                 <Ionicons name="card-outline" size={20} color="#a78bfa" />
               </View>
-              <Text style={styles.settingText}>Lojalnostne kartice</Text>
+              <Text style={styles.settingText}>Kartice zvestobe</Text>
               <Ionicons name="chevron-forward" size={20} color="#6b7280" />
             </TouchableOpacity>
 
@@ -1032,7 +1037,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.modalFeature}>
                       <Ionicons name="checkmark" size={16} color="#10b981" />
-                      <Text style={styles.modalFeatureText}>Vse trgovine</Text>
+                      <Text style={styles.modalFeatureText}>Vse razpoložljive trgovine</Text>
                     </View>
                     <View style={styles.modalFeature}>
                       <Ionicons name="checkmark" size={16} color="#10b981" />
@@ -1261,8 +1266,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logo: {
-    width: 70,
-    height: 70,
+    width: 102,
+    height: 102,
     marginBottom: 8,
   },
   title: {
@@ -1304,8 +1309,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   authLogo: {
-    width: 100,
-    height: 100,
+    width: 145,
+    height: 145,
     marginBottom: 24,
   },
   authTitle: {
@@ -2088,8 +2093,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   modalLogo: {
-    width: 80,
-    height: 80,
+    width: 116,
+    height: 116,
     alignSelf: "center",
     marginBottom: 16,
   },

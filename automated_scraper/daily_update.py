@@ -7,6 +7,8 @@ Zažene se vsak dan ob 21:00 (nastavi v cron)
 import argparse
 import asyncio
 import os
+import sys
+import uuid
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
@@ -16,23 +18,160 @@ import unicodedata
 from typing import List, Dict, Optional
 import requests
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 # KONFIGURACIJA
 SHEET_ID = os.getenv("PRHRAN_SHEET_ID", "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y")
 CREDENTIALS_FILE = os.getenv("PRHRAN_CREDENTIALS_FILE", "credentials.json")
 INGEST_URL = os.getenv("PRHRAN_INGEST_URL")
 INGEST_TOKEN = os.getenv("PRHRAN_INGEST_TOKEN")
+SITE_URL = os.getenv("SITE_URL")
+if not INGEST_URL and SITE_URL:
+    INGEST_URL = f"{SITE_URL.rstrip('/')}/api/ingest/grocery"
 
-# Vse kategorije
+SPAR_API_URL = os.getenv("SPAR_API_URL", "https://deadpool.unified-jennet.instaleap.io/api/v3")
+SPAR_CLIENT_ID = os.getenv("SPAR_CLIENT_ID", "SPAR_SLOVENIA")
+SPAR_STORE_REFERENCE = os.getenv("SPAR_STORE_REFERENCE", "81701")
+SPAR_PAGE_SIZE = int(os.getenv("SPAR_PAGE_SIZE", "200"))
+
+TUS_API_URL = os.getenv("TUS_API_URL", "https://hitrinakup.com/graphql")
+TUS_STORE_ID = os.getenv("TUS_STORE_ID", "5861")
+TUS_APP_VERSION = os.getenv("TUS_APP_VERSION", "0.4.32")
+TUS_CYPHER_CATEGORIES = os.getenv("TUS_CYPHER_CATEGORIES", "2d078df3-117a-4b05-be35-cfb99105fb77")
+TUS_CYPHER_SUBCATEGORIES = os.getenv("TUS_CYPHER_SUBCATEGORIES", "3a4d5cb9-52a9-4446-8d2b-6a8f93282934")
+TUS_CATEGORIES_LIMIT = int(os.getenv("TUS_CATEGORIES_LIMIT", "200"))
+TUS_ITEMS_LIMIT = int(os.getenv("TUS_ITEMS_LIMIT", "500"))
+
+SPAR_CATEGORY_QUERY = """
+query getCategory($getCategoryInput: GetCategoryInput!) {
+  getCategory(getCategoryInput: $getCategoryInput) {
+    name
+    reference
+    slug
+    path
+    subCategories {
+      name
+      reference
+      slug
+      path
+      subCategories {
+        name
+        reference
+        slug
+        path
+        subCategories {
+          name
+          reference
+          slug
+          path
+          subCategories {
+            name
+            reference
+            slug
+            path
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+SPAR_PRODUCTS_QUERY = """
+query getProductsByCategory($getProductsByCategoryInput: GetProductsByCategoryInput!) {
+  getProductsByCategory(getProductsByCategoryInput: $getProductsByCategoryInput) {
+    category {
+      name
+      products {
+        name
+        price
+        unit
+      }
+    }
+    pagination {
+      pages
+    }
+  }
+}
+"""
+
+TUS_API_VERSION_QUERY = "query getApiVersion { getApiVersion }"
+
+TUS_CREATE_SESSION_MUTATION = """
+mutation createSession($userId: String!, $uri: String!, $agent: String!, $url: String, $prevSessionId: String, $code: String, $version: String) {
+  createSession(
+    userId: $userId
+    uri: $uri
+    agent: $agent
+    url: $url
+    prevSessionId: $prevSessionId
+    code: $code
+    version: $version
+  ) {
+    id
+    date
+    agent
+    __typename
+  }
+}
+"""
+
+TUS_CATEGORIES_QUERY = """
+query getCategories($userId: String, $limit: Int, $cypherQuery: String) {
+  getCategories(userId: $userId, limit: $limit, cypherQuery: $cypherQuery) {
+    name
+    key
+    image
+    children {
+      name
+      key
+      children {
+        name
+        key
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}
+"""
+
+TUS_SUBCATEGORIES_ITEMS_QUERY = """
+query getSubcategoriesWithItems($categoriesLimit: Int, $categoryName: String, $cypherQuery: String, $date: String, $limit: Int, $skip: Int, $storeId: String) {
+  getSubcategoriesWithItems(
+    categoriesLimit: $categoriesLimit
+    categoryName: $categoryName
+    cypherQuery: $cypherQuery
+    date: $date
+    limit: $limit
+    skip: $skip
+    storeId: $storeId
+  ) {
+    name
+    items {
+      itemId
+      name
+      displayName
+      price
+      discountedPrice
+    }
+  }
+}
+"""
+
+# Vse kategorije za vse trgovine
 ALL_CATEGORIES = {
     "spar": [
-        "sadje-in-zelenjava", "mleko-in-jajca", "meso-in-ribe", "kruh-in-pecivo",
-        "pijace", "sladkarije", "konzerve", "zamrznjeno", "osnovna-zivila",
-        "zajtrk", "kosmetika", "ciscenje", "hrana-za-zivali"
+        "sadje-zelenjava", "mleko-mlecni-izdelki", "meso-ribe", "kruh-pecivo",
+        "pijace", "sladkarije-prigrizki", "konzervirano", "zamrznjeno", "osnovna-zivila",
+        "zajtrk-kosmiči", "brezalkoholne-pijace", "alkoholne-pijace"
     ],
     "tus": [
-        "sadje-zelenjava", "mleko-jajca", "meso-ribe", "kruh-pecivo",
-        "pijace", "sladkarije", "konzerve", "zamrznjeno", "osnovna-zivila",
-        "zajtrk", "kosmetika", "ciscila", "hrana-zivali"
+        "sadje-zelenjava", "mleko-jajca", "meso-mesni-izdelki", "pecivo-kruh",
+        "pijace", "sladkarije", "konzerve", "zamrznjeni-izdelki", "zivila",
+        "zajtrk", "higiena", "ciscila"
     ],
     "mercator": [
         "sadje-in-zelenjava", "mleko-jajca", "meso-ribe", "kruh-pecivo",
@@ -44,6 +183,8 @@ ALL_CATEGORIES = {
 
 def parse_price(text: str) -> float:
     """Parsaj ceno"""
+    if isinstance(text, (int, float)):
+        return float(text)
     if not text:
         return 0.0
     try:
@@ -53,6 +194,235 @@ def parse_price(text: str) -> float:
         return float(match.group()) if match else 0.0
     except:
         return 0.0
+
+
+def spar_graphql(query: str, variables: Dict) -> Dict:
+    response = requests.post(
+        SPAR_API_URL,
+        json={"query": query, "variables": variables},
+        timeout=60,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("errors"):
+        raise RuntimeError(payload["errors"])
+    return payload.get("data") or {}
+
+
+def spar_fetch_leaf_categories() -> List[Dict[str, str]]:
+    variables = {
+        "getCategoryInput": {
+            "clientId": SPAR_CLIENT_ID,
+            "storeReference": SPAR_STORE_REFERENCE,
+        }
+    }
+    data = spar_graphql(SPAR_CATEGORY_QUERY, variables)
+    categories = data.get("getCategory") or []
+    leaves = []
+    stack = list(categories)
+    while stack:
+        category = stack.pop()
+        subcategories = category.get("subCategories") or []
+        if subcategories:
+            stack.extend(subcategories)
+            continue
+        reference = category.get("reference")
+        name = category.get("name")
+        if reference and name:
+            leaves.append({"reference": reference, "name": name})
+    return leaves
+
+
+def spar_fetch_products_for_category(category_ref: str, fallback_name: str) -> List[Dict]:
+    products = []
+    current_page = 1
+    while True:
+        variables = {
+            "getProductsByCategoryInput": {
+                "clientId": SPAR_CLIENT_ID,
+                "storeReference": SPAR_STORE_REFERENCE,
+                "categoryReference": category_ref,
+                "pageSize": SPAR_PAGE_SIZE,
+                "currentPage": current_page,
+            }
+        }
+        data = spar_graphql(SPAR_PRODUCTS_QUERY, variables)
+        root = data.get("getProductsByCategory") or {}
+        category = root.get("category") or {}
+        category_name = category.get("name") or fallback_name
+        items = category.get("products") or []
+        for item in items:
+            name = str(item.get("name") or "").strip()
+            price = parse_price(item.get("price"))
+            if not name or price <= 0:
+                continue
+            products.append({
+                "name": name,
+                "price": price,
+                "sale_price": None,
+                "store": "Spar",
+                "category": category_name,
+            })
+        pages = root.get("pagination", {}).get("pages") or 1
+        if current_page >= pages:
+            break
+        current_page += 1
+    return products
+
+
+def scrape_spar_products() -> List[Dict]:
+    products = []
+    try:
+        categories = spar_fetch_leaf_categories()
+    except Exception as exc:
+        print(f"  SPAR categories error: {exc}")
+        return products
+    seen = set()
+    for category in categories:
+        ref = category.get("reference")
+        if not ref or ref in seen:
+            continue
+        seen.add(ref)
+        name = category.get("name") or "Unknown"
+        safe_name = name.encode("ascii", "ignore").decode("ascii") or "Category"
+        print(f"  -> SPAR/{safe_name}...", end=" ", flush=True)
+        try:
+            category_products = spar_fetch_products_for_category(
+                category["reference"],
+                name,
+            )
+            products.extend(category_products)
+            print(len(category_products))
+        except Exception as exc:
+            print(f"error {exc}")
+    return products
+
+
+def tus_graphql(operation_name: str, query: str, variables: Dict, headers: Optional[Dict] = None) -> Dict:
+    payload = {
+        "operationName": operation_name,
+        "query": query,
+        "variables": variables,
+    }
+    response = requests.post(
+        TUS_API_URL,
+        json=payload,
+        headers=headers,
+        timeout=60,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("errors"):
+        raise RuntimeError(payload["errors"])
+    return payload.get("data") or {}
+
+
+def tus_get_api_version() -> str:
+    data = tus_graphql("getApiVersion", TUS_API_VERSION_QUERY, {})
+    return data.get("getApiVersion") or ""
+
+
+def tus_create_session() -> str:
+    variables = {
+        "userId": str(uuid.uuid4()),
+        "uri": "hitrinakup.com",
+        "agent": "Mozilla/5.0",
+        "url": "https://hitrinakup.com/",
+        "prevSessionId": None,
+        "code": None,
+        "version": TUS_APP_VERSION,
+    }
+    data = tus_graphql("createSession", TUS_CREATE_SESSION_MUTATION, variables)
+    session = data.get("createSession") or {}
+    return session.get("id") or ""
+
+
+def tus_build_headers(session_id: str, api_version: str, store_date: str) -> Dict[str, str]:
+    headers = {
+        "sessionId": session_id,
+        "apiVersion": api_version,
+    }
+    if store_date:
+        headers["cookie"] = f"storeID={TUS_STORE_ID}; storeDate={store_date}"
+    return headers
+
+
+def tus_fetch_categories(headers: Dict[str, str]) -> List[Dict]:
+    variables = {
+        "userId": "",
+        "limit": 0,
+        "cypherQuery": TUS_CYPHER_CATEGORIES,
+    }
+    data = tus_graphql("getCategories", TUS_CATEGORIES_QUERY, variables, headers)
+    return data.get("getCategories") or []
+
+
+def tus_fetch_products_for_category(category_name: str, headers: Dict[str, str], store_date: str) -> List[Dict]:
+    variables = {
+        "categoriesLimit": TUS_CATEGORIES_LIMIT,
+        "categoryName": category_name,
+        "cypherQuery": TUS_CYPHER_SUBCATEGORIES,
+        "date": store_date,
+        "limit": TUS_ITEMS_LIMIT,
+        "skip": 0,
+        "storeId": TUS_STORE_ID,
+    }
+    data = tus_graphql("getSubcategoriesWithItems", TUS_SUBCATEGORIES_ITEMS_QUERY, variables, headers)
+    subcategories = data.get("getSubcategoriesWithItems") or []
+    products = []
+    for subcategory in subcategories:
+        subcategory_name = subcategory.get("name") or category_name
+        for item in subcategory.get("items") or []:
+            name = item.get("displayName") or item.get("name")
+            name = str(name or "").strip()
+            price = parse_price(item.get("price"))
+            sale_price = item.get("discountedPrice")
+            sale_price = parse_price(sale_price) if sale_price is not None else None
+            if not name or price <= 0:
+                continue
+            if sale_price is not None and sale_price >= price:
+                sale_price = None
+            products.append({
+                "name": name,
+                "price": price,
+                "sale_price": sale_price,
+                "store": "Tus",
+                "category": subcategory_name,
+            })
+    return products
+
+
+def scrape_tus_products() -> List[Dict]:
+    products = []
+    try:
+        api_version = tus_get_api_version()
+        session_id = tus_create_session()
+        store_date = datetime.now().strftime("%a %b %d %Y")
+        headers = tus_build_headers(session_id, api_version, store_date)
+        categories = tus_fetch_categories(headers)
+    except Exception as exc:
+        print(f"  TUS setup error: {exc}")
+        return products
+
+    seen = set()
+    for category in categories:
+        name = category.get("name")
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        safe_name = name.encode("ascii", "ignore").decode("ascii") or "Category"
+        print(f"  -> TUS/{safe_name}...", end=" ", flush=True)
+        try:
+            category_products = tus_fetch_products_for_category(
+                name,
+                headers,
+                store_date,
+            )
+            products.extend(category_products)
+            print(len(category_products))
+        except Exception as exc:
+            print(f"error {exc}")
+    return products
 
 
 def normalize_store(value: str) -> str:
@@ -82,138 +452,50 @@ def normalize_sale_price(price: float, sale_price: Optional[float]) -> Optional[
     return sale_price if sale_price < price else None
 
 
-async def scrape_spar_category(page, category: str) -> List[Dict]:
-    """Scrape SPAR"""
-    products = []
-    try:
-        url = f"https://online.spar.si/artikli/{category}"
-        await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-        await asyncio.sleep(2)
-        
-        for _ in range(10):
-            await page.evaluate("window.scrollBy(0, 1500)")
-            await asyncio.sleep(0.5)
-        
-        elements = await page.query_selector_all(".product-tile, .product-item, .product-card, article")
-        
-        for element in elements:
-            try:
-                name_elem = await element.query_selector("h2, h3, h4, .product-name, .title")
-                if not name_elem:
-                    continue
-                name = (await name_elem.inner_text()).strip()
-                
-                price_elem = await element.query_selector(".price, .product-price")
-                if not price_elem:
-                    continue
-                price = parse_price(await price_elem.inner_text())
-                
-                if price <= 0:
-                    continue
-                
-                sale_price = None
-                sale_elem = await element.query_selector(".sale-price, .special-price, .discount-price")
-                if sale_elem:
-                    sale_price = parse_price(await sale_elem.inner_text())
-                
-                products.append({
-                    "name": name,
-                    "price": price,
-                    "sale_price": sale_price,
-                    "store": "Spar",
-                    "category": category,
-                })
-            except:
-                continue
-    except:
-        pass
-    
-    return products
-
-
-async def scrape_tus_category(page, category: str) -> List[Dict]:
-    """Scrape Tuš"""
-    products = []
-    try:
-        url = f"https://hitrinakup.com/kategorije/{category}"
-        await page.goto(url, wait_until="domcontentloaded", timeout=60000)
-        await asyncio.sleep(2)
-        
-        for _ in range(10):
-            await page.evaluate("window.scrollBy(0, 1500)")
-            await asyncio.sleep(0.5)
-        
-        elements = await page.query_selector_all(".product, .product-card, .item, article")
-        
-        for element in elements:
-            try:
-                name_elem = await element.query_selector("h2, h3, h4, .title, .product-name")
-                if not name_elem:
-                    continue
-                name = (await name_elem.inner_text()).strip()
-                
-                price_elem = await element.query_selector(".price, .product-price")
-                if not price_elem:
-                    continue
-                price = parse_price(await price_elem.inner_text())
-                
-                if price <= 0:
-                    continue
-                
-                sale_price = None
-                sale_elem = await element.query_selector(".sale-price, .promo-price, .special")
-                if sale_elem:
-                    sale_price = parse_price(await sale_elem.inner_text())
-                
-                products.append({
-                    "name": name,
-                    "price": price,
-                    "sale_price": sale_price,
-                    "store": "Tus",
-                    "category": category,
-                })
-            except:
-                continue
-    except:
-        pass
-    
-    return products
-
-
 async def scrape_mercator_category(page, category: str) -> List[Dict]:
     """Scrape Mercator"""
     products = []
     try:
         url = f"https://mercatoronline.si/brskaj/{category}"
-        await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+        await page.goto(url, wait_until="networkidle", timeout=60000)
         await asyncio.sleep(2)
-        
+
         for _ in range(10):
             await page.evaluate("window.scrollBy(0, 1500)")
             await asyncio.sleep(0.5)
-        
-        elements = await page.query_selector_all(".product, .product-card, .card, article")
-        
+
+        elements = await page.query_selector_all(".product")
+
         for element in elements:
             try:
-                name_elem = await element.query_selector("h2, h3, h4, .name, .title")
+                name_elem = await element.query_selector(".lib-product-name, .product-name")
                 if not name_elem:
                     continue
                 name = (await name_elem.inner_text()).strip()
-                
-                price_elem = await element.query_selector(".price, .product-price")
+
+                price_elem = await element.query_selector(".lib-product-price")
+                if not price_elem:
+                    price_elem = await element.query_selector(".product-price-holder .price")
+                if not price_elem:
+                    price_elem = await element.query_selector(".price")
                 if not price_elem:
                     continue
-                price = parse_price(await price_elem.inner_text())
-                
-                if price <= 0:
+                base_price = parse_price(await price_elem.inner_text())
+
+                if base_price <= 0:
                     continue
-                
+
                 sale_price = None
-                sale_elem = await element.query_selector(".sale, .action-price, .discount")
+                old_price = None
+                sale_elem = await element.query_selector(".price-old, .lib-product-normal-price")
                 if sale_elem:
-                    sale_price = parse_price(await sale_elem.inner_text())
-                
+                    old_price = parse_price(await sale_elem.inner_text())
+                if old_price and old_price > base_price:
+                    price = old_price
+                    sale_price = base_price
+                else:
+                    price = base_price
+
                 products.append({
                     "name": name,
                     "price": price,
@@ -225,54 +507,43 @@ async def scrape_mercator_category(page, category: str) -> List[Dict]:
                 continue
     except:
         pass
-    
+
     return products
 
 
 async def scrape_all_products():
     """Scrape vse izdelke"""
-    print(f"🕐 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Scraping...\n")
-    
+    print(f"Cas: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Scraping...\n")
+
     all_products = []
-    
+
+    print("SPAR")
+    spar_products = scrape_spar_products()
+    all_products.extend(spar_products)
+    print(f"  SPAR total: {len(spar_products)}")
+
+    print("TUS")
+    tus_products = scrape_tus_products()
+    all_products.extend(tus_products)
+    print(f"  TUS total: {len(tus_products)}")
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
             viewport={'width': 1920, 'height': 1080},
             user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         )
-        
         try:
-            # SPAR
-            print("🛒 SPAR...", end=" ", flush=True)
-            page_spar = await context.new_page()
-            for category in ALL_CATEGORIES["spar"]:
-                products = await scrape_spar_category(page_spar, category)
-                all_products.extend(products)
-            await page_spar.close()
-            print(f"✅ {sum(1 for p in all_products if p['store'] == 'Spar')}")
-            
-            # Tuš
-            print("🛒 Tuš...", end=" ", flush=True)
-            page_tus = await context.new_page()
-            for category in ALL_CATEGORIES["tus"]:
-                products = await scrape_tus_category(page_tus, category)
-                all_products.extend(products)
-            await page_tus.close()
-            print(f"✅ {sum(1 for p in all_products if p['store'] == 'Tus')}")
-            
-            # Mercator
-            print("🛒 Mercator...", end=" ", flush=True)
+            print("Mercator", end=" ", flush=True)
             page_mercator = await context.new_page()
             for category in ALL_CATEGORIES["mercator"]:
                 products = await scrape_mercator_category(page_mercator, category)
                 all_products.extend(products)
             await page_mercator.close()
-            print(f"✅ {sum(1 for p in all_products if p['store'] == 'Mercator')}")
-            
+            print(f"{sum(1 for p in all_products if p['store'] == 'Mercator')}")
         finally:
             await browser.close()
-    
+
     return all_products
 
 
@@ -399,24 +670,33 @@ def upload_to_convex(items: List[Dict]) -> None:
         print("Upload preskocen: ni izdelkov za poslati.")
         return
     try:
-        response = requests.post(
-            INGEST_URL,
-            headers={
-                "Authorization": f"Bearer {INGEST_TOKEN}",
-                "Content-Type": "application/json",
-            },
-            json={"items": items},
-            timeout=120,
-        )
-        response.raise_for_status()
-        print(f"Upload OK: {response.status_code}")
+        batch_size = int(os.getenv("PRHRAN_INGEST_BATCH_SIZE", "200"))
+        total = len(items)
+        for start in range(0, total, batch_size):
+            batch = items[start:start + batch_size]
+            response = requests.post(
+                INGEST_URL,
+                headers={
+                    "Authorization": f"Bearer {INGEST_TOKEN}",
+                    "Content-Type": "application/json",
+                },
+                json={"items": batch},
+                timeout=120,
+            )
+            if not response.ok:
+                detail = response.text[:300].replace('\n', ' ')
+                print(f"Upload napaka (status {response.status_code}): {detail}")
+                response.raise_for_status()
+            if total > batch_size:
+                print(f"  Uploaded {min(start + batch_size, total)}/{total}")
+        print(f"Upload OK: {total}")
     except Exception as e:
         print(f"Upload napaka: {e}")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Dnevna posodobitev cen.")
-    parser.add_argument("--upload", action="store_true", help="Poslji podatke v Convex.")
+    parser.add_argument("--no-upload", action="store_true", help="NE pošlji podatkov v Convex (samo Google Sheets).")
     return parser.parse_args()
 
 
@@ -432,16 +712,19 @@ async def main(upload: bool):
     if products:
         # Posodobi Sheet
         update_google_sheet(products)
-        if upload:
+        # Upload v Convex (privzeto vključeno)
+        if not upload:
             items = build_convex_items(products)
             upload_to_convex(items)
+        else:
+            print("\n⚠️  Upload v Convex preskočen (--no-upload flag)")
         print("\n✅ Posodobitev končana!")
     else:
         print("\n❌ Ni zbranih izdelkov!")
-    
+
     print("=" * 80 + "\n")
 
 
 if __name__ == "__main__":
     args = parse_args()
-    asyncio.run(main(args.upload))
+    asyncio.run(main(args.no_upload))

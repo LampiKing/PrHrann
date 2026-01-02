@@ -668,6 +668,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
   },
+  sectionTag: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#10b981",
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
   cardContainer: {
     width: "100%",
     marginBottom: 0,

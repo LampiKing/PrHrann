@@ -22,7 +22,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, Link } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { PLAN_PLUS } from "@/lib/branding";
@@ -100,6 +100,14 @@ const STORE_BRANDS: Record<string, StoreBrand> = {
   },
 };
 
+const ALLOWED_STORE_KEYS = new Set(["spar", "mercator", "tus", "tuš"]);
+
+const isAllowedStoreName = (name?: string) => {
+  if (!name) return false;
+  const key = name.toLowerCase();
+  return ALLOWED_STORE_KEYS.has(key);
+};
+
 const getStoreBrand = (name?: string, fallbackColor?: string) => {
   const key = (name || "").toLowerCase();
   const brand = STORE_BRANDS[key as keyof typeof STORE_BRANDS];
@@ -154,6 +162,7 @@ export default function SearchScreen() {
   const [searching, setSearching] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
+  const [searchResultsSnapshot, setSearchResultsSnapshot] = useState<ProductResult[]>([]);
 
   // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
@@ -220,6 +229,8 @@ export default function SearchScreen() {
   const seasonSavings = seasonSummary?.savings ?? 0;
   const seasonRank = seasonSummary?.rank;
   const seasonYear = seasonSummary?.year;
+  const currentYear = new Date().getFullYear();
+  const displaySeasonYear = seasonYear && seasonYear >= currentYear ? seasonYear : currentYear;
   const showRegistrationCta = isGuestMode;
   const showPlusCta = true;
   const showWaitOption = isGuestLimitContext;
@@ -413,10 +424,40 @@ export default function SearchScreen() {
   // Auto-search when query changes (but only after recordSearch)
   const searchResultsQuery = useQuery(
     api.products.search,
-    approvedQuery.length >= 2 && !searching ? { query: approvedQuery, isPremium } : "skip"
+    approvedQuery.length >= 2 ? { query: approvedQuery, isPremium } : "skip"
   ) as ProductResult[] | undefined;
-  
-  const searchResults = searchResultsQuery || [];
+
+  useEffect(() => {
+    if (approvedQuery.length < 2) {
+      setSearchResultsSnapshot([]);
+      return;
+    }
+    if (searchResultsQuery !== undefined) {
+      setSearchResultsSnapshot(searchResultsQuery);
+    }
+  }, [approvedQuery, searchResultsQuery]);
+
+  // Use only snapshot to prevent flickering
+  const rawResults = searchResultsSnapshot;
+  const searchResults = rawResults
+    .map((product) => {
+      const prices = product.prices
+        .filter((price) => isAllowedStoreName(price.storeName))
+        .filter((price) => Number.isFinite(price.price) && price.price > 0)
+        .sort((a, b) => a.price - b.price);
+
+      if (prices.length === 0) return null;
+
+      return {
+        ...product,
+        prices,
+        lowestPrice: prices[0].price,
+        highestPrice: prices[prices.length - 1].price,
+      };
+    })
+    .filter((product): product is ProductResult => product !== null);
+  const isSearchResultsLoading =
+    searching || (approvedQuery.length >= 2 && searchResultsSnapshot.length === 0);
 
   // Sort results based on swipe direction
   const sortedResults = searchResults
@@ -1235,7 +1276,7 @@ export default function SearchScreen() {
                 <View style={styles.statusSeasonPill}>
                   <Ionicons name="sparkles" size={14} color="#a7f3d0" />
                   <Text style={styles.statusSeasonText}>
-                    Sezona {seasonYear ?? new Date().getFullYear()}
+                    Sezona {displaySeasonYear}
                   </Text>
                 </View>
                 <View style={styles.statusDeadlinePill}>
@@ -1252,14 +1293,16 @@ export default function SearchScreen() {
                 <View style={styles.statusRankBlock}>
                   <Text style={styles.statusRankLabel}>Tvoje mesto</Text>
                   <Text style={styles.statusRankValue}>{seasonRank ? `#${seasonRank}` : "--"}</Text>
-                  <TouchableOpacity
-                    style={styles.statusRankBadge}
-                    onPress={() => router.push("/leaderboard")}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="trophy" size={14} color="#fbbf24" />
-                    <Text style={styles.statusRankBadgeText}>Lestvica</Text>
-                  </TouchableOpacity>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  <Link href={"/leaderboard" as any} asChild>
+                    <TouchableOpacity
+                      style={styles.statusRankBadge}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="trophy" size={14} color="#fbbf24" />
+                      <Text style={styles.statusRankBadgeText}>Lestvica</Text>
+                    </TouchableOpacity>
+                  </Link>
                 </View>
               </View>
             </LinearGradient>
@@ -1388,7 +1431,7 @@ export default function SearchScreen() {
             {/* Stats Row */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>6</Text>
+                <Text style={styles.statNumber}>3</Text>
                 <Text style={styles.statLabel}>Trgovin</Text>
               </View>
               <View style={styles.statDivider} />
@@ -1403,6 +1446,11 @@ export default function SearchScreen() {
               </View>
             </View>
           </View>
+        ) : isSearchResultsLoading && sortedResults.length === 0 ? (
+          <View style={styles.searchingHint}>
+            <Ionicons name="time-outline" size={18} color="#fbbf24" />
+            <Text style={styles.searchingHintText}>Iščem rezultate...</Text>
+          </View>
         ) : sortedResults.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={48} color="#6b7280" />
@@ -1411,6 +1459,12 @@ export default function SearchScreen() {
           </View>
         ) : (
           <View style={styles.resultsContainer}>
+            {isSearchResultsLoading && (
+              <View style={styles.searchingHintInline}>
+                <Ionicons name="time-outline" size={14} color="#fbbf24" />
+                <Text style={styles.searchingHintTextInline}>Posodabljam rezultate...</Text>
+              </View>
+            )}
             <Text style={styles.resultsCount}>
               {sortedResults.length} {sortedResults.length === 1 ? "rezultat" : "rezultatov"}
             </Text>
@@ -1907,9 +1961,32 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logo: {
-    width: 110,
-    height: 110,
+    width: 160,
+    height: 160,
     marginBottom: 8,
+  },
+  searchingHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 20,
+  },
+  searchingHintText: {
+    color: "#fcd34d",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  searchingHintInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  searchingHintTextInline: {
+    color: "#fcd34d",
+    fontSize: 13,
+    fontWeight: "600",
   },
   title: {
     fontSize: 32,

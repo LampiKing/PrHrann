@@ -75,6 +75,15 @@ export default function AuthScreen() {
   );
 
   const modeInitialized = useRef(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
+
+  // Timeout for loading screen to prevent infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowLoadingScreen(false);
+    }, 3000); // Max 3 seconds loading
+    return () => clearTimeout(timer);
+  }, []);
 
   const switchMode = (login: boolean) => {
     triggerHaptic();
@@ -118,10 +127,11 @@ export default function AuthScreen() {
   // Redirect if authenticated
   useEffect(() => {
     console.log("Auth useEffect: isAuthenticated =", isAuthenticated, "authLoading =", authLoading);
-    if (isAuthenticated && !authLoading && profile && !profile.isAnonymous && !showSuccessOverlay) {
+    // Only redirect if fully authenticated and not in a loading state
+    if (isAuthenticated && !authLoading && profile && !profile.isAnonymous && !showSuccessOverlay && !loading && !resetLoading && !anonymousLoading) {
       router.replace("/(tabs)");
     }
-  }, [isAuthenticated, authLoading, profile, showSuccessOverlay]);
+  }, [isAuthenticated, authLoading, profile, showSuccessOverlay, loading, resetLoading, anonymousLoading]);
 
   // Logo glow animation
   useEffect(() => {
@@ -407,7 +417,7 @@ export default function AuthScreen() {
           return;
         }
         
-        if (!result.data?.session) {
+        if (!result.data?.user) {
           const signInResult = await authClient.signIn.email({
             email: trimmedEmail,
             password,
@@ -527,7 +537,7 @@ export default function AuthScreen() {
     router.push("/terms");
   };
 
-  if (authLoading) {
+  if (authLoading && showLoadingScreen) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <LinearGradient
@@ -1216,16 +1226,16 @@ const styles = StyleSheet.create({
   },
   logoGlow: {
     position: "absolute",
-    width: 180,
-    height: 180,
+    width: 260,
+    height: 260,
     backgroundColor: "#8b5cf6",
-    borderRadius: 90,
-    top: -15,
+    borderRadius: 130,
+    top: -22,
     ...createShadow("#8b5cf6", 0, 0, 1, 60, 25),
   },
   logo: {
-    width: 120,
-    height: 120,
+    width: 174,
+    height: 174,
     zIndex: 1,
   },
   appName: {
@@ -1473,12 +1483,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: -4,
     marginBottom: 8,
-  },
-  helperText: {
-    color: "#9ca3af",
-    fontSize: 12,
-    flex: 1,
-    lineHeight: 16,
   },
   loginAssist: {
     marginTop: 14,

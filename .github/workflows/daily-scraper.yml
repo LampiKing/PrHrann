@@ -1,0 +1,64 @@
+name: Dnevni Scraper - Posodobitev Cen
+
+on:
+  schedule:
+    # Vsak dan ob 06:00 CET (05:00 UTC)
+    - cron: '0 5 * * *'
+  workflow_dispatch: # Omogoči ročni zagon
+
+jobs:
+  scrape-and-update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          cd automated_scraper
+          pip install -r requirements.txt
+          playwright install chromium
+          playwright install-deps
+
+      - name: Setup Google Credentials
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          echo "$GOOGLE_CREDENTIALS" > automated_scraper/credentials.json
+
+      - name: Setup Convex Token
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: |
+          echo "CONVEX_DEPLOYMENT=${{ secrets.CONVEX_DEPLOYMENT }}" >> automated_scraper/.env
+          echo "CONVEX_INGEST_TOKEN=${{ secrets.CONVEX_INGEST_TOKEN }}" >> automated_scraper/.env
+
+      - name: Zaženi Dnevno Posodobitev
+        run: |
+          cd automated_scraper
+          python daily_update.py
+        timeout-minutes: 90
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f automated_scraper/credentials.json
+          rm -f automated_scraper/.env
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "❌ Scraper FAILED at $(date)"
+          # TODO: Pošlji email notification
+
+      - name: Success Notification
+        if: success()
+        run: |
+          echo "✅ Scraper SUCCESS at $(date)"

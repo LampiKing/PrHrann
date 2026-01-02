@@ -65,6 +65,10 @@ export default function LeaderboardScreen() {
 
   const leaderboardTypeLabel =
     summary?.leaderboardType === "family" ? "Family lestvica" : "Free + Plus lestvica";
+  const currentYear = new Date().getFullYear();
+  const displaySeasonYear = summary?.year && summary.year >= currentYear
+    ? summary.year
+    : currentYear;
   const leaderboardEntries = leaderboard?.entries ?? [];
   const topThree = leaderboardEntries.slice(0, 3);
   const restEntries = leaderboardEntries.slice(3);
@@ -72,25 +76,25 @@ export default function LeaderboardScreen() {
     {
       rank: 2,
       entry: topThree[1],
-      colors: ["rgba(148, 163, 184, 0.22)", "rgba(15, 23, 42, 0.7)"],
+      colors: ["rgba(148, 163, 184, 0.22)", "rgba(15, 23, 42, 0.7)"] as const,
       accent: "#e2e8f0",
-      icon: "ribbon",
+      icon: "ribbon" as const,
       stepStyle: styles.podiumStepSecond,
     },
     {
       rank: 1,
       entry: topThree[0],
-      colors: ["rgba(251, 191, 36, 0.3)", "rgba(120, 53, 15, 0.6)"],
+      colors: ["rgba(251, 191, 36, 0.3)", "rgba(120, 53, 15, 0.6)"] as const,
       accent: "#fbbf24",
-      icon: "trophy",
+      icon: "trophy" as const,
       stepStyle: styles.podiumStepFirst,
     },
     {
       rank: 3,
       entry: topThree[2],
-      colors: ["rgba(217, 119, 6, 0.25)", "rgba(67, 20, 7, 0.65)"],
+      colors: ["rgba(217, 119, 6, 0.25)", "rgba(67, 20, 7, 0.65)"] as const,
       accent: "#f59e0b",
-      icon: "ribbon",
+      icon: "ribbon" as const,
       stepStyle: styles.podiumStepThird,
     },
   ];
@@ -118,7 +122,7 @@ export default function LeaderboardScreen() {
             <View style={styles.summaryPill}>
               <Ionicons name="sparkles" size={14} color="#a7f3d0" />
               <Text style={styles.summaryPillText}>
-                Sezona {summary?.year ?? new Date().getFullYear()}
+                Sezona {displaySeasonYear}
               </Text>
             </View>
             <View style={styles.summaryDeadlinePill}>
@@ -604,16 +608,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   guestLogoWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 22,
+    width: 128,
+    height: 128,
+    borderRadius: 32,
     backgroundColor: "rgba(255, 255, 255, 0.08)",
     alignItems: "center",
     justifyContent: "center",
   },
   guestLogo: {
-    width: 70,
-    height: 70,
+    width: 102,
+    height: 102,
   },
   guestTitle: {
     fontSize: 20,

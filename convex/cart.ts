@@ -65,10 +65,6 @@ export const getCart = authQuery({
   }),
   handler: async (ctx) => {
     const userId = ctx.user._id;
-    const store = await ctx.db.get(args.storeId);
-    if (!store || !ALLOWED_STORE_NAMES.has(store.name)) {
-      throw new Error("Trgovina ni na voljo.");
-    }
 
     // Pridobi uporabniški profil za premium status in loyalty cards
     const profile = await ctx.db

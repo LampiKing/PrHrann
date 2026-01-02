@@ -28,16 +28,17 @@ export default function RootLayout() {
     const updateFavicon = async () => {
       if (typeof document === "undefined") return;
       const source = getSeasonalLogoSource(new Date());
-      const asset = Asset.fromModule(source);
+      const asset = typeof source === 'number' ? Asset.fromModule(source) : null;
 
-      if (!asset.uri) {
+      if (!asset || !asset.uri) {
         try {
-          await asset.downloadAsync();
+          if (asset) await asset.downloadAsync();
         } catch {
           return;
         }
       }
 
+      if (!asset) return;
       const uri = asset.uri || asset.localUri;
       if (!uri) return;
 

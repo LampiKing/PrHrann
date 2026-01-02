@@ -43,3 +43,14 @@ cene_data/
 # Lock files (keep package-lock.json for reproducible builds)
 *.lockb
 yarn.lockpackage-lock.zip
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Sensitive files
+automated_scraper/credentials.json
+
+# Claude settings
+.claude/settings.local.json

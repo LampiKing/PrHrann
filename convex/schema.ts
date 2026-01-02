@@ -309,5 +309,77 @@ export default defineSchema({
     query: v.string(),
     timestamp: v.number(),
   }).index("by_user", ["userId"]),
+
+  // Device Fingerprints - za preprečevanje zlorabe
+  deviceFingerprints: defineTable({
+    // Unique device fingerprint (kombinacija platform, OS version, device model, etc.)
+    fingerprintHash: v.string(),
+    // Device metadata
+    platform: v.string(), // "ios", "android", "web"
+    osVersion: v.optional(v.string()),
+    deviceModel: v.optional(v.string()),
+    deviceBrand: v.optional(v.string()),
+    appVersion: v.optional(v.string()),
+    // Prva registracija iz te naprave
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+    // Števec registracij iz te naprave
+    registrationCount: v.number(),
+    // Seznam user ID-jev, ki so se registrirali iz te naprave
+    registeredUserIds: v.array(v.string()),
+    // Ali je naprava blokirana
+    isBlocked: v.boolean(),
+    blockedReason: v.optional(v.string()),
+    blockedAt: v.optional(v.number()),
+  })
+    .index("by_fingerprint", ["fingerprintHash"])
+    .index("by_blocked", ["isBlocked"]),
+
+  // Registered Devices - katera naprava je povezana s katerim uporabnikom
+  registeredDevices: defineTable({
+    userId: v.string(),
+    fingerprintHash: v.string(),
+    deviceName: v.string(), // "iPhone 16 Pro Max", "Samsung Galaxy S25"
+    platform: v.string(),
+    // Kdaj je bila naprava prvič registrirana
+    registeredAt: v.number(),
+    lastUsedAt: v.number(),
+    // Ali je to primarna naprava (za Family plan limitacije)
+    isPrimary: v.boolean(),
+    // Locked status - če je zaklenjena, drugi userji ne morejo uporabljati te naprave
+    isLocked: v.boolean(),
+    lockedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_fingerprint", ["fingerprintHash"])
+    .index("by_user_and_fingerprint", ["userId", "fingerprintHash"]),
+
+  // Family Invitations - za Family Plan management
+  familyInvitations: defineTable({
+    // Kdo je poslal vabilo
+    inviterId: v.string(),
+    inviterNickname: v.string(),
+    // Komu je poslano (email ali userId)
+    inviteeEmail: v.optional(v.string()),
+    inviteeUserId: v.optional(v.string()),
+    // Status vabila
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("declined"),
+      v.literal("expired")
+    ),
+    // Invite token za sprejem
+    inviteToken: v.string(),
+    // Časovni žigi
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    respondedAt: v.optional(v.number()),
+  })
+    .index("by_inviter", ["inviterId"])
+    .index("by_invitee_email", ["inviteeEmail"])
+    .index("by_invitee_user", ["inviteeUserId"])
+    .index("by_token", ["inviteToken"])
+    .index("by_status", ["status"]),
 });
 
