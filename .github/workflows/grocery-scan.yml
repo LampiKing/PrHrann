@@ -2,8 +2,8 @@ name: Grocery Scan
 
 on:
   schedule:
-    # Vsak dan ob 21:00 CET (20:00 UTC). V poletnem času prilagodi po potrebi.
-    - cron: "0 20 * * *"
+    # Daily at 06:00 CET (05:00 UTC). In summer adjust as needed.
+    - cron: "0 5 * * *"
   workflow_dispatch: {}
 
 jobs:
@@ -42,3 +42,4 @@ jobs:
           PRHRAN_CREDENTIALS_FILE: automated_scraper/credentials.json
         run: |
           python automated_scraper/daily_update.py --upload
+

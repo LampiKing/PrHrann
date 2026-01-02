@@ -14,7 +14,7 @@ Za zagon najprej pojdi v mapo `automated_scraper/`.
 ## 1) Avtomatika (GitHub Actions)
 
 V repozitorij je dodan workflow `.github/workflows/grocery-scan.yml`, ki tece
-vsak dan ob 21:00 CET (20:00 UTC) in zazene `automated_scraper/daily_update.py --upload`.
+vsak dan ob 06:00 CET (05:00 UTC) in zazene `automated_scraper/daily_update.py --upload`.
 Posodobi Google Sheet in poslje podatke v Convex.
 
 **Nujno nastavi GitHub Secrets:**
@@ -59,7 +59,7 @@ Podatki se shranijo v Google Sheet (poglej link v izpisu).
 
 ## 5) Dnevni zagon (Windows Task Scheduler)
 
-- Create Basic Task -> Daily -> 21:00
+- Create Basic Task -> Daily -> 06:00
 - Action: Start a program
   - Program: `python`
   - Arguments: `automated_scraper\\daily_update.py --upload`
@@ -91,6 +91,7 @@ Opcijsko lahko omejiš skeniranje na eno trgovino ali kategorijo:
 ```bash
 python grocery_scanner.py --store spar --category zelenjava --upload
 ```
+
 
 
 
