@@ -27,7 +27,7 @@ const INDIVIDUAL_FEATURES = [
   { icon: "camera", title: "Slikaj izdelek", description: "Takoj najde najnižjo ceno" },
   { icon: "pricetag", title: "Pametni kuponi", description: "Najboljse akcije na enem mestu" },
   { icon: "analytics", title: "Letni prihranek", description: "Sledenje prihrankom po računih" },
-  { icon: "trophy", title: "Lestvice in bedži", description: "Letna sezona varčevanja" },
+  { icon: "trophy", title: "Lestvice in značke", description: "Letna sezona varčevanja" },
 ];
 
 const FAMILY_BONUS_FEATURES = [
@@ -720,14 +720,14 @@ const styles = StyleSheet.create({
     borderColor: "rgba(192, 132, 252, 0.7)",
   },
   selectedBadgeFamily: {
-    backgroundColor: "rgba(251, 191, 36, 0.18)",
-    borderColor: "rgba(251, 191, 36, 0.7)",
+    backgroundColor: "rgba(251, 191, 36, 0.95)",
+    borderColor: "rgba(217, 119, 6, 0.9)",
   },
   selectedBadgeText: {
-    color: "#fff",
+    color: "#0f172a",
     fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: -0.1,
+    fontWeight: "800",
+    letterSpacing: 0.3,
   },
   popularBadge: {
     position: "absolute",
@@ -828,6 +828,7 @@ const styles = StyleSheet.create({
   featureDescription: {
     fontSize: 13,
     color: "#9ca3af",
+    lineHeight: 18,
   },
   ctaButton: {
     borderRadius: 16,
