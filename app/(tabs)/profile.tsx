@@ -691,8 +691,16 @@ export default function ProfileScreen() {
 
         {isAdmin && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <Text style={styles.sectionTitle}>Admin nadzor</Text>
-            <Text style={styles.sectionSubtitle}>Pregled rasti aplikacije</Text>
+            <View style={styles.adminHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Admin Panel</Text>
+                <Text style={styles.sectionSubtitle}>Pregled rasti v realnem času</Text>
+              </View>
+              <View style={styles.liveIndicator}>
+                <View style={styles.liveDot} />
+                <Text style={styles.liveText}>LIVE</Text>
+              </View>
+            </View>
             <LinearGradient
               colors={["rgba(139, 92, 246, 0.2)", "rgba(15, 23, 42, 0.7)"]}
               start={{ x: 0, y: 0 }}
@@ -701,18 +709,21 @@ export default function ProfileScreen() {
             >
               <View style={styles.adminRow}>
                 <View style={styles.adminStat}>
+                  <Ionicons name="people" size={20} color="#8b5cf6" />
                   <Text style={styles.adminStatLabel}>Uporabniki</Text>
                   <Text style={styles.adminStatValue}>
                     {adminStats?.totalUsers ?? "--"}
                   </Text>
                 </View>
                 <View style={styles.adminStat}>
+                  <Ionicons name="flash" size={20} color="#10b981" />
                   <Text style={styles.adminStatLabel}>Aktivni</Text>
                   <Text style={styles.adminStatValue}>
                     {adminStats?.activeUsers ?? "--"}
                   </Text>
                 </View>
                 <View style={styles.adminStat}>
+                  <Ionicons name="eye-outline" size={20} color="#f59e0b" />
                   <Text style={styles.adminStatLabel}>Gostje</Text>
                   <Text style={styles.adminStatValue}>
                     {adminStats?.totalGuests ?? "--"}
@@ -1405,6 +1416,35 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
     marginBottom: 16,
   },
+  adminHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+  liveIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#10b981",
+  },
+  liveText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#10b981",
+    letterSpacing: 0.8,
+  },
   adminCard: {
     padding: 16,
     borderRadius: 18,
@@ -1425,6 +1465,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(139, 92, 246, 0.25)",
     alignItems: "center",
+    gap: 6,
   },
   adminStatLabel: {
     fontSize: 11,
@@ -1432,10 +1473,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.6,
-    marginBottom: 6,
+    marginTop: 2,
   },
   adminStatValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "800",
     color: "#fff",
   },
