@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -6,8 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
-  Animated,
-  Image,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,29 +16,20 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { useAction, useQuery, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { createShadow } from "@/lib/shadow-helper";
 import * as Haptics from "expo-haptics";
 
 export default function ReceiptsScreen() {
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
   const [uploading, setUploading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  const profile = useQuery(
-    api.userProfiles.getProfile,
-    isAuthenticated ? {} : "skip"
-  );
   const myReceipts = useQuery(
     api.receipts.getMyReceipts,
     isAuthenticated ? {} : "skip"
   );
 
   const submitReceipt = useAction(api.receipts.submitReceipt);
-  const isPremium = profile?.isPremium ?? false;
 
   const pickImage = async () => {
     if (Platform.OS !== "web") {
@@ -80,7 +69,6 @@ export default function ReceiptsScreen() {
   };
 
   const handleImageSelected = async (uri: string) => {
-    setSelectedImage(uri);
     setAnalyzing(true);
     setUploading(true);
 
@@ -108,8 +96,6 @@ export default function ReceiptsScreen() {
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-
-      setSelectedImage(null);
     } catch (error) {
       console.error("Receipt upload error:", error);
       if (Platform.OS !== "web") {

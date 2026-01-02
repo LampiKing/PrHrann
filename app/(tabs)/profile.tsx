@@ -55,10 +55,7 @@ export default function ProfileScreen() {
   const [receiptSubmitting, setReceiptSubmitting] = useState(false);
   const [receiptError, setReceiptError] = useState("");
   const [receiptSuccess, setReceiptSuccess] = useState("");
-  const [showNicknameModal, setShowNicknameModal] = useState(false);
   const [nicknameInput, setNicknameInput] = useState("");
-  const [nicknameSaving, setNicknameSaving] = useState(false);
-  const [nicknameError, setNicknameError] = useState("");
   const [showFamilyModal, setShowFamilyModal] = useState(false);
   const [familyInviteEmail, setFamilyInviteEmail] = useState("");
   const [familyInviting, setFamilyInviting] = useState(false);
@@ -93,17 +90,10 @@ export default function ProfileScreen() {
     api.familyPlan.getPendingInvitations,
     isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
   );
-  const updateNickname = useMutation(api.userProfiles.updateNickname);
   const submitReceipt = useAction(api.receipts.submitReceipt);
   const inviteFamilyMember = useMutation(api.familyPlan.inviteFamilyMember);
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
-  const nicknameAvailability = useQuery(
-    api.userProfiles.isNicknameAvailable,
-    isAuthenticated && nicknameInput.trim().length >= 3
-      ? { nickname: nicknameInput.trim() }
-      : "skip"
-  );
   
   // Check if user is guest (anonymous)
   const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
@@ -136,11 +126,6 @@ export default function ProfileScreen() {
     profile?.nickname ??
     profile?.name ??
     (profile?.email ? profile.email.split("@")[0] : "Uporabnik");
-  const canChangeNickname =
-    !profile?.nicknameChangeAvailableAt || profile.nicknameChangeAvailableAt <= Date.now();
-  const nextNicknameChangeLabel = profile?.nicknameChangeAvailableAt
-    ? new Date(profile.nicknameChangeAvailableAt).toLocaleDateString()
-    : null;
   const receiptLimit = premiumType === "family" ? 4 : 2;
   const todayKey = getLocalDateKey();
   const receiptsToday = receipts?.filter((receipt) => receipt.purchaseDateKey === todayKey) ?? [];
@@ -328,43 +313,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleNicknameSave = async () => {
-    if (!canChangeNickname) {
-      setNicknameError(
-        nextNicknameChangeLabel
-          ? `Vzdevek lahko spremeniš po ${nextNicknameChangeLabel}.`
-          : "Vzdevek lahko spremeniš enkrat na 30 dni."
-      );
-      return;
-    }
-
-    const trimmed = nicknameInput.trim();
-    if (trimmed.length < 3 || trimmed.length > 20) {
-      setNicknameError("Vzdevek mora imeti 3-20 znakov.");
-      return;
-    }
-
-      if (nicknameAvailability && !nicknameAvailability.available) {
-        setNicknameError("Vzdevek je že zaseden.");
-        return;
-      }
-
-    setNicknameSaving(true);
-    setNicknameError("");
-    try {
-      const result = await updateNickname({ nickname: trimmed });
-      if (!result.success) {
-        setNicknameError(result.error ?? "Sprememba vzdevka ni uspela.");
-        return;
-      }
-      setShowNicknameModal(false);
-    } catch (error) {
-      console.error("Nickname error:", error);
-      setNicknameError("Sprememba vzdevka ni uspela.");
-    } finally {
-      setNicknameSaving(false);
-    }
-  };
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -418,8 +366,8 @@ export default function ProfileScreen() {
       setTimeout(() => {
         setFamilySuccess("");
       }, 3000);
-    } catch (error: any) {
-      setFamilyError(error.message || "Napaka pri pošiljanju vabila");
+    } catch (error: unknown) {
+      setFamilyError(error instanceof Error ? error.message : "Napaka pri pošiljanju vabila");
     } finally {
       setFamilyInviting(false);
     }
@@ -431,15 +379,16 @@ export default function ProfileScreen() {
     }
     try {
       await removeFamilyMember({ memberUserId });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Remove member error:", error);
     }
   };
 
-  const handleCancelInvite = async (invitationId: any) => {
+  const handleCancelInvite = async (invitationId: string) => {
     try {
-      await cancelInvitation({ invitationId });
-    } catch (error: any) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await cancelInvitation({ invitationId: invitationId as any });
+    } catch (error: unknown) {
       console.error("Cancel invite error:", error);
     }
   };
@@ -835,7 +784,7 @@ export default function ProfileScreen() {
               {/* Current Members */}
               {familyMembers?.members && familyMembers.members.length > 0 && (
                 <>
-                  {familyMembers.members.map((member: any) => (
+                  {familyMembers.members.map((member: { userId: string; nickname: string; email: string | undefined }) => (
                     <View key={member.userId} style={styles.familyMemberCard}>
                       <View style={styles.familyMemberIcon}>
                         <Ionicons name="person" size={20} color="#10b981" />
@@ -858,7 +807,7 @@ export default function ProfileScreen() {
               {/* Pending Invitations */}
               {pendingInvites && pendingInvites.length > 0 && (
                 <>
-                  {pendingInvites.map((invite: any) => (
+                  {pendingInvites.map((invite: { id: string; email: string | undefined }) => (
                     <View key={invite.id} style={styles.familyPendingCard}>
                       <View style={styles.familyMemberIcon}>
                         <Ionicons name="mail" size={20} color="#f59e0b" />
@@ -897,6 +846,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Nastavitve</Text>
 
           <View style={styles.settingsList}>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             <TouchableOpacity style={styles.settingItem} onPress={() => router.push("/receipts" as any)}>
               <View style={styles.settingIcon}>
                 <Ionicons name="receipt-outline" size={20} color="#10b981" />
@@ -1512,7 +1462,7 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   planCard: {
-    marginBottom: 24,
+    marginBottom: 28,
     borderRadius: 24,
     overflow: "hidden",
   },
@@ -1638,7 +1588,8 @@ const styles = StyleSheet.create({
     color: "#6b7280",
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 32,
+    paddingHorizontal: 4,
   },
   sectionTitle: {
     fontSize: 18,
@@ -1681,10 +1632,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   adminCard: {
-    padding: 16,
-    borderRadius: 18,
+    padding: 20,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.35)",
+    borderColor: "rgba(139, 92, 246, 0.4)",
+    ...createShadow("#8b5cf6", 0, 4, 0.2),
   },
   adminRow: {
     flexDirection: "row",
@@ -1787,12 +1739,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   awardYearCard: {
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: "rgba(15, 23, 42, 0.55)",
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
-    marginBottom: 12,
+    borderColor: "rgba(139, 92, 246, 0.25)",
+    marginBottom: 16,
+    ...createShadow("#8b5cf6", 0, 4, 0.15),
   },
   awardYearTitle: {
     fontSize: 14,
@@ -1806,16 +1759,17 @@ const styles = StyleSheet.create({
   awardBadgeCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    gap: 14,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: "rgba(139, 92, 246, 0.12)",
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.25)",
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    ...createShadow("#8b5cf6", 0, 2, 0.1),
   },
   awardBadgeImage: {
-    width: 52,
-    height: 52,
+    width: 64,
+    height: 64,
     resizeMode: "contain",
   },
   awardBadgeInfo: {
@@ -1832,12 +1786,13 @@ const styles = StyleSheet.create({
     color: "#cbd5e1",
   },
   receiptCard: {
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: "rgba(34, 197, 94, 0.08)",
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: "rgba(34, 197, 94, 0.1)",
     borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.25)",
-    marginBottom: 16,
+    borderColor: "rgba(34, 197, 94, 0.3)",
+    marginBottom: 18,
+    ...createShadow("#22c55e", 0, 3, 0.12),
   },
   receiptHeader: {
     flexDirection: "row",
@@ -1976,9 +1931,9 @@ const styles = StyleSheet.create({
   settingItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
+    padding: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(139, 92, 246, 0.1)",
+    borderBottomColor: "rgba(139, 92, 246, 0.15)",
   },
   settingIcon: {
     width: 36,
@@ -2461,20 +2416,22 @@ const styles = StyleSheet.create({
   familyMemberCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    backgroundColor: "rgba(16, 185, 129, 0.08)",
-    borderRadius: 14,
+    padding: 16,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.2)",
+    borderColor: "rgba(16, 185, 129, 0.3)",
+    ...createShadow("#10b981", 0, 2, 0.1),
   },
   familyPendingCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    backgroundColor: "rgba(245, 158, 11, 0.08)",
-    borderRadius: 14,
+    padding: 16,
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.2)",
+    borderColor: "rgba(245, 158, 11, 0.25)",
+    ...createShadow("#f59e0b", 0, 2, 0.1),
   },
   familyMemberIcon: {
     width: 40,
