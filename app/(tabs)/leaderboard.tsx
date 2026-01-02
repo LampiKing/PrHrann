@@ -659,8 +659,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   guestLogo: {
-    width: 102,
-    height: 102,
+    width: 153,
+    height: 153,
   },
   guestTitle: {
     fontSize: 20,

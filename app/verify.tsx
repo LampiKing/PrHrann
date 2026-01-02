@@ -59,7 +59,7 @@ export default function VerifyEmailScreen() {
       />
       {loading ? (
         <View style={{ alignItems: "center", marginVertical: 12 }}>
-          <Logo size={80} />
+          <Logo size={120} />
         </View>
       ) : (
         <TouchableOpacity style={styles.button} onPress={handleVerify}>

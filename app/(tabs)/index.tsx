@@ -1677,7 +1677,7 @@ export default function SearchScreen() {
                         ]}
                       />
                       <View style={styles.analyzingContent}>
-                        <Logo size={80} />
+                        <Logo size={120} />
                         <Text style={styles.analyzingText}>Analiziram sliko...</Text>
                       </View>
                     </View>
@@ -2000,8 +2000,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logo: {
-    width: 200,
-    height: 200,
+    width: 300,
+    height: 300,
     marginBottom: 12,
   },
   searchingHint: {

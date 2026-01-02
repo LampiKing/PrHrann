@@ -1480,8 +1480,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   authLogo: {
-    width: 145,
-    height: 145,
+    width: 218,
+    height: 218,
     marginBottom: 24,
   },
   authTitle: {
@@ -2350,8 +2350,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   modalLogo: {
-    width: 116,
-    height: 116,
+    width: 174,
+    height: 174,
     alignSelf: "center",
     marginBottom: 16,
   },

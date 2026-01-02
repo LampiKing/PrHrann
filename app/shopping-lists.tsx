@@ -125,7 +125,7 @@ export default function ShoppingListsScreen() {
           {!lists ? (
             <View style={styles.loadingContainer}>
               <View style={{ alignItems: "center", justifyContent: "center" }}>
-                <Logo size={80} />
+                <Logo size={120} />
               </View>
             </View>
           ) : lists.length === 0 ? (
@@ -321,7 +321,7 @@ export default function ShoppingListsScreen() {
                   style={styles.createButtonGradient}
                 >
                   {creating ? (
-                    <Logo size={22} />
+                    <Logo size={33} />
                   ) : (
                     <Text style={styles.createButtonText}>Ustvari</Text>
                   )}
