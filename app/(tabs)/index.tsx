@@ -1477,7 +1477,7 @@ export default function SearchScreen() {
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>3</Text>
-                <Text style={styles.statLabel}>Trgovin (več kmalu)</Text>
+                <Text style={styles.statLabel}>Trgovine (več kmalu)</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>

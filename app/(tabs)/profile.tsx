@@ -59,6 +59,11 @@ export default function ProfileScreen() {
   const [nicknameInput, setNicknameInput] = useState("");
   const [nicknameSaving, setNicknameSaving] = useState(false);
   const [nicknameError, setNicknameError] = useState("");
+  const [showFamilyModal, setShowFamilyModal] = useState(false);
+  const [familyInviteEmail, setFamilyInviteEmail] = useState("");
+  const [familyInviting, setFamilyInviting] = useState(false);
+  const [familyError, setFamilyError] = useState("");
+  const [familySuccess, setFamilySuccess] = useState("");
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -80,8 +85,19 @@ export default function ProfileScreen() {
     api.awards.getMyAwards,
     isAuthenticated ? {} : "skip"
   );
+  const familyMembers = useQuery(
+    api.familyPlan.getFamilyMembers,
+    isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
+  );
+  const pendingInvites = useQuery(
+    api.familyPlan.getPendingInvitations,
+    isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
+  );
   const updateNickname = useMutation(api.userProfiles.updateNickname);
   const submitReceipt = useAction(api.receipts.submitReceipt);
+  const inviteFamilyMember = useMutation(api.familyPlan.inviteFamilyMember);
+  const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
+  const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const nicknameAvailability = useQuery(
     api.userProfiles.isNicknameAvailable,
     isAuthenticated && nicknameInput.trim().length >= 3
@@ -382,6 +398,50 @@ export default function ProfileScreen() {
       console.error("Napaka pri brisanju:", error);
     }
     setShowDeleteModal(false);
+  };
+
+  const handleInviteFamilyMember = async () => {
+    const trimmedEmail = familyInviteEmail.trim().toLowerCase();
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setFamilyError("Vnesi veljaven e-naslov");
+      return;
+    }
+
+    setFamilyInviting(true);
+    setFamilyError("");
+    setFamilySuccess("");
+
+    try {
+      await inviteFamilyMember({ email: trimmedEmail });
+      setFamilySuccess(`Vabilo poslano na ${trimmedEmail}!`);
+      setFamilyInviteEmail("");
+      setTimeout(() => {
+        setFamilySuccess("");
+      }, 3000);
+    } catch (error: any) {
+      setFamilyError(error.message || "Napaka pri pošiljanju vabila");
+    } finally {
+      setFamilyInviting(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberUserId: string) => {
+    if (Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+    try {
+      await removeFamilyMember({ memberUserId });
+    } catch (error: any) {
+      console.error("Remove member error:", error);
+    }
+  };
+
+  const handleCancelInvite = async (invitationId: any) => {
+    try {
+      await cancelInvitation({ invitationId });
+    } catch (error: any) {
+      console.error("Cancel invite error:", error);
+    }
   };
 
   const handleCancelSubscription = async () => {
@@ -751,6 +811,84 @@ export default function ProfileScreen() {
                 </View>
               )}
             </LinearGradient>
+          </Animated.View>
+        )}
+
+        {/* Family Plan Management */}
+        {premiumType === "family" && (
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <View style={styles.familyHeader}>
+              <Text style={styles.sectionTitle}>Family Plan</Text>
+              <TouchableOpacity
+                style={styles.addMemberButton}
+                onPress={() => setShowFamilyModal(true)}
+              >
+                <Ionicons name="person-add" size={18} color="#fbbf24" />
+                <Text style={styles.addMemberText}>Povabi</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.sectionSubtitle}>
+              {familyMembers?.availableSlots || 0} / {familyMembers?.maxMembers || 3} prostih mest
+            </Text>
+
+            <View style={styles.familyList}>
+              {/* Current Members */}
+              {familyMembers?.members && familyMembers.members.length > 0 && (
+                <>
+                  {familyMembers.members.map((member: any) => (
+                    <View key={member.userId} style={styles.familyMemberCard}>
+                      <View style={styles.familyMemberIcon}>
+                        <Ionicons name="person" size={20} color="#10b981" />
+                      </View>
+                      <View style={styles.familyMemberInfo}>
+                        <Text style={styles.familyMemberName}>{member.nickname}</Text>
+                        <Text style={styles.familyMemberEmail}>{member.email}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.removeMemberButton}
+                        onPress={() => handleRemoveMember(member.userId)}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </>
+              )}
+
+              {/* Pending Invitations */}
+              {pendingInvites && pendingInvites.length > 0 && (
+                <>
+                  {pendingInvites.map((invite: any) => (
+                    <View key={invite.id} style={styles.familyPendingCard}>
+                      <View style={styles.familyMemberIcon}>
+                        <Ionicons name="mail" size={20} color="#f59e0b" />
+                      </View>
+                      <View style={styles.familyMemberInfo}>
+                        <Text style={styles.familyMemberEmail}>{invite.email}</Text>
+                        <Text style={styles.familyPendingText}>Vabilo poslano</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.removeMemberButton}
+                        onPress={() => handleCancelInvite(invite.id)}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#6b7280" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </>
+              )}
+
+              {/* Empty State */}
+              {(!familyMembers?.members || familyMembers.members.length === 0) &&
+                (!pendingInvites || pendingInvites.length === 0) && (
+                  <View style={styles.familyEmpty}>
+                    <Ionicons name="people-outline" size={40} color="#6b7280" />
+                    <Text style={styles.familyEmptyText}>
+                      Dodaj družinske člane in delite premium funkcije!
+                    </Text>
+                  </View>
+                )}
+            </View>
           </Animated.View>
         )}
 
@@ -1172,6 +1310,83 @@ export default function ProfileScreen() {
                   style={styles.keepPremiumGradient}
                 >
                   <Text style={styles.keepPremiumText}>Zapri</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      )}
+
+      {/* Family Invite Modal */}
+      {showFamilyModal && (
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.modalContent}>
+            <LinearGradient
+              colors={["rgba(139, 92, 246, 0.2)", "rgba(59, 7, 100, 0.3)"]}
+              style={styles.modalGradient}
+            >
+              <TouchableOpacity
+                style={styles.modalClose}
+                onPress={() => {
+                  setShowFamilyModal(false);
+                  setFamilyInviteEmail("");
+                  setFamilyError("");
+                  setFamilySuccess("");
+                }}
+              >
+                <Ionicons name="close" size={24} color="#9ca3af" />
+              </TouchableOpacity>
+
+              <View style={styles.familyModalIcon}>
+                <LinearGradient
+                  colors={["#fbbf24", "#f59e0b"]}
+                  style={styles.familyModalIconBg}
+                >
+                  <Ionicons name="people" size={32} color="#0b0814" />
+                </LinearGradient>
+              </View>
+
+              <Text style={styles.modalTitle}>Povabi v Family Plan</Text>
+              <Text style={styles.modalSubtitle}>
+                Vnesi e-naslov osebe, ki jo želiš dodati v svojo družino.
+              </Text>
+
+              <TextInput
+                style={styles.familyInput}
+                placeholder="email@example.com"
+                placeholderTextColor="#6b7280"
+                value={familyInviteEmail}
+                onChangeText={setFamilyInviteEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              {familyError ? (
+                <Text style={styles.familyErrorText}>{familyError}</Text>
+              ) : null}
+              {familySuccess ? (
+                <Text style={styles.familySuccessText}>{familySuccess}</Text>
+              ) : null}
+
+              <TouchableOpacity
+                style={styles.familyInviteButton}
+                onPress={handleInviteFamilyMember}
+                disabled={familyInviting}
+              >
+                <LinearGradient
+                  colors={["#fbbf24", "#f59e0b"]}
+                  style={styles.familyInviteGradient}
+                >
+                  {familyInviting ? (
+                    <ActivityIndicator size="small" color="#0b0814" />
+                  ) : (
+                    <>
+                      <Ionicons name="send" size={18} color="#0b0814" />
+                      <Text style={styles.familyInviteText}>Pošlji vabilo</Text>
+                    </>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </LinearGradient>
@@ -2217,6 +2432,148 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6b7280",
     textAlign: "center",
+  },
+  familyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  addMemberButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
+  },
+  addMemberText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#fbbf24",
+  },
+  familyList: {
+    gap: 12,
+  },
+  familyMemberCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+  },
+  familyPendingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    backgroundColor: "rgba(245, 158, 11, 0.08)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.2)",
+  },
+  familyMemberIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  familyMemberInfo: {
+    flex: 1,
+  },
+  familyMemberName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 2,
+  },
+  familyMemberEmail: {
+    fontSize: 13,
+    color: "#9ca3af",
+  },
+  familyPendingText: {
+    fontSize: 12,
+    color: "#f59e0b",
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  removeMemberButton: {
+    padding: 4,
+  },
+  familyEmpty: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  familyEmptyText: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    marginTop: 12,
+    lineHeight: 20,
+  },
+  familyModalIcon: {
+    alignSelf: "center",
+    marginBottom: 20,
+  },
+  familyModalIconBg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  familyInput: {
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: "#fff",
+    marginBottom: 16,
+  },
+  familyErrorText: {
+    fontSize: 13,
+    color: "#ef4444",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  familySuccessText: {
+    fontSize: 13,
+    color: "#10b981",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  familyInviteButton: {
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  familyInviteGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    gap: 8,
+  },
+  familyInviteText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0b0814",
   },
 });
 
