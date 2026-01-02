@@ -1,6 +1,15 @@
 # Grocery Scanner (Spar, Mercator, Hitri Nakup)
 
-Ta skripta tedensko pobere cene iz spletnih trgovin in jih pošlje v Convex.
+Ta skripta tedensko pobere cene iz spletnih trgovin in jih poslje v Convex.
+
+## Avtomatski Google Sheets scraper
+
+Nova avtomatika je v `automated_scraper/`:
+- `automated_scraper/README_SETUP.md`
+- `automated_scraper/QUICKSTART_AUTOMATED.md`
+
+Te skripte pisejo cene v Google Sheet (ne v Convex).
+Za zagon najprej pojdi v mapo `automated_scraper/`.
 
 ## 1) Avtomatika (GitHub Actions)
 
