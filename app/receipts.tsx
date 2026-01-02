@@ -134,7 +134,7 @@ export default function ReceiptsScreen() {
             </Text>
             <TouchableOpacity
               style={styles.guestButton}
-              onPress={() => router.push("/auth")}
+              onPress={() => router.push({ pathname: "/auth", params: { mode: "login" } })}
             >
               <LinearGradient
                 colors={["#8b5cf6", "#7c3aed"]}

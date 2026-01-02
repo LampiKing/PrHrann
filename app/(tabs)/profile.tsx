@@ -376,7 +376,7 @@ export default function ProfileScreen() {
     }
     try {
       await authClient.signOut();
-      router.replace("/auth");
+      router.replace({ pathname: "/auth", params: { mode: "login" } });
       // Note: Full account deletion would require backend implementation
     } catch (error) {
       console.error("Napaka pri brisanju:", error);

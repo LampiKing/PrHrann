@@ -47,7 +47,7 @@ const FACTS_LEGACY = [
 
 export default function AuthScreen() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nickname, setNickname] = useState("");
@@ -101,8 +101,8 @@ export default function AuthScreen() {
   };
 
   useEffect(() => {
-    if (!mode) return;
-    const shouldLogin = mode === "login";
+    // Default to login mode if no mode is specified
+    const shouldLogin = mode === "login" || !mode;
     if (modeInitialized.current && shouldLogin === isLogin) {
       return;
     }
