@@ -391,6 +391,7 @@ export const getReceipts = authQuery({
       _id: v.id("receipts"),
       _creationTime: v.number(),
       storeName: v.optional(v.string()),
+      purchaseDate: v.number(),
       purchaseDateKey: v.string(),
       totalPaid: v.number(),
       savedAmount: v.number(),
@@ -410,6 +411,7 @@ export const getReceipts = authQuery({
       _id: receipt._id,
       _creationTime: receipt._creationTime,
       storeName: receipt.storeName,
+      purchaseDate: receipt.purchaseDate,
       purchaseDateKey: receipt.purchaseDateKey,
       totalPaid: receipt.totalPaid,
       savedAmount: receipt.savedAmount,
@@ -418,3 +420,6 @@ export const getReceipts = authQuery({
     }));
   },
 });
+
+// Alias for UI compatibility
+export const getMyReceipts = getReceipts;
