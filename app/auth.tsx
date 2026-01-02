@@ -20,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { createShadow } from "@/lib/shadow-helper";
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useQuery, useAction } from "convex/react";
 import Logo, { getSeasonalLogoSource } from "@/lib/Logo";
 import { api } from "@/convex/_generated/api";
 
@@ -73,6 +73,7 @@ export default function AuthScreen() {
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
   );
+  const requestEmailVerification = useAction(api.emailVerification.requestEmailVerification);
 
   const modeInitialized = useRef(false);
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
@@ -278,7 +279,9 @@ export default function AuthScreen() {
         setShowSuccessOverlay(false);
         setPendingRedirect(null);
         setSuccess("");
-        if (redirectTarget) {
+        if (redirectTarget === "register") {
+          router.replace("/verify");
+        } else if (redirectTarget) {
           router.replace("/(tabs)");
         }
       }
@@ -431,6 +434,14 @@ export default function AuthScreen() {
         }
 
         console.log("Registration successful!");
+
+        // Send verification email
+        try {
+          await requestEmailVerification({});
+        } catch (emailErr) {
+          console.warn("Failed to send verification email:", emailErr);
+        }
+
         openSuccessOverlay(
           "Račun ustvarjen! Poslali smo povezavo za potrditev e-naslova.",
           "register"

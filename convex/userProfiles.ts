@@ -253,6 +253,16 @@ export const recordSearch = authMutation({
     }
 
     const isGuest = profile.isAnonymous || !profile.email;
+
+    // Require email verification for non-guest users
+    if (!isGuest && !profile.emailVerified) {
+      return {
+        success: false,
+        searchesRemaining: 0,
+        error: "Email verification required. Please verify your email to start searching.",
+      };
+    }
+
     const maxSearches = profile.isPremium
       ? Infinity
       : isGuest
