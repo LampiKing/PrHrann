@@ -4,17 +4,23 @@
 Zažene se vsak dan ob 21:00 (nastavi v cron)
 """
 
+import argparse
 import asyncio
+import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from playwright.async_api import async_playwright
 import re
+import unicodedata
 from typing import List, Dict, Optional
+import requests
 
 # KONFIGURACIJA
-SHEET_ID = "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y"
-CREDENTIALS_FILE = "credentials.json"
+SHEET_ID = os.getenv("PRHRAN_SHEET_ID", "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y")
+CREDENTIALS_FILE = os.getenv("PRHRAN_CREDENTIALS_FILE", "credentials.json")
+INGEST_URL = os.getenv("PRHRAN_INGEST_URL")
+INGEST_TOKEN = os.getenv("PRHRAN_INGEST_TOKEN")
 
 # Vse kategorije
 ALL_CATEGORIES = {
@@ -47,6 +53,33 @@ def parse_price(text: str) -> float:
         return float(match.group()) if match else 0.0
     except:
         return 0.0
+
+
+def normalize_store(value: str) -> str:
+    if not value:
+        return ""
+    normalized = unicodedata.normalize("NFKD", value)
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized.lower()).strip()
+    if "spar" in normalized:
+        return "Spar"
+    if "mercator" in normalized:
+        return "Mercator"
+    if "tus" in normalized or "hitri" in normalized or normalized.startswith("tu"):
+        return "Tus"
+    return value.strip()
+
+
+def format_category(value: str) -> str:
+    if not value:
+        return "Neznana kategorija"
+    return value.replace("-", " ").replace("_", " ").title()
+
+
+def normalize_sale_price(price: float, sale_price: Optional[float]) -> Optional[float]:
+    if sale_price is None:
+        return None
+    return sale_price if sale_price < price else None
 
 
 async def scrape_spar_category(page, category: str) -> List[Dict]:
@@ -87,7 +120,8 @@ async def scrape_spar_category(page, category: str) -> List[Dict]:
                     "name": name,
                     "price": price,
                     "sale_price": sale_price,
-                    "store": "SPAR"
+                    "store": "Spar",
+                    "category": category,
                 })
             except:
                 continue
@@ -135,7 +169,8 @@ async def scrape_tus_category(page, category: str) -> List[Dict]:
                     "name": name,
                     "price": price,
                     "sale_price": sale_price,
-                    "store": "Tuš"
+                    "store": "Tus",
+                    "category": category,
                 })
             except:
                 continue
@@ -183,7 +218,8 @@ async def scrape_mercator_category(page, category: str) -> List[Dict]:
                     "name": name,
                     "price": price,
                     "sale_price": sale_price,
-                    "store": "Mercator"
+                    "store": "Mercator",
+                    "category": category,
                 })
             except:
                 continue
@@ -214,7 +250,7 @@ async def scrape_all_products():
                 products = await scrape_spar_category(page_spar, category)
                 all_products.extend(products)
             await page_spar.close()
-            print(f"✅ {sum(1 for p in all_products if p['store'] == 'SPAR')}")
+            print(f"✅ {sum(1 for p in all_products if p['store'] == 'Spar')}")
             
             # Tuš
             print("🛒 Tuš...", end=" ", flush=True)
@@ -223,7 +259,7 @@ async def scrape_all_products():
                 products = await scrape_tus_category(page_tus, category)
                 all_products.extend(products)
             await page_tus.close()
-            print(f"✅ {sum(1 for p in all_products if p['store'] == 'Tuš')}")
+            print(f"✅ {sum(1 for p in all_products if p['store'] == 'Tus')}")
             
             # Mercator
             print("🛒 Mercator...", end=" ", flush=True)
@@ -262,7 +298,9 @@ def update_google_sheet(new_products: List[Dict]):
         # Ustvari lookup dict (ime+trgovina -> row index)
         lookup = {}
         for idx, row in enumerate(existing_data, start=2):  # start=2 ker je row 1 header
-            key = f"{row['Ime izdelka']}_{row['Trgovina']}"
+            row_name = str(row.get("Ime izdelka", "")).strip()
+            row_store = normalize_store(str(row.get("Trgovina", "")))
+            key = f"{row_name}_{row_store}"
             lookup[key] = {
                 'index': idx,
                 'price': row['Cena'],
@@ -278,13 +316,14 @@ def update_google_sheet(new_products: List[Dict]):
         print("  🔍 Preverjam spremembe...")
         
         for product in new_products:
-            key = f"{product['name']}_{product['store']}"
+            store_name = normalize_store(product.get("store", ""))
+            key = f"{product['name']}_{store_name}"
             
             if key in lookup:
                 # Izdelek obstaja - preveri ceno
                 old = lookup[key]
                 new_price = product['price']
-                new_sale = product['sale_price'] if product['sale_price'] else ""
+                new_sale = normalize_sale_price(new_price, product.get("sale_price")) or ""
                 
                 # Ali se je spremenila cena?
                 price_changed = (new_price != old['price'])
@@ -295,7 +334,7 @@ def update_google_sheet(new_products: List[Dict]):
                     row_idx = old['index']
                     updates.append({
                         'range': f'B{row_idx}:E{row_idx}',
-                        'values': [[new_price, new_sale, product['store'], date_str]]
+                        'values': [[new_price, new_sale, store_name, date_str]]
                     })
                 else:
                     unchanged += 1
@@ -304,8 +343,8 @@ def update_google_sheet(new_products: List[Dict]):
                 new_items.append([
                     product['name'],
                     product['price'],
-                    product['sale_price'] if product['sale_price'] else "",
-                    product['store'],
+                    normalize_sale_price(product['price'], product.get('sale_price')) or "",
+                    store_name,
                     date_str
                 ])
         
@@ -331,7 +370,57 @@ def update_google_sheet(new_products: List[Dict]):
         print(f"❌ Napaka: {e}")
 
 
-async def main():
+def build_convex_items(products: List[Dict]) -> List[Dict]:
+    items = []
+    for product in products:
+        name = str(product.get("name", "")).strip()
+        if not name:
+            continue
+        store_name = normalize_store(product.get("store", ""))
+        price = product.get("price")
+        if not store_name or not price or price <= 0:
+            continue
+        sale_price = normalize_sale_price(price, product.get("sale_price"))
+        items.append({
+            "ime": name,
+            "redna_cena": price,
+            "akcijska_cena": sale_price,
+            "kategorija": format_category(product.get("category", "")),
+            "trgovina": store_name,
+        })
+    return items
+
+
+def upload_to_convex(items: List[Dict]) -> None:
+    if not INGEST_URL or not INGEST_TOKEN:
+        print("Upload preskocen: manjka PRHRAN_INGEST_URL ali PRHRAN_INGEST_TOKEN.")
+        return
+    if not items:
+        print("Upload preskocen: ni izdelkov za poslati.")
+        return
+    try:
+        response = requests.post(
+            INGEST_URL,
+            headers={
+                "Authorization": f"Bearer {INGEST_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json={"items": items},
+            timeout=120,
+        )
+        response.raise_for_status()
+        print(f"Upload OK: {response.status_code}")
+    except Exception as e:
+        print(f"Upload napaka: {e}")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Dnevna posodobitev cen.")
+    parser.add_argument("--upload", action="store_true", help="Poslji podatke v Convex.")
+    return parser.parse_args()
+
+
+async def main(upload: bool):
     """Glavna funkcija"""
     print("\n" + "=" * 80)
     print("🔄 DNEVNA POSODOBITEV CEN")
@@ -343,6 +432,9 @@ async def main():
     if products:
         # Posodobi Sheet
         update_google_sheet(products)
+        if upload:
+            items = build_convex_items(products)
+            upload_to_convex(items)
         print("\n✅ Posodobitev končana!")
     else:
         print("\n❌ Ni zbranih izdelkov!")
@@ -351,4 +443,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    args = parse_args()
+    asyncio.run(main(args.upload))

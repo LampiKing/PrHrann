@@ -22,11 +22,23 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4
+          pip install -r automated_scraper/requirements_automated.txt
+          playwright install --with-deps chromium
 
-      - name: Run scanner
+      - name: Write Google credentials
+        env:
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+        run: |
+          if [ -z "$GOOGLE_SHEETS_CREDENTIALS" ]; then
+            echo "Missing GOOGLE_SHEETS_CREDENTIALS secret" >&2
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SHEETS_CREDENTIALS" > automated_scraper/credentials.json
+
+      - name: Run automated scraper
         env:
           PRHRAN_INGEST_URL: ${{ secrets.PRHRAN_INGEST_URL }}
           PRHRAN_INGEST_TOKEN: ${{ secrets.PRHRAN_INGEST_TOKEN }}
+          PRHRAN_CREDENTIALS_FILE: automated_scraper/credentials.json
         run: |
-          python grocery_scanner.py --upload
+          python automated_scraper/daily_update.py --upload

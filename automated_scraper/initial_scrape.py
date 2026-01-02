@@ -4,17 +4,23 @@
 Enkratna akcija - pridobi ~15.000+ izdelkov
 """
 
+import argparse
 import asyncio
+import os
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 from playwright.async_api import async_playwright
 import re
+import unicodedata
 from typing import List, Dict, Optional
+import requests
 
 # KONFIGURACIJA
-SHEET_ID = "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y"
-CREDENTIALS_FILE = "credentials.json"  # Google Service Account credentials
+SHEET_ID = os.getenv("PRHRAN_SHEET_ID", "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y")
+CREDENTIALS_FILE = os.getenv("PRHRAN_CREDENTIALS_FILE", "credentials.json")
+INGEST_URL = os.getenv("PRHRAN_INGEST_URL")
+INGEST_TOKEN = os.getenv("PRHRAN_INGEST_TOKEN")
 
 # Vse kategorije za vse izdelke
 ALL_CATEGORIES = {
@@ -36,6 +42,33 @@ ALL_CATEGORIES = {
 }
 
 
+def normalize_store(value: str) -> str:
+    if not value:
+        return ""
+    normalized = unicodedata.normalize("NFKD", value)
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized.lower()).strip()
+    if "spar" in normalized:
+        return "Spar"
+    if "mercator" in normalized:
+        return "Mercator"
+    if "tus" in normalized or "hitri" in normalized or normalized.startswith("tu"):
+        return "Tus"
+    return value.strip()
+
+
+def format_category(value: str) -> str:
+    if not value:
+        return "Neznana kategorija"
+    return value.replace("-", " ").replace("_", " ").title()
+
+
+def normalize_sale_price(price: float, sale_price: Optional[float]) -> Optional[float]:
+    if sale_price is None:
+        return None
+    return sale_price if sale_price < price else None
+
+
 class Product:
     def __init__(self, name: str, price: float, sale_price: Optional[float], 
                  store: str, category: str, date: str):
@@ -55,6 +88,16 @@ class Product:
             self.store,
             self.date
         ]
+
+    def to_convex_item(self) -> Dict:
+        """Vrne zapis za Convex ingest."""
+        return {
+            "ime": self.name,
+            "redna_cena": self.price,
+            "akcijska_cena": normalize_sale_price(self.price, self.sale_price),
+            "kategorija": format_category(self.category),
+            "trgovina": normalize_store(self.store),
+        }
 
 
 def parse_price(text: str) -> float:
@@ -112,7 +155,7 @@ async def scrape_spar_category(page, category: str) -> List[Product]:
                     sale_text = await sale_elem.inner_text()
                     sale_price = parse_price(sale_text)
                 
-                products.append(Product(name, price, sale_price, "SPAR", category, date_str))
+                products.append(Product(name, price, sale_price, "Spar", category, date_str))
             except:
                 continue
         
@@ -161,7 +204,7 @@ async def scrape_tus_category(page, category: str) -> List[Product]:
                 if sale_elem:
                     sale_price = parse_price(await sale_elem.inner_text())
                 
-                products.append(Product(name, price, sale_price, "Tuš", category, date_str))
+                products.append(Product(name, price, sale_price, "Tus", category, date_str))
             except:
                 continue
         
@@ -248,7 +291,7 @@ async def scrape_all_products():
                 all_products.extend(products)
                 await asyncio.sleep(2)
             await page_spar.close()
-            print(f"  ✅ SPAR skupaj: {sum(1 for p in all_products if p.store == 'SPAR')} izdelkov\n")
+            print(f"  ✅ SPAR skupaj: {sum(1 for p in all_products if p.store == 'Spar')} izdelkov\n")
             
             # Tuš
             print("🛒 TUŠ")
@@ -259,7 +302,7 @@ async def scrape_all_products():
                 all_products.extend(products)
                 await asyncio.sleep(2)
             await page_tus.close()
-            print(f"  ✅ Tuš skupaj: {sum(1 for p in all_products if p.store == 'Tuš')} izdelkov\n")
+            print(f"  ✅ Tuš skupaj: {sum(1 for p in all_products if p.store == 'Tus')} izdelkov\n")
             
             # Mercator
             print("🛒 MERCATOR")
@@ -335,7 +378,48 @@ def write_to_google_sheet(products: List[Product]):
         print(f"❌ NAPAKA: {e}")
 
 
-async def main():
+def build_convex_items(products: List[Product]) -> List[Dict]:
+    items = []
+    for product in products:
+        item = product.to_convex_item()
+        if not item.get("trgovina") or not item.get("redna_cena"):
+            continue
+        if item["redna_cena"] <= 0:
+            continue
+        items.append(item)
+    return items
+
+
+def upload_to_convex(items: List[Dict]) -> None:
+    if not INGEST_URL or not INGEST_TOKEN:
+        print("Upload preskocen: manjka PRHRAN_INGEST_URL ali PRHRAN_INGEST_TOKEN.")
+        return
+    if not items:
+        print("Upload preskocen: ni izdelkov za poslati.")
+        return
+    try:
+        response = requests.post(
+            INGEST_URL,
+            headers={
+                "Authorization": f"Bearer {INGEST_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json={"items": items},
+            timeout=120,
+        )
+        response.raise_for_status()
+        print(f"Upload OK: {response.status_code}")
+    except Exception as e:
+        print(f"Upload napaka: {e}")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Prvi zagon scrapanja.")
+    parser.add_argument("--upload", action="store_true", help="Poslji podatke v Convex.")
+    return parser.parse_args()
+
+
+async def main(upload: bool):
     """Glavna funkcija"""
     
     # Scrape vse izdelke
@@ -346,14 +430,17 @@ async def main():
     print("📊 STATISTIKA")
     print("=" * 80)
     print(f"📦 Skupaj izdelkov: {len(products)}")
-    print(f"   • SPAR: {sum(1 for p in products if p.store == 'SPAR')}")
-    print(f"   • Tuš: {sum(1 for p in products if p.store == 'Tuš')}")
+    print(f"   • SPAR: {sum(1 for p in products if p.store == 'Spar')}")
+    print(f"   • Tuš: {sum(1 for p in products if p.store == 'Tus')}")
     print(f"   • Mercator: {sum(1 for p in products if p.store == 'Mercator')}")
     print(f"🎁 Na akciji: {sum(1 for p in products if p.sale_price)}")
     
     if products:
         # Vpiši v Google Sheet
         write_to_google_sheet(products)
+        if upload:
+            items = build_convex_items(products)
+            upload_to_convex(items)
     else:
         print("\n❌ Ni zbranih izdelkov!")
     
@@ -364,4 +451,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    args = parse_args()
+    asyncio.run(main(args.upload))
