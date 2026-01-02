@@ -3147,12 +3147,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   statusBanner: {
-    borderRadius: 18,
-    padding: 16,
+    borderRadius: 16,
+    padding: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "rgba(16, 185, 129, 0.3)",
-    ...createShadow("#10b981", 0, 6, 0.25, 14, 8),
+    ...createShadow("#10b981", 0, 4, 0.2, 10, 6),
   },
   statusTopRow: {
     flexDirection: "row",
@@ -3210,10 +3210,11 @@ const styles = StyleSheet.create({
     color: "#cbd5e1",
   },
   statusValue: {
-    fontSize: 30,
+    fontSize: 24,
     fontWeight: "900",
     color: "#fff",
     letterSpacing: -0.5,
+    marginTop: 2,
   },
   statusSubtext: {
     marginTop: 4,
