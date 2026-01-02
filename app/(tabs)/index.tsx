@@ -614,9 +614,9 @@ export default function SearchScreen() {
 
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
+      allowsEditing: false, // Omogoči polno sliko za boljši OCR
+      quality: 0.9, // Višja kvaliteta za boljše prepoznavanje teksta
+      exif: false,
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -786,6 +786,55 @@ export default function SearchScreen() {
     return value.toFixed(2).replace(".", ",") + " EUR";
   };
 
+  const getCategoryEmoji = (category: string) => {
+    const categoryLower = category.toLowerCase();
+
+    // Mlečni izdelki
+    if (categoryLower.includes("mle") || categoryLower.includes("mleko") || categoryLower.includes("jogurt") || categoryLower.includes("sir")) return "🥛";
+
+    // Pekovski izdelki
+    if (categoryLower.includes("pek") || categoryLower.includes("kruh") || categoryLower.includes("pecivo")) return "🍞";
+
+    // Meso in ribe
+    if (categoryLower.includes("meso") || categoryLower.includes("piš") || categoryLower.includes("rib") || categoryLower.includes("salama")) return "🍖";
+
+    // Sadje in zelenjava
+    if (categoryLower.includes("sadje") || categoryLower.includes("zelenjava") || categoryLower.includes("jabolko") || categoryLower.includes("paradiz")) return "🍎";
+
+    // Pijače
+    if (categoryLower.includes("pija") || categoryLower.includes("sok") || categoryLower.includes("voda") || categoryLower.includes("kava")) return "🥤";
+
+    // Sladkarije
+    if (categoryLower.includes("slad") || categoryLower.includes("čoko") || categoryLower.includes("bonbon") || categoryLower.includes("desert")) return "🍫";
+
+    // Zamrznjeni izdelki
+    if (categoryLower.includes("zamrzn") || categoryLower.includes("sladoled")) return "🧊";
+
+    // Konzerve
+    if (categoryLower.includes("konzer") || categoryLower.includes("omaka") || categoryLower.includes("juha")) return "🥫";
+
+    // Testenine in žita
+    if (categoryLower.includes("testeni") || categoryLower.includes("riž") || categoryLower.includes("žit") || categoryLower.includes("zrnata")) return "🍝";
+
+    // Začimbe in dodatki
+    if (categoryLower.includes("začimb") || categoryLower.includes("sol") || categoryLower.includes("poper") || categoryLower.includes("olje")) return "🧂";
+
+    // Higiena
+    if (categoryLower.includes("higie") || categoryLower.includes("milo") || categoryLower.includes("šampon")) return "🧴";
+
+    // Čistila
+    if (categoryLower.includes("čist") || categoryLower.includes("prašek") || categoryLower.includes("detergen")) return "🧹";
+
+    // Zajtrk
+    if (categoryLower.includes("zajtrk") || categoryLower.includes("kosmi") || categoryLower.includes("muesli")) return "🥣";
+
+    // Alkohol
+    if (categoryLower.includes("alkohol") || categoryLower.includes("pivo") || categoryLower.includes("vino")) return "🍺";
+
+    // Default
+    return "🛒";
+  };
+
   const calculateSavings = (product: ProductResult) => {
     if (product.prices.length < 2) return null;
     const savings = product.highestPrice - product.lowestPrice;
@@ -861,11 +910,7 @@ export default function SearchScreen() {
                   style={styles.productImageBg}
                 >
                   <Text style={styles.productEmoji}>
-                    {product.category === "Mlecni izdelki" ? "ML" :
-                     product.category === "Pekovski izdelki" ? "PE" :
-                     product.category === "Meso" ? "MS" :
-                     product.category === "Sadje in zelenjava" ? "SZ" :
-                     product.category === "Pijace" ? "PI" : "IZ"}
+                    {getCategoryEmoji(product.category)}
                   </Text>
                 </LinearGradient>
               </View>

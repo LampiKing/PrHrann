@@ -16,21 +16,21 @@ export const STORES_DATA = [
 ];
 
 // 🛒 IZDELKI - Dodaj svoje izdelke tukaj
-// Kategorije: "Mlecni izdelki", "Pijace", "Meso", "Sadje in zelenjava", "Kruh in pecivo", "Zamrznjeno", "cistila", "Osebna nega", "Prigrizki", "Osnovne zivila"
+// Kategorije: "Mlečni izdelki", "Pijače", "Meso", "Sadje in zelenjava", "Kruh in pečivo", "Zamrznjeno", "Čistila", "Osebna nega", "Prigrizki", "Osnovna živila"
 export const PRODUCTS_DATA = [
-  // Mlecni izdelki
-  { name: "Alpsko mleko 3.5%", category: "Mlecni izdelki", unit: "1L", imageUrl: "" },
-  { name: "Jogurt Activia naravni", category: "Mlecni izdelki", unit: "150g", imageUrl: "" },
-  { name: "Sir Edamec", category: "Mlecni izdelki", unit: "250g", imageUrl: "" },
-  { name: "Maslo Ljubljanske mlekarne", category: "Mlecni izdelki", unit: "250g", imageUrl: "" },
-  { name: "Skuta", category: "Mlecni izdelki", unit: "250g", imageUrl: "" },
-  
-  // Pijace
-  { name: "Coca-Cola", category: "Pijace", unit: "1.5L", imageUrl: "" },
-  { name: "Radenska Classic", category: "Pijace", unit: "1.5L", imageUrl: "" },
-  { name: "Pomarancni sok Fructal", category: "Pijace", unit: "1L", imageUrl: "" },
-  { name: "Pivo Union", category: "Pijace", unit: "0.5L", imageUrl: "" },
-  { name: "Voda Zala", category: "Pijace", unit: "1.5L", imageUrl: "" },
+  // Mlečni izdelki
+  { name: "Alpsko mleko 3.5%", category: "Mlečni izdelki", unit: "1L", imageUrl: "" },
+  { name: "Jogurt Activia naravni", category: "Mlečni izdelki", unit: "150g", imageUrl: "" },
+  { name: "Sir Edamec", category: "Mlečni izdelki", unit: "250g", imageUrl: "" },
+  { name: "Maslo Ljubljanske mlekarne", category: "Mlečni izdelki", unit: "250g", imageUrl: "" },
+  { name: "Skuta", category: "Mlečni izdelki", unit: "250g", imageUrl: "" },
+
+  // Pijače
+  { name: "Coca-Cola", category: "Pijače", unit: "1.5L", imageUrl: "" },
+  { name: "Radenska Classic", category: "Pijače", unit: "1.5L", imageUrl: "" },
+  { name: "Pomarančni sok Fructal", category: "Pijače", unit: "1L", imageUrl: "" },
+  { name: "Pivo Union", category: "Pijače", unit: "0.5L", imageUrl: "" },
+  { name: "Voda Zala", category: "Pijače", unit: "1.5L", imageUrl: "" },
   
   // Meso
   { name: "Piscancja prsa", category: "Meso", unit: "1kg", imageUrl: "" },
@@ -46,33 +46,33 @@ export const PRODUCTS_DATA = [
   { name: "Krompir", category: "Sadje in zelenjava", unit: "2kg", imageUrl: "" },
   { name: "Solata", category: "Sadje in zelenjava", unit: "1kos", imageUrl: "" },
   
-  // Kruh in pecivo
-  { name: "Beli kruh", category: "Kruh in pecivo", unit: "500g", imageUrl: "" },
-  { name: "Polnozrnati kruh", category: "Kruh in pecivo", unit: "500g", imageUrl: "" },
-  { name: "zemlje", category: "Kruh in pecivo", unit: "6kos", imageUrl: "" },
-  { name: "Rogljicki", category: "Kruh in pecivo", unit: "4kos", imageUrl: "" },
-  
-  // Osnovne zivila
-  { name: "Jajca M", category: "Osnovne zivila", unit: "10kos", imageUrl: "" },
-  { name: "Moka tip 500", category: "Osnovne zivila", unit: "1kg", imageUrl: "" },
-  { name: "Sladkor", category: "Osnovne zivila", unit: "1kg", imageUrl: "" },
-  { name: "Olje soncnicno", category: "Osnovne zivila", unit: "1L", imageUrl: "" },
-  { name: "Riz", category: "Osnovne zivila", unit: "1kg", imageUrl: "" },
-  { name: "Testenine spageti", category: "Osnovne zivila", unit: "500g", imageUrl: "" },
-  
+  // Kruh in pečivo
+  { name: "Beli kruh", category: "Kruh in pečivo", unit: "500g", imageUrl: "" },
+  { name: "Polnozrnati kruh", category: "Kruh in pečivo", unit: "500g", imageUrl: "" },
+  { name: "Žemlje", category: "Kruh in pečivo", unit: "6kos", imageUrl: "" },
+  { name: "Rogljički", category: "Kruh in pečivo", unit: "4kos", imageUrl: "" },
+
+  // Osnovna živila
+  { name: "Jajca M", category: "Osnovna živila", unit: "10kos", imageUrl: "" },
+  { name: "Moka tip 500", category: "Osnovna živila", unit: "1kg", imageUrl: "" },
+  { name: "Sladkor", category: "Osnovna živila", unit: "1kg", imageUrl: "" },
+  { name: "Olje sončnično", category: "Osnovna živila", unit: "1L", imageUrl: "" },
+  { name: "Riž", category: "Osnovna živila", unit: "1kg", imageUrl: "" },
+  { name: "Testenine spageti", category: "Osnovna živila", unit: "500g", imageUrl: "" },
+
   // Prigrizki
-  { name: "cips Chio", category: "Prigrizki", unit: "150g", imageUrl: "" },
-  { name: "cokolada Milka", category: "Prigrizki", unit: "100g", imageUrl: "" },
+  { name: "Čips Chio", category: "Prigrizki", unit: "150g", imageUrl: "" },
+  { name: "Čokolada Milka", category: "Prigrizki", unit: "100g", imageUrl: "" },
   { name: "Keksi Petit Beurre", category: "Prigrizki", unit: "200g", imageUrl: "" },
-  
-  // cistila
-  { name: "Pralni prasek Persil", category: "cistila", unit: "2.5kg", imageUrl: "" },
-  { name: "Detergent za posodo Jar", category: "cistila", unit: "500ml", imageUrl: "" },
-  { name: "cistilo za WC Domestos", category: "cistila", unit: "750ml", imageUrl: "" },
-  
+
+  // Čistila
+  { name: "Pralni prašek Persil", category: "Čistila", unit: "2.5kg", imageUrl: "" },
+  { name: "Detergent za posodo Jar", category: "Čistila", unit: "500ml", imageUrl: "" },
+  { name: "Čistilo za WC Domestos", category: "Čistila", unit: "750ml", imageUrl: "" },
+
   // Osebna nega
   { name: "Zobna pasta Colgate", category: "Osebna nega", unit: "75ml", imageUrl: "" },
-  { name: "sampon Head & Shoulders", category: "Osebna nega", unit: "400ml", imageUrl: "" },
+  { name: "Šampon Head & Shoulders", category: "Osebna nega", unit: "400ml", imageUrl: "" },
   { name: "Toaletni papir Paloma", category: "Osebna nega", unit: "10kos", imageUrl: "" },
 ];
 
@@ -106,7 +106,7 @@ export const PRICES_DATA: Record<string, Record<string, { price: number; origina
     "Tus": { price: 1.75, isOnSale: false },
   },
   
-  // Pijace
+  // Pijače
   "Coca-Cola": {
     "Spar": { price: 1.89, isOnSale: false },
     "Mercator": { price: 1.95, isOnSale: false },
@@ -117,7 +117,7 @@ export const PRICES_DATA: Record<string, Record<string, { price: number; origina
     "Mercator": { price: 1.05, isOnSale: false },
     "Tus": { price: 0.95, isOnSale: false },
   },
-  "Pomarancni sok Fructal": {
+  "Pomarančni sok Fructal": {
     "Spar": { price: 2.29, originalPrice: 2.69, isOnSale: true },
     "Mercator": { price: 2.49, isOnSale: false },
     "Tus": { price: 2.35, isOnSale: false },

@@ -129,7 +129,7 @@ export const seedProducts = mutation({
 
     const products = [
       { name: "Mleko", category: "Mlečni izdelki", unit: "1L" },
-      { name: "Kruh", category: "Pekovski izdelki", unit: "500g" },
+      { name: "Kruh", category: "Kruh in pečivo", unit: "500g" },
       { name: "Jajca", category: "Mlečni izdelki", unit: "10 kom" },
       { name: "Maslo", category: "Mlečni izdelki", unit: "250g" },
       { name: "Sir Edamec", category: "Mlečni izdelki", unit: "200g" },

@@ -205,6 +205,7 @@ export default defineSchema({
     groupId: v.string(),
     storeName: v.optional(v.string()),
     storeNameLower: v.optional(v.string()),
+    storeId: v.optional(v.id("stores")),
     purchaseDate: v.number(),
     purchaseDateKey: v.string(),
     purchaseTime: v.optional(v.string()),
@@ -216,9 +217,31 @@ export default defineSchema({
     invalidReason: v.optional(v.string()),
     confirmed: v.boolean(),
     source: v.string(),
+    // Tip računa (fizični, virtualni, email)
+    receiptType: v.optional(v.union(
+      v.literal("physical"),
+      v.literal("virtual"),
+      v.literal("email")
+    )),
+    // Slika računa
+    imageStorageId: v.optional(v.id("_storage")),
+    imageUrl: v.optional(v.string()),
+    // OCR podatki
+    ocrText: v.optional(v.string()),
+    ocrConfidence: v.optional(v.number()),
+    receiptNumber: v.optional(v.string()),
+    taxNumber: v.optional(v.string()),
+    // Anti-duplicate system
     receiptFingerprint: v.string(),
+    isDuplicate: v.optional(v.boolean()),
+    duplicateOfReceiptId: v.optional(v.id("receipts")),
+    // Anti-abuse
+    suspiciousActivity: v.optional(v.boolean()),
+    suspiciousReasons: v.optional(v.array(v.string())),
+    // Sezona
     seasonYear: v.optional(v.number()),
     seasonEligible: v.boolean(),
+    // Izdelki
     items: v.array(
       v.object({
         name: v.string(),
@@ -230,10 +253,17 @@ export default defineSchema({
         referenceUnitPrice: v.optional(v.number()),
       })
     ),
+    // Metadata
+    deviceInfo: v.optional(v.string()),
+    ipAddress: v.optional(v.string()),
   })
     .index("by_user", ["userId"])
     .index("by_group_and_date", ["groupId", "purchaseDateKey"])
-    .index("by_group_and_fingerprint", ["groupId", "receiptFingerprint"]),
+    .index("by_group_and_fingerprint", ["groupId", "receiptFingerprint"])
+    .index("by_store", ["storeId"])
+    .searchIndex("search_receipt_number", {
+      searchField: "receiptNumber",
+    }),
 
   // Letni prihranki po sezoni
   yearlySavings: defineTable({

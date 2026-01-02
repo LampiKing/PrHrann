@@ -107,9 +107,15 @@ export default function LeaderboardScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Ionicons name="trophy" size={38} color="#fbbf24" />
-          <Text style={styles.title}>Letna lestvica</Text>
+          <View style={styles.trophyContainer}>
+            <View style={styles.trophyGlow} />
+            <Ionicons name="trophy" size={42} color="#fbbf24" />
+          </View>
+          <Text style={styles.title}>Letna Lestvica {displaySeasonYear} 🏆</Text>
           <Text style={styles.subtitle}>{leaderboardTypeLabel}</Text>
+          <Text style={styles.motivationalText}>
+            Vsak prihranek šteje! 💪 Skupaj varčujemo pametno! ✨
+          </Text>
         </View>
 
         <LinearGradient
@@ -161,18 +167,21 @@ export default function LeaderboardScreen() {
         </View>
 
         <View style={styles.rewardCard}>
-          <Text style={styles.rewardTitle}>Nagrade sezone</Text>
-          <View style={styles.rewardRow}>
-            <Text style={styles.rewardRank}>1. mesto</Text>
-            <Text style={styles.rewardPrize}>Premium 1 leto</Text>
+          <View style={styles.rewardHeader}>
+            <Text style={styles.rewardTitle}>🎁 Nagrade Sezone</Text>
+            <Text style={styles.rewardSubtitle}>Za najboljše varčevalce! 🌟</Text>
           </View>
           <View style={styles.rewardRow}>
-            <Text style={styles.rewardRank}>2. mesto</Text>
-            <Text style={styles.rewardPrize}>Premium 6 mesecev</Text>
+            <Text style={styles.rewardRank}>🥇 1. mesto</Text>
+            <Text style={styles.rewardPrize}>Premium 1 leto 🎉</Text>
           </View>
           <View style={styles.rewardRow}>
-            <Text style={styles.rewardRank}>3. mesto</Text>
-            <Text style={styles.rewardPrize}>Premium 1 mesec</Text>
+            <Text style={styles.rewardRank}>🥈 2. mesto</Text>
+            <Text style={styles.rewardPrize}>Premium 6 mesecev ⭐</Text>
+          </View>
+          <View style={styles.rewardRow}>
+            <Text style={styles.rewardRank}>🥉 3. mesto</Text>
+            <Text style={styles.rewardPrize}>Premium 1 mesec 💫</Text>
           </View>
         </View>
 
@@ -287,17 +296,40 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 24,
     gap: 8,
   },
+  trophyContainer: {
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  trophyGlow: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(251, 191, 36, 0.25)",
+    opacity: 0.8,
+  },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "800",
     color: "#fff",
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 13,
     color: "#a78bfa",
+    fontWeight: "600",
+  },
+  motivationalText: {
+    fontSize: 13,
+    color: "#cbd5e1",
+    textAlign: "center",
+    marginTop: 4,
+    fontWeight: "500",
   },
   summaryCard: {
     padding: 18,
@@ -427,18 +459,29 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   rewardCard: {
-    padding: 16,
-    borderRadius: 18,
-    backgroundColor: "rgba(251, 191, 36, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.3)",
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    borderWidth: 1.5,
+    borderColor: "rgba(251, 191, 36, 0.35)",
     marginBottom: 16,
   },
+  rewardHeader: {
+    marginBottom: 14,
+    alignItems: "center",
+  },
   rewardTitle: {
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
     color: "#fbbf24",
-    marginBottom: 10,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  rewardSubtitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#fcd34d",
+    textAlign: "center",
   },
   rewardRow: {
     flexDirection: "row",
