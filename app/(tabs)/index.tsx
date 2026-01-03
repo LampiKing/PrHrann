@@ -405,12 +405,25 @@ export default function SearchScreen() {
       // Record search first
       const recordResult = await recordSearch();
       if (!recordResult.success) {
-        openGuestModal("search");
+        // Check error type to show correct modal
+        const isGuestLimit = recordResult.error?.includes("guest limit");
+        const isPremiumLimit = recordResult.error?.includes("Daily search limit reached");
+
+        if (isGuestLimit) {
+          openGuestModal("search");
+        } else if (isPremiumLimit) {
+          // TODO: Show premium upgrade modal
+          alert(recordResult.error || "Daily search limit reached. Upgrade to PrHran Plus for unlimited search.");
+        } else {
+          // Email verification or other error
+          alert(recordResult.error || "Unable to perform search. Please try again.");
+        }
+
         setSearching(false);
         return;
       }
       setApprovedQuery(trimmedQuery);
-      
+
       // Trigger re-fetch of profile to update searchesRemaining
       // The search results will be fetched by useQuery below
     } catch (err) {
