@@ -4,7 +4,94 @@ import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { google } from "googleapis";
 
-const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
+const ALLOWED_STORE_KEYS = new Set(["spar", "mercator", "tus"]);
+const STORE_LABELS: Record<string, string> = {
+  spar: "SPAR",
+  mercator: "MERCATOR",
+  tus: "TU\u0160",
+};
+const STORE_COLORS: Record<string, string> = {
+  spar: "#c8102e",
+  mercator: "#d3003c",
+  tus: "#0d8a3c",
+};
+const MAX_RESULTS = 50; // Increased from 10 to show more results
+const normalizeStoreKey = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+const normalizeSearchText = (text: string) =>
+  (text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/,/g, ".")
+    .replace(/[^a-z0-9.%]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/(\d)\s+([a-z%])/g, "$1$2")
+    .trim();
+
+const normalizeProductToken = (token: string) => {
+  let cleaned = token;
+  if (/^[a-z.]+$/.test(cleaned)) {
+    cleaned = cleaned.replace(/\./g, "");
+  }
+  if (!cleaned || cleaned === "m" || cleaned === "mm") return "";
+  if (/^\d+ml$/.test(cleaned)) {
+    const ml = Number(cleaned.slice(0, -2));
+    if (!Number.isFinite(ml) || ml <= 0) return token;
+    const liters = ml / 1000;
+    const litersText = Number.isInteger(liters) ? String(liters) : String(liters);
+    return `${litersText}l`;
+  }
+  if (/^0\d+l$/.test(cleaned)) {
+    return `0.${cleaned[1]}l`;
+  }
+  if (/^\d+(?:\.\d+)?l$/.test(cleaned)) return cleaned;
+  return cleaned;
+};
+
+const normalizeProductKey = (text: string) => {
+  const tokens = normalizeSearchText(text)
+    .split(/\s+/)
+    .map((token) => normalizeProductToken(token))
+    .filter(Boolean);
+
+  const tokenSet = new Set(tokens);
+  if (tokenSet.has("polnomastno")) tokenSet.add("3.5%");
+  if (tokenSet.has("polposneto") || tokenSet.has("slim")) tokenSet.add("1.5%");
+  if (tokenSet.has("posneto")) tokenSet.add("0.5%");
+
+  return Array.from(tokenSet).sort().join(" ");
+};
+
+const scoreDisplayName = (value: string) => {
+  let score = 0;
+  if (/\s/.test(value)) score += 2;
+  if (/-/.test(value)) score -= 2;
+  if (value.length > 12) score += 1;
+  return score;
+};
+
+type StorePrice = {
+  storeName: string;
+  storeColor: string;
+  price: number;
+  originalPrice?: number;
+  isOnSale: boolean;
+};
+
+type ProductAccumulator = {
+  name: string;
+  nameNormalized: string;
+  category: string;
+  unit: string;
+  displayScore: number;
+  pricesByStore: Map<string, StorePrice>;
+};
 
 // Search from Google Sheets (alternative to Convex DB)
 export const searchFromSheets = action({
@@ -45,10 +132,10 @@ export const searchFromSheets = action({
       const sheets = google.sheets({ version: "v4", auth });
       const spreadsheetId = "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y"; // From scraper
 
-      // Read ALL data from sheet (all 45000+ products, all columns)
+      // Read required columns only (name, price, sale_price, store)
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "List1!A:Z", // ✅ Changed from Sheet1 to List1 (actual sheet name)
+        range: "List1!A:D", // Changed from Sheet1 to List1 (actual sheet name)
       });
 
       const rows = response.data.values || [];
@@ -58,97 +145,123 @@ export const searchFromSheets = action({
       }
 
       console.log(`[searchFromSheets] Total rows in sheet: ${rows.length}`);
-      console.log(`[searchFromSheets] Header row: ${JSON.stringify(rows[0])}`);
-      console.log(`[searchFromSheets] Sample row 1: ${JSON.stringify(rows[1])}`);
-      console.log(`[searchFromSheets] Sample row 2: ${JSON.stringify(rows[2])}`);
 
-      // Parse rows (assuming headers: name, price, sale_price, store, date)
-      const products: any[] = [];
+      // Parse rows (name, price, sale_price, store)
+      const productsByKey = new Map<string, ProductAccumulator>();
       for (let i = 1; i < rows.length; i++) { // Skip header
         const row = rows[i];
         if (row.length < 4) continue;
-        const name = row[0]?.trim();
-        const price = parseFloat(row[1]?.toString().replace(",", ".") || "0");
-        const salePrice = row[2] ? parseFloat(row[2].toString().replace(",", ".")) : undefined;
-        const store = row[3]?.trim();
+        const rawName = row[0]?.toString().trim();
+        const rawPrice = row[1]?.toString().replace(",", ".");
+        const rawSalePrice = row[2]?.toString().replace(",", ".");
+        const rawStore = row[3]?.toString().trim();
 
-        if (!name || !store || !price || price <= 0) continue;
-        if (!ALLOWED_STORE_NAMES.has(store)) continue;
+        const storeKey = rawStore ? normalizeStoreKey(rawStore) : "";
+        const price = parseFloat(rawPrice || "0");
+        const salePrice = rawSalePrice ? parseFloat(rawSalePrice) : undefined;
 
-        // Find or create product entry
-        let product = products.find(p => p.name === name);
+        if (!rawName || !storeKey || !Number.isFinite(price) || price <= 0) continue;
+        if (!ALLOWED_STORE_KEYS.has(storeKey)) continue;
+
+        const hasSale =
+          salePrice !== undefined && Number.isFinite(salePrice) && salePrice > 0 && salePrice < price;
+        const finalPrice = hasSale ? salePrice : price;
+
+        const normalizedName = normalizeSearchText(rawName);
+        const groupKey = normalizeProductKey(rawName);
+        if (!normalizedName || !groupKey) continue;
+
+        let product = productsByKey.get(groupKey);
         if (!product) {
+          const displayScore = scoreDisplayName(rawName);
           product = {
-            name,
+            name: rawName,
+            nameNormalized: normalizedName,
             category: "Neznana kategorija",
             unit: "1 kos",
-            prices: [],
-            lowestPrice: Infinity,
-            highestPrice: 0,
+            displayScore,
+            pricesByStore: new Map<string, StorePrice>(),
           };
-          products.push(product);
+          productsByKey.set(groupKey, product);
+        } else {
+          const displayScore = scoreDisplayName(rawName);
+          if (displayScore > product.displayScore) {
+            product.name = rawName;
+            product.nameNormalized = normalizedName;
+            product.displayScore = displayScore;
+          }
         }
 
-        const isOnSale = salePrice !== undefined && salePrice < price;
-        const finalPrice = salePrice ?? price;
-        const storeColor = store === "Spar" ? "#c8102e" : store === "Mercator" ? "#d3003c" : "#0d8a3c";
+        const existing = product.pricesByStore.get(storeKey);
+        if (existing && existing.price <= finalPrice) continue;
 
-        product.prices.push({
-          storeName: store,
-          storeColor,
+        product.pricesByStore.set(storeKey, {
+          storeName: STORE_LABELS[storeKey] || rawStore,
+          storeColor: STORE_COLORS[storeKey] || "#64748b",
           price: finalPrice,
-          originalPrice: isOnSale ? price : undefined,
-          isOnSale,
+          originalPrice: hasSale ? price : undefined,
+          isOnSale: hasSale,
         });
-
-        product.lowestPrice = Math.min(product.lowestPrice, finalPrice);
-        product.highestPrice = Math.max(product.highestPrice, finalPrice);
       }
 
-      // NORMALIZE TEXT - handle Slovenian characters (č, š, ž, etc.)
-      const normalizeText = (text: string): string => {
-        return text
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-          .replace(/[čć]/g, 'c')
-          .replace(/[š]/g, 's')
-          .replace(/[ž]/g, 'z')
-          .replace(/[đ]/g, 'd')
-          .replace(/[ö]/g, 'o')
-          .replace(/[ä]/g, 'a')
-          .replace(/[ü]/g, 'u')
-          .trim();
-      };
+      // SMART SEARCH - Match all words, but prioritize meaningful matches
+      const searchNormalized = normalizeSearchText(args.query);
+      const searchWords = searchNormalized.split(/\s+/).filter(Boolean);
 
-      // DEEP SEARCH - Match anywhere in name, very flexible
-      const searchNormalized = normalizeText(args.query);
-      const searchWords = searchNormalized.split(/\s+/); // Split by whitespace
+      // Filter: ALL search words must appear in product name
+      const filtered = Array.from(productsByKey.values()).filter((product) => {
+        const productWords = product.nameNormalized.split(/\s+/);
 
-      const filtered = products.filter(p => {
-        const nameNormalized = normalizeText(p.name);
-        // Match if ALL search words are found in the product name (in any order)
-        return searchWords.every(word => nameNormalized.includes(word));
+        // ALL search words must match
+        return searchWords.every((searchWord) => {
+          // Each search word must either:
+          // 1. Be an exact match to a product word, OR
+          // 2. Be contained in a product word (for partial matches like "mleko" in "mleko123")
+          return productWords.some((productWord) =>
+            productWord === searchWord || productWord.includes(searchWord)
+          );
+        });
       });
 
+      const hydrated = filtered
+        .map((product) => {
+          const prices = Array.from(product.pricesByStore.values()).sort(
+            (a, b) => a.price - b.price
+          );
+          if (prices.length === 0) return null;
+          return {
+            name: product.name,
+            nameNormalized: product.nameNormalized,
+            category: product.category,
+            unit: product.unit,
+            prices,
+            lowestPrice: prices[0].price,
+            highestPrice: prices[prices.length - 1].price,
+          };
+        })
+        .filter((product) => product !== null);
+
       // Sort by relevance first (exact match), then by lowest price
-      const sorted = filtered.sort((a, b) => {
-        const aNameNorm = normalizeText(a.name);
-        const bNameNorm = normalizeText(b.name);
+      const sorted = hydrated
+        .sort((a, b) => {
+          const aNameNorm = a.nameNormalized;
+          const bNameNorm = b.nameNormalized;
 
-        // Exact match gets priority
-        const aExact = aNameNorm === searchNormalized ? 0 : 1;
-        const bExact = bNameNorm === searchNormalized ? 0 : 1;
-        if (aExact !== bExact) return aExact - bExact;
+          // Exact match gets priority
+          const aExact = aNameNorm === searchNormalized ? 0 : 1;
+          const bExact = bNameNorm === searchNormalized ? 0 : 1;
+          if (aExact !== bExact) return aExact - bExact;
 
-        // Then starts-with match
-        const aStarts = aNameNorm.startsWith(searchNormalized) ? 0 : 1;
-        const bStarts = bNameNorm.startsWith(searchNormalized) ? 0 : 1;
-        if (aStarts !== bStarts) return aStarts - bStarts;
+          // Then starts-with match
+          const aStarts = aNameNorm.startsWith(searchNormalized) ? 0 : 1;
+          const bStarts = bNameNorm.startsWith(searchNormalized) ? 0 : 1;
+          if (aStarts !== bStarts) return aStarts - bStarts;
 
-        // Finally by price
-        return a.lowestPrice - b.lowestPrice;
-      }).slice(0, 500); // ✅ SLICE AFTER SORT! Increased to 500 for better coverage
+          // Finally by price
+          return a.lowestPrice - b.lowestPrice;
+        })
+        .slice(0, MAX_RESULTS)
+        .map(({ nameNormalized, ...rest }) => rest);
 
       console.log(`[searchFromSheets] Query: "${args.query}" | Found: ${sorted.length} products`);
       return sorted;
@@ -180,7 +293,7 @@ export const countProductsInSheets = action({
 
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "List1!A:Z", // ✅ Changed from Sheet1 to List1
+        range: "List1!A:D", // Changed from Sheet1 to List1
       });
 
       const rows = response.data.values || [];
@@ -196,8 +309,10 @@ export const countProductsInSheets = action({
         const price = parseFloat(row[1]?.toString().replace(",", ".") || "0");
         const store = row[3]?.trim();
 
-        if (name && store && price > 0 && ALLOWED_STORE_NAMES.has(store)) {
-          validProducts.add(name);
+        const storeKey = store ? normalizeStoreKey(store) : "";
+        const groupKey = name ? normalizeProductKey(name) : "";
+        if (name && storeKey && price > 0 && ALLOWED_STORE_KEYS.has(storeKey) && groupKey) {
+          validProducts.add(groupKey);
           if (sampleProducts.length < 20) {
             sampleProducts.push(name);
           }

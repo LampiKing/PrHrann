@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
+  ActivityIndicator,
   View,
   Text,
   TextInput,
@@ -30,7 +31,7 @@ import { createShadow, createTextShadow } from "@/lib/shadow-helper";
 
 
 interface PriceInfo {
-  storeId: Id<"stores">;
+  storeId?: Id<"stores">;
   storeName: string;
   storeColor: string;
   price: number;
@@ -39,7 +40,7 @@ interface PriceInfo {
 }
 
 interface ProductResult {
-  _id: Id<"products">;
+  _id?: Id<"products">;
   name: string;
   category: string;
   unit: string;
@@ -100,16 +101,30 @@ const STORE_BRANDS: Record<string, StoreBrand> = {
   },
 };
 
-const ALLOWED_STORE_KEYS = new Set(["spar", "mercator", "tus", "tuš"]);
+const normalizeStoreKey = (name?: string) =>
+  (name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+const normalizeResultKey = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const ALLOWED_STORE_KEYS = new Set(["spar", "mercator", "tus"]);
 
 const isAllowedStoreName = (name?: string) => {
   if (!name) return false;
-  const key = name.toLowerCase();
-  return ALLOWED_STORE_KEYS.has(key);
+  return ALLOWED_STORE_KEYS.has(normalizeStoreKey(name));
 };
 
 const getStoreBrand = (name?: string, fallbackColor?: string) => {
-  const key = (name || "").toLowerCase();
+  const key = normalizeStoreKey(name);
   const brand = STORE_BRANDS[key as keyof typeof STORE_BRANDS];
   if (brand) return brand;
   const color = fallbackColor || "#8b5cf6";
@@ -123,7 +138,6 @@ const FUN_FACTS = [
   "Ali veš, da se akcije in cene pogosto zamenjajo čez vikend?",
   "Ali veš, da redno preverjanje cen zmanjša nepotrebne nakupe?",
   "Ali veš, da je slikanje računa dovoljeno le isti dan do 23:00?",
-  "Ali veš, da kombinacija kuponov in akcij pogosto prinese največ?",
   "Ali veš, da tudi majhni prihranki skozi leto ustvarijo velik rezultat?",
   "Ali veš, da načrtovana košarica pomaga pri pametnem nakupu?",
   "Ali veš, da lahko preveriš cene tik pred odhodom v trgovino?",
@@ -141,7 +155,6 @@ const FUN_FACTS_LEGACY = [
   "Ali veš, da se akcije in cene pogosto zamenjajo čez vikend?",
   "Ali veš, da redno preverjanje cen zmanjša nepotrebne nakupe?",
   "Ali veš, da je slikanje računa dovoljeno le isti dan do 23:00?",
-  "Ali veš, da kombinacija kuponov in akcij pogosto prinese največ?",
   "Ali veš, da tudi majhni prihranki skozi leto ustvarijo velik rezultat?",
   "Ali veš, da načrtovana košarica pomaga pri pametnem nakupu?",
   "Ali veš, da lahko preveriš cene tik pred odhodom v trgovino?",
@@ -162,6 +175,7 @@ export default function SearchScreen() {
   const [searching, setSearching] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
+  const [autoSearchBlockedQuery, setAutoSearchBlockedQuery] = useState<string | null>(null);
 
   // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
@@ -175,6 +189,11 @@ export default function SearchScreen() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [scanResult, setScanResult] = useState<string | null>(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showEmailVerificationModal, setShowEmailVerificationModal] = useState(false);
+  const [emailVerificationPrompt, setEmailVerificationPrompt] = useState("");
+  const [emailVerificationMessage, setEmailVerificationMessage] = useState("");
+  const [emailVerificationError, setEmailVerificationError] = useState("");
+  const [emailVerificationSending, setEmailVerificationSending] = useState(false);
   const [cartToastMessage, setCartToastMessage] = useState("");
   const [showCartToast, setShowCartToast] = useState(false);
   const [showCartPreview, setShowCartPreview] = useState(false);
@@ -306,7 +325,7 @@ export default function SearchScreen() {
   }, []);
 
   const recordSearch = useMutation(api.userProfiles.recordSearch);
-  const resendVerificationEmail = useMutation(api.userProfiles.resendVerificationEmail);
+  const requestEmailVerification = useAction(api.emailVerification.requestEmailVerification);
   const addToCart = useMutation(api.cart.addToCart);
   const analyzeImage = useAction(api.ai.analyzeProductImage);
 
@@ -316,14 +335,41 @@ export default function SearchScreen() {
   }, []);
 
   const handleResendVerificationEmail = useCallback(async () => {
+    setEmailVerificationMessage("");
+    setEmailVerificationError("");
+    setEmailVerificationSending(true);
     try {
-      const result = await resendVerificationEmail();
-      alert(result.message);
+      const result = await requestEmailVerification({});
+      if (result.success) {
+        setEmailVerificationMessage(`Potrditvena koda je poslana na ${result.email}.`);
+      } else {
+        setEmailVerificationError("Pošiljanje potrditvene kode ni uspelo. Poskusi znova.");
+      }
     } catch (error) {
-      console.error("Failed to resend verification email:", error);
-      alert("Napaka pri pošiljanju emaila. Prosim poskusite znova.");
+      console.error("Failed to send verification code:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Napaka pri pošiljanju potrditvene kode.";
+      setEmailVerificationError(message);
+    } finally {
+      setEmailVerificationSending(false);
     }
-  }, [resendVerificationEmail]);
+  }, [requestEmailVerification]);
+
+  useEffect(() => {
+    const trimmedQuery = searchQuery.trim();
+    if (!autoSearchBlockedQuery) return;
+    if (trimmedQuery.length < 2 || trimmedQuery !== autoSearchBlockedQuery) {
+      setAutoSearchBlockedQuery(null);
+    }
+  }, [searchQuery, autoSearchBlockedQuery]);
+
+  useEffect(() => {
+    if (profile?.emailVerified) {
+      setAutoSearchBlockedQuery(null);
+    }
+  }, [profile?.emailVerified]);
 
   const openGuestModal = useCallback((context: "search" | "cart" | "camera") => {
     const now = Date.now();
@@ -393,13 +439,20 @@ export default function SearchScreen() {
     if (!isPremium) {
       return;
     }
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery.length < 2 || trimmedQuery.length > 100) {
+      return;
+    }
+    if (autoSearchBlockedQuery && autoSearchBlockedQuery === trimmedQuery) {
+      return;
+    }
     const timer = setTimeout(() => {
-      if (searchQuery.length >= 2 && !searching) {
+      if (!searching) {
         handleSearch();
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery, searching, isPremium]);
+  }, [searchQuery, searching, isPremium, autoSearchBlockedQuery]);
   
   // Handle search with recordSearch call
   const handleSearch = async () => {
@@ -426,21 +479,24 @@ export default function SearchScreen() {
           // TODO: Show premium upgrade modal
           alert(recordResult.error || "Daily search limit reached. Upgrade to PrHran Plus for unlimited search.");
         } else if (recordResult.error?.includes("Email verification required")) {
-          // Email verification required - show option to resend
-          const shouldResend = confirm(
-            recordResult.error + "\n\nŽelite znova poslati potrditveni email?"
+          setEmailVerificationPrompt(
+            "Za nadaljevanje moraš potrditi svoj e-naslov. Preveri pošto ali potrdi z novim emailom."
           );
-          if (shouldResend) {
-            await handleResendVerificationEmail();
-          }
+          setEmailVerificationMessage("");
+          setEmailVerificationError("");
+          setShowEmailVerificationModal(true);
         } else {
           // Other error
           alert(recordResult.error || "Unable to perform search. Please try again.");
         }
 
+        if (isPremium) {
+          setAutoSearchBlockedQuery(trimmedQuery);
+        }
         setSearching(false);
         return;
       }
+      setAutoSearchBlockedQuery(null);
       setApprovedQuery(trimmedQuery);
 
       // Trigger re-fetch of profile to update searchesRemaining
@@ -491,6 +547,8 @@ export default function SearchScreen() {
     ? [...searchResults].sort((a, b) => a.lowestPrice - b.lowestPrice)
     : [];
 
+  const limitedResults = sortedResults.slice(0, 10);
+
   const handleSearchFocus = () => {
     RNAnimated.spring(searchBarScale, {
       toValue: 1.02,
@@ -513,9 +571,10 @@ export default function SearchScreen() {
   };
 
   useEffect(() => {
-    if (sortedResults.length > 0) {
-      sortedResults.forEach((product, index) => {
-        const anim = getCardAnimation(product._id);
+    if (limitedResults.length > 0) {
+      limitedResults.forEach((product, index) => {
+        const resultKey = product._id ? String(product._id) : `sheet-${normalizeResultKey(product.name)}`;
+        const anim = getCardAnimation(resultKey);
         RNAnimated.spring(anim, {
           toValue: 1,
           delay: index * 50,
@@ -525,7 +584,7 @@ export default function SearchScreen() {
         }).start();
       });
     }
-  }, [sortedResults.length]);
+  }, [limitedResults.length]);
 
   // Premium button shake effect
   useEffect(() => {
@@ -774,6 +833,10 @@ export default function SearchScreen() {
         openGuestModal("cart");
         return;
       }
+      if (!product._id || !price.storeId) {
+        alert("Tega izdelka trenutno ni možno dodati v košarico.");
+        return;
+      }
       try {
         await addToCart({
           productId: product._id,
@@ -877,8 +940,10 @@ export default function SearchScreen() {
   };
 
   const renderProductCard = (product: ProductResult) => {
-    const isExpanded = expandedProduct === product._id;
+    const resultKey = product._id ? String(product._id) : `sheet-${normalizeResultKey(product.name)}`;
+    const isExpanded = expandedProduct === resultKey;
     const validPriceStores = product.prices.filter((p) => Number.isFinite(p.price) && p.price > 0);
+    const storeCount = Math.min(validPriceStores.length, ALLOWED_STORE_KEYS.size);
     const lowestPriceStore = validPriceStores[0];
     const displayLowestPrice = lowestPriceStore?.price ?? product.lowestPrice;
     const lowestBrand = lowestPriceStore
@@ -890,12 +955,18 @@ export default function SearchScreen() {
       lowestPrice: displayLowestPrice,
       highestPrice: product.highestPrice,
     });
-    const cardAnim = getCardAnimation(product._id);
+    const cardAnim = getCardAnimation(resultKey);
     const cartLocked = isGuestMode;
+    const lowestCartKey =
+      product._id && lowestPriceStore?.storeId
+        ? `${product._id}-${lowestPriceStore.storeId}`
+        : null;
+    const canQuickAdd = !!product._id && !!lowestPriceStore?.storeId;
+    const isQuickAdded = !!lowestCartKey && addedToCart === lowestCartKey;
 
     return (
       <RNAnimated.View
-        key={product._id}
+        key={resultKey}
         style={[
           styles.productCard,
           {
@@ -926,7 +997,7 @@ export default function SearchScreen() {
           {/* Main Product Info */}
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => toggleExpand(product._id)}
+            onPress={() => toggleExpand(resultKey)}
             style={styles.cardContent}
           >
             {/* Product Image & Info */}
@@ -1010,9 +1081,9 @@ export default function SearchScreen() {
             <TouchableOpacity
               style={[
                 styles.quickAddButton,
-                addedToCart === `${product._id}-${lowestPriceStore?.storeId}` && styles.quickAddButtonSuccess,
+                isQuickAdded && styles.quickAddButtonSuccess,
                 cartLocked && styles.quickAddButtonLocked,
-                !lowestPriceStore && { opacity: 0.5 },
+                (!lowestPriceStore || !canQuickAdd) && { opacity: 0.5 },
               ]}
               onPress={(e) => {
                 e.stopPropagation();
@@ -1020,13 +1091,13 @@ export default function SearchScreen() {
                   handleAddToCart(product, lowestPriceStore);
                 }
               }}
-              disabled={!lowestPriceStore}
+              disabled={!lowestPriceStore || !canQuickAdd}
             >
               <LinearGradient
                 colors={
                   cartLocked
                     ? ["rgba(148, 163, 184, 0.35)", "rgba(71, 85, 105, 0.45)"]
-                    : addedToCart === `${product._id}-${lowestPriceStore?.storeId}`
+                    : isQuickAdded
                       ? ["#10b981", "#059669"]
                       : ["#8b5cf6", "#7c3aed"]
                 }
@@ -1038,7 +1109,7 @@ export default function SearchScreen() {
                   name={
                     cartLocked
                       ? "lock-closed"
-                      : addedToCart === `${product._id}-${lowestPriceStore?.storeId}`
+                      : isQuickAdded
                         ? "checkmark"
                         : "add"
                   }
@@ -1049,7 +1120,7 @@ export default function SearchScreen() {
                   {cartLocked
                     ? "Prijava za Košarico"
                     : lowestPriceStore
-                      ? addedToCart === `${product._id}-${lowestPriceStore?.storeId}`
+                      ? isQuickAdded
                         ? "Dodano!"
                         : "Dodaj najcenejše"
                       : "Ni cene"}
@@ -1060,7 +1131,7 @@ export default function SearchScreen() {
             {/* Expand Indicator */}
             <View style={styles.expandIndicator}>
               <Text style={styles.expandText}>
-                {isExpanded ? "Skrij cene" : `Primerjaj ${product.prices.length} trgovin`}
+                {isExpanded ? "Skrij cene" : `Primerjaj ${storeCount} trgovin`}
               </Text>
               <Ionicons
                 name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -1076,12 +1147,17 @@ export default function SearchScreen() {
               <View style={styles.storeListDivider} />
               {product.prices.map((price, priceIndex) => {
                 const isLowest = priceIndex === 0;
-                const isAdded = addedToCart === `${product._id}-${price.storeId}`;
+                const cartKey = product._id && price.storeId ? `${product._id}-${price.storeId}` : null;
+                const isAdded = !!cartKey && addedToCart === cartKey;
+                const canAdd = !!product._id && !!price.storeId;
+                const rowKey = price.storeId
+                  ? String(price.storeId)
+                  : `${resultKey}-${normalizeResultKey(price.storeName)}-${priceIndex}`;
                 const storeBrand = getStoreBrand(price.storeName, price.storeColor);
 
                 return (
                   <View
-                    key={price.storeId}
+                    key={rowKey}
                     style={[
                       styles.storeRow,
                       isLowest && styles.storeRowLowest,
@@ -1150,8 +1226,10 @@ export default function SearchScreen() {
                           styles.addButton,
                           isAdded && styles.addButtonSuccess,
                           cartLocked && styles.addButtonLocked,
+                          !canAdd && { opacity: 0.5 },
                         ]}
                         onPress={() => handleAddToCart(product, price)}
+                        disabled={cartLocked || !canAdd}
                       >
                         <Ionicons
                           name={cartLocked ? "lock-closed" : isAdded ? "checkmark" : "cart-outline"}
@@ -1482,7 +1560,7 @@ export default function SearchScreen() {
               </LinearGradient>
             </View>
             <Text style={styles.emptyTitle}>Začni z iskanjem</Text>
-            <Text style={styles.emptyText}>Vpiši ime izdelka in takoj primerjaj cene{"\n"}iz vseh slovenskih trgovin.</Text>
+            <Text style={styles.emptyText}>Vpiši ime izdelka in takoj primerjaj cene{"\n"}v SPAR, MERKATOR in TUŠ.</Text>
 
             {/* Fun Fact Card */}
             <View style={styles.funFactCard}>
@@ -1518,12 +1596,12 @@ export default function SearchScreen() {
               </View>
             </View>
           </View>
-        ) : isSearchResultsLoading && sortedResults.length === 0 ? (
+        ) : isSearchResultsLoading && limitedResults.length === 0 ? (
           <View style={styles.searchingHint}>
             <Ionicons name="time-outline" size={18} color="#fbbf24" />
             <Text style={styles.searchingHintText}>Iščem rezultate...</Text>
           </View>
-        ) : sortedResults.length === 0 ? (
+        ) : limitedResults.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={48} color="#6b7280" />
             <Text style={styles.emptyTitle}>Ni zadetkov</Text>
@@ -1532,10 +1610,10 @@ export default function SearchScreen() {
         ) : (
           <View style={styles.resultsContainer}>
             <Text style={styles.resultsCount}>
-              {sortedResults.length} {sortedResults.length === 1 ? "rezultat" : "rezultatov"}
+              {limitedResults.length} {limitedResults.length === 1 ? "rezultat" : "rezultatov"}
             </Text>
-            {sortedResults.map((product) => renderProductCard(product))}
-            {isGuestMode && searchesRemaining <= 0 && sortedResults.length > 0 && (
+            {limitedResults.map((product) => renderProductCard(product))}
+            {isGuestMode && searchesRemaining <= 0 && limitedResults.length > 0 && (
               <TouchableOpacity
                 style={styles.guestLimitCard}
                 onPress={() => {
@@ -1722,9 +1800,7 @@ export default function SearchScreen() {
                   <View style={styles.scannerIconContainer}>
                     <Ionicons name="scan-outline" size={64} color="#a78bfa" />
                   </View>
-                  <Text style={styles.scannerPlaceholderText}>
-                    Slikaj izdelek in takoj najdi{"\n"}najnižjo ceno v vseh trgovinah!
-                  </Text>
+                  <Text style={styles.scannerPlaceholderText}>Slikaj izdelek in takoj najdi{"\n"}najnižjo ceno v SPAR, MERKATOR in TUŠ!</Text>
                 </View>
               )}
 
@@ -1944,7 +2020,7 @@ export default function SearchScreen() {
                 </View>
                 <View style={styles.premiumFeatureItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>🎁 Ekskluzivni kuponi do 30% popusta</Text>
+                  <Text style={styles.premiumFeatureText}>Hitrejši prikaz top 10 rezultatov</Text>
                 </View>
                 <View style={styles.premiumFeatureItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
@@ -1980,6 +2056,52 @@ export default function SearchScreen() {
                 💚 Prekliči kadarkoli • Brez skritih stroškov • 100% varno
               </Text>
             </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+      {/* Email verification prompt */}
+      <Modal
+        transparent
+        visible={showEmailVerificationModal}
+        animationType="fade"
+        hardwareAccelerated
+        onRequestClose={() => setShowEmailVerificationModal(false)}
+      >
+        <View style={styles.emailModalOverlay}>
+          <View style={styles.emailModal}>
+            <Text style={styles.emailModalTitle}>Potrdi e-pošto</Text>
+            <Text style={styles.emailModalBody}>
+              {emailVerificationPrompt ||
+                `Preveri e-poštni naslov ${
+                  profile?.email ?? "na svojem računu"
+                } in potrdi povezavo.`}
+            </Text>
+            {emailVerificationError ? (
+              <Text style={styles.emailModalError}>{emailVerificationError}</Text>
+            ) : null}
+            {emailVerificationMessage ? (
+              <Text style={styles.emailModalSuccess}>{emailVerificationMessage}</Text>
+            ) : null}
+            <TouchableOpacity
+              style={[
+                styles.emailModalButton,
+                emailVerificationSending && styles.emailModalButtonDisabled,
+              ]}
+              onPress={handleResendVerificationEmail}
+              disabled={emailVerificationSending}
+            >
+              {emailVerificationSending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.emailModalButtonText}>POTRDI EMAIL</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.emailModalSecondary}
+              onPress={() => setShowEmailVerificationModal(false)}
+            >
+              <Text style={styles.emailModalSecondaryText}>Zapri</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -2778,6 +2900,73 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+  },
+  emailModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  emailModal: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#0a0b1e",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.4)",
+    padding: 24,
+    alignItems: "center",
+    gap: 12,
+  },
+  emailModalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  emailModalBody: {
+    fontSize: 14,
+    color: "#cbd5e1",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  emailModalError: {
+    fontSize: 13,
+    color: "#fca5a5",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  emailModalSuccess: {
+    fontSize: 13,
+    color: "#6ee7b7",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  emailModalButton: {
+    width: "100%",
+    borderRadius: 14,
+    overflow: "hidden",
+    marginTop: 8,
+    backgroundColor: "#8b5cf6",
+  },
+  emailModalButtonDisabled: {
+    opacity: 0.7,
+  },
+  emailModalButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+    textAlign: "center",
+    paddingVertical: 14,
+    letterSpacing: 0.8,
+  },
+  emailModalSecondary: {
+    marginTop: 8,
+  },
+  emailModalSecondaryText: {
+    color: "#a78bfa",
+    fontSize: 14,
+    fontWeight: "600",
   },
   // Scanner Modal
   scannerModal: {

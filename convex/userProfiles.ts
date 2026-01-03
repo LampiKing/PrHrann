@@ -1,8 +1,10 @@
 import { v } from "convex/values";
 import { authQuery, authMutation } from "./functions";
-import { query } from "./_generated/server";
+import { action, internalMutation, query } from "./_generated/server";
 import { getDateKey, getNextMidnightTimestamp } from "./time";
 import { sendAdminNotification } from "./notify";
+import { authComponent } from "./auth";
+import { api, components, internal } from "./_generated/api";
 
 const MAX_FREE_SEARCHES = 3; // Max free searches per day
 const MAX_GUEST_SEARCHES = 1; // Guest has 1 search per day
@@ -539,5 +541,280 @@ export const upgradeToPremium = authMutation({
     await sendAdminNotification(subject, html);
 
     return true;
+  },
+});
+
+export const deleteAccountData = internalMutation({
+  args: { userId: v.string(), email: v.optional(v.string()) },
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx, args) => {
+    const userId = args.userId;
+    const userEmail = args.email?.toLowerCase();
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    const familyOwnerId = profile?.familyOwnerId;
+    if (familyOwnerId) {
+      const owner = await ctx.db
+        .query("userProfiles")
+        .withIndex("by_user_id", (q) => q.eq("userId", familyOwnerId))
+        .first();
+      if (owner?.familyMembers?.length) {
+        const nextMembers = owner.familyMembers.filter((id) => id !== userId);
+        await ctx.db.patch(owner._id, { familyMembers: nextMembers });
+      }
+    }
+
+    const members = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_family_owner", (q) => q.eq("familyOwnerId", userId))
+      .collect();
+    for (const member of members) {
+      await ctx.db.patch(member._id, { familyOwnerId: undefined });
+    }
+
+    const invitesByInviter = await ctx.db
+      .query("familyInvitations")
+      .withIndex("by_inviter", (q) => q.eq("inviterId", userId))
+      .collect();
+    for (const invite of invitesByInviter) {
+      await ctx.db.delete(invite._id);
+    }
+
+    const invitesByInvitee = await ctx.db
+      .query("familyInvitations")
+      .withIndex("by_invitee_user", (q) => q.eq("inviteeUserId", userId))
+      .collect();
+    for (const invite of invitesByInvitee) {
+      await ctx.db.delete(invite._id);
+    }
+
+    if (userEmail) {
+      const invitesByEmail = await ctx.db
+        .query("familyInvitations")
+        .withIndex("by_invitee_email", (q) => q.eq("inviteeEmail", userEmail))
+        .collect();
+      for (const invite of invitesByEmail) {
+        await ctx.db.delete(invite._id);
+      }
+    }
+
+    const lists = await ctx.db
+      .query("shoppingLists")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .collect();
+    for (const list of lists) {
+      const items = await ctx.db
+        .query("shoppingListItems")
+        .withIndex("by_list", (q) => q.eq("listId", list._id))
+        .collect();
+      for (const item of items) {
+        await ctx.db.delete(item._id);
+      }
+      await ctx.db.delete(list._id);
+    }
+
+    const couponUsage = await ctx.db
+      .query("couponUsage")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const usage of couponUsage) {
+      await ctx.db.delete(usage._id);
+    }
+
+    const emailVerifications = await ctx.db
+      .query("emailVerifications")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const verification of emailVerifications) {
+      await ctx.db.delete(verification._id);
+    }
+
+    const priceAlerts = await ctx.db
+      .query("priceAlerts")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const alert of priceAlerts) {
+      await ctx.db.delete(alert._id);
+    }
+
+    const purchases = await ctx.db
+      .query("purchases")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const purchase of purchases) {
+      await ctx.db.delete(purchase._id);
+    }
+
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const receipt of receipts) {
+      await ctx.db.delete(receipt._id);
+    }
+
+    const yearlySavings = await ctx.db
+      .query("yearlySavings")
+      .withIndex("by_user_year", (q) => q.eq("userId", userId))
+      .collect();
+    for (const savings of yearlySavings) {
+      await ctx.db.delete(savings._id);
+    }
+
+    const seasonAwards = await ctx.db
+      .query("seasonAwards")
+      .withIndex("by_user_year", (q) => q.eq("userId", userId))
+      .collect();
+    for (const award of seasonAwards) {
+      await ctx.db.delete(award._id);
+    }
+
+    const activeSessions = await ctx.db
+      .query("activeSessions")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .collect();
+    for (const session of activeSessions) {
+      await ctx.db.delete(session._id);
+    }
+
+    const cartItems = await ctx.db
+      .query("cartItems")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const item of cartItems) {
+      await ctx.db.delete(item._id);
+    }
+
+    const searchHistory = await ctx.db
+      .query("searchHistory")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const entry of searchHistory) {
+      await ctx.db.delete(entry._id);
+    }
+
+    const registeredDevices = await ctx.db
+      .query("registeredDevices")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const device of registeredDevices) {
+      await ctx.db.delete(device._id);
+    }
+
+    const fingerprints = await ctx.db.query("deviceFingerprints").collect();
+    for (const fingerprint of fingerprints) {
+      if (!fingerprint.registeredUserIds.includes(userId)) continue;
+      const nextIds = fingerprint.registeredUserIds.filter((id) => id !== userId);
+      if (nextIds.length === 0) {
+        await ctx.db.delete(fingerprint._id);
+      } else {
+        const nextCount = Math.max(0, fingerprint.registrationCount - 1);
+        await ctx.db.patch(fingerprint._id, {
+          registeredUserIds: nextIds,
+          registrationCount: nextCount,
+        });
+      }
+    }
+
+    if (profile) {
+      await ctx.db.delete(profile._id);
+    }
+
+    return { success: true };
+  },
+});
+
+export const deleteAccount = action({
+  args: {},
+  returns: v.object({ success: v.boolean() }),
+  handler: async (ctx) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) throw new Error("Authentication required");
+
+    const userId = user._id;
+    const email = user.email ?? undefined;
+
+    await ctx.runMutation(internal.userProfiles.deleteAccountData, { userId, email });
+
+    const byUserId: Array<{ field: "userId"; operator: "eq"; value: string }> = [
+      { field: "userId", operator: "eq", value: userId },
+    ];
+    const paginationOpts = { cursor: null, numItems: 500 };
+
+    await Promise.all([
+      ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: {
+          model: "session",
+          where: byUserId,
+        },
+        paginationOpts,
+      }),
+      ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: {
+          model: "account",
+          where: byUserId,
+        },
+        paginationOpts,
+      }),
+      ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: {
+          model: "twoFactor",
+          where: byUserId,
+        },
+        paginationOpts,
+      }),
+      ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: {
+          model: "passkey",
+          where: byUserId,
+        },
+        paginationOpts,
+      }),
+      ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: {
+          model: "oauthAccessToken",
+          where: byUserId,
+        },
+        paginationOpts,
+      }),
+      ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: {
+          model: "oauthConsent",
+          where: byUserId,
+        },
+        paginationOpts,
+      }),
+    ]);
+
+    if (email) {
+      await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: {
+          model: "verification",
+          where: [{ field: "identifier", operator: "eq", value: email }],
+        },
+        paginationOpts,
+      });
+      await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: {
+          model: "user",
+          where: [{ field: "email", operator: "eq", value: email }],
+        },
+        paginationOpts,
+      });
+    }
+
+    await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+      input: {
+        model: "user",
+        where: byUserId,
+      },
+      paginationOpts,
+    });
+
+    return { success: true };
   },
 });

@@ -13,6 +13,7 @@ export default function VerifyEmailScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [autoSent, setAutoSent] = useState(false);
 
   const profile = useQuery(api.userProfiles.getProfile);
   const verifyByCode = useMutation(api.emailVerification.verifyByCode);
@@ -55,8 +56,12 @@ export default function VerifyEmailScreen() {
     setError("");
     setSuccess("");
     try {
-      await requestEmailVerification({});
-      setSuccess(`E-pošta ponovno poslana na ${profile?.email || "vaš e-naslov"}.`);
+      const result = await requestEmailVerification({});
+      if (result.success) {
+        setSuccess(`E-pošta ponovno poslana na ${result.email}.`);
+      } else {
+        setError("Napaka pri pošiljanju emaila. Prosimo, poskusite znova.");
+      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Napaka pri pošiljanju";
       setError(message);
@@ -64,6 +69,13 @@ export default function VerifyEmailScreen() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!profile || profile.emailVerified || autoSent) return;
+    setAutoSent(true);
+    handleResend();
+  }, [profile, autoSent]);
+
 
   if (!profile) {
     return (

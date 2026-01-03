@@ -80,8 +80,8 @@ export const requestEmailVerification = authAction({
 
     if (!res.ok) {
       const msg = await res.text();
-      console.warn("Resend API error:", msg);
-      // We still return success true so UX proceeds; code entry will work.
+      console.error("Resend API error:", msg);
+      throw new Error("Napaka pri pošiljanju emaila. Prosimo, poskusite znova ali kontaktirajte podporo.");
     }
 
     return { success: true, email };

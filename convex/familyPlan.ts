@@ -4,6 +4,62 @@ import { authMutation, authQuery } from "./functions";
 
 const MAX_FAMILY_MEMBERS = 3; // Vključno z ownerjem
 const INVITATION_EXPIRY_DAYS = 7;
+const normalizeUrl = (value?: string) => value?.trim().replace(/\/$/, "");
+const fallbackSiteUrl = "https://www.prhran.com";
+const rawSiteUrl = normalizeUrl(
+  process.env.SITE_URL || process.env.EXPO_PUBLIC_SITE_URL || fallbackSiteUrl
+) || fallbackSiteUrl;
+const siteUrl = rawSiteUrl.includes(".convex.cloud")
+  ? rawSiteUrl.replace(".convex.cloud", ".convex.site")
+  : rawSiteUrl;
+
+async function sendFamilyInviteEmail(
+  toEmail: string,
+  token: string,
+  inviterName: string
+) {
+  const fromEmail = process.env.FROM_EMAIL;
+  const fromName = process.env.FROM_NAME || "PrHran";
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!fromEmail || !resendApiKey) {
+    throw new Error("Pošiljanje vabila ni nastavljeno. Kontaktiraj podporo.");
+  }
+
+  const inviteUrl = `${siteUrl}/accept-invitation?token=${encodeURIComponent(token)}`;
+  const subject = "Povabilo v Pr'Hran Family";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+      <h2 style="margin: 0 0 12px;">Pozdravljeni!</h2>
+      <p style="margin: 0 0 12px;">${inviterName} te vabi v Pr'Hran Family.</p>
+      <p style="margin: 0 0 16px;">
+        <a href="${inviteUrl}" style="color: #7c3aed; font-weight: 700; font-size: 16px;">Sprejmi vabilo</a>
+      </p>
+      <p style="margin: 0 0 8px;">Če gumb ne deluje, kopiraj povezavo:</p>
+      <p style="word-break: break-all; color: #0f172a; font-size: 12px;">${inviteUrl}</p>
+      <p style="margin-top: 16px; color: #475569; font-size: 12px;">Če vabila nisi pričakoval, sporočilo ignoriraj.</p>
+    </div>
+  `;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: `${fromName} <${fromEmail}>`,
+      to: toEmail,
+      subject,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Family invite email failed:", response.status, errorText);
+    throw new Error("Pošiljanje vabila ni uspelo. Poskusi znova.");
+  }
+}
 
 /**
  * Генериша invite token
@@ -84,12 +140,13 @@ export const inviteFamilyMember = authMutation({
 
     // Ustvari vabilo
     const token = generateInviteToken();
+    const inviterName = profile.nickname || profile.name || "Pr'Hran uporabnik";
     const now = Date.now();
     const expiresAt = now + INVITATION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
     await ctx.db.insert("familyInvitations", {
       inviterId: userId,
-      inviterNickname: profile.nickname || "Neznani uporabnik",
+      inviterNickname: inviterName,
       inviteeEmail: args.email,
       inviteeUserId: inviteeProfile?.userId,
       status: "pending",
@@ -98,8 +155,7 @@ export const inviteFamilyMember = authMutation({
       expiresAt,
     });
 
-    // TODO: Pošlji email z vabilom
-    // sendFamilyInviteEmail(args.email, token, profile.nickname);
+    await sendFamilyInviteEmail(args.email, token, inviterName);
 
     return {
       success: true,

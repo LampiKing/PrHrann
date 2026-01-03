@@ -48,6 +48,7 @@ export default function ProfileScreen() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [showSignOutToast] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
@@ -91,6 +92,7 @@ export default function ProfileScreen() {
     isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
   );
   const submitReceipt = useAction(api.receipts.submitReceipt);
+  const deleteAccount = useAction(api.userProfiles.deleteAccount);
   const inviteFamilyMember = useMutation(api.familyPlan.inviteFamilyMember);
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
@@ -334,18 +336,24 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleDeleteAccount = async () => {
+    const handleDeleteAccount = async () => {
+    if (deletingAccount) {
+      return;
+    }
     if (Platform.OS !== "web") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
+    setDeletingAccount(true);
     try {
+      await deleteAccount({});
       await authClient.signOut();
       router.replace({ pathname: "/auth", params: { mode: "login" } });
-      // Note: Full account deletion would require backend implementation
     } catch (error) {
       console.error("Napaka pri brisanju:", error);
+    } finally {
+      setDeletingAccount(false);
+      setShowDeleteModal(false);
     }
-    setShowDeleteModal(false);
   };
 
   const handleInviteFamilyMember = async () => {
@@ -1157,17 +1165,22 @@ export default function ProfileScreen() {
                   <Text style={styles.cancelDeleteText}>Prekliči</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={styles.confirmDeleteButton}
-                  onPress={handleDeleteAccount}
-                >
-                  <LinearGradient
-                    colors={["#ef4444", "#dc2626"]}
-                    style={styles.confirmDeleteGradient}
+                                  <TouchableOpacity 
+                    style={styles.confirmDeleteButton}
+                    onPress={handleDeleteAccount}
+                    disabled={deletingAccount}
                   >
-                    <Text style={styles.confirmDeleteText}>Izbriši</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                    <LinearGradient
+                      colors={["#ef4444", "#dc2626"]}
+                      style={styles.confirmDeleteGradient}
+                    >
+                      {deletingAccount ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.confirmDeleteText}>Izbriši</Text>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
               </View>
             </LinearGradient>
           </View>
