@@ -130,7 +130,13 @@ export default function AuthScreen() {
     console.log("Auth useEffect: isAuthenticated =", isAuthenticated, "authLoading =", authLoading);
     // Only redirect if fully authenticated and not in a loading state
     if (isAuthenticated && !authLoading && profile && !profile.isAnonymous && !showSuccessOverlay && !loading && !resetLoading && !anonymousLoading) {
-      router.replace("/(tabs)");
+      // CRITICAL: Block users without verified email - redirect to verify screen
+      if (!profile.emailVerified) {
+        console.log("Email not verified, redirecting to /verify");
+        router.replace("/verify");
+      } else {
+        router.replace("/(tabs)");
+      }
     }
   }, [isAuthenticated, authLoading, profile, showSuccessOverlay, loading, resetLoading, anonymousLoading]);
 
