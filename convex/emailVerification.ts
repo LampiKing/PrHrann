@@ -64,6 +64,122 @@ export const requestEmailVerification = authAction({
 
     const text = `Potrdite vaš e-naslov\nKoda: ${code}\nKoda velja 15 minut.\nOdprite aplikacijo in vnesite kodo za potrditev.`;
 
+    const html = `
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Potrditev e-naslova</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #0a0a12 0%, #1a0a2e 50%, #0f0a1e 100%); min-height: 100vh;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="min-height: 100vh; background: linear-gradient(135deg, #0a0a12 0%, #1a0a2e 50%, #0f0a1e 100%);">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <!-- Main Container -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background: rgba(15, 23, 42, 0.85); border-radius: 24px; border: 1px solid rgba(139, 92, 246, 0.3); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+
+          <!-- Logo & Header -->
+          <tr>
+            <td align="center" style="padding: 48px 32px 24px;">
+              <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(168, 85, 247, 0.4);">
+                <span style="font-size: 42px; font-weight: 900; color: #ffffff; letter-spacing: -1px;">P</span>
+              </div>
+              <h1 style="margin: 24px 0 12px; font-size: 32px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">Pr'Hran</h1>
+              <p style="margin: 0; font-size: 16px; color: #a78bfa; font-weight: 600;">Primerjavajte cene z lahkoto</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 32px;">
+              <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), transparent);"></div>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 32px;">
+              <h2 style="margin: 0 0 16px; font-size: 24px; font-weight: 700; color: #ffffff; text-align: center;">Potrdite svoj e-naslov</h2>
+              <p style="margin: 0 0 32px; font-size: 16px; line-height: 24px; color: #cbd5e1; text-align: center;">Za dokončanje registracije vnesite spodnjo kodo v aplikaciji Pr'Hran.</p>
+
+              <!-- Code Box -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding: 32px 0;">
+                    <div style="display: inline-block; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 16px; padding: 24px 48px; box-shadow: 0 12px 32px rgba(139, 92, 246, 0.35);">
+                      <p style="margin: 0; font-size: 14px; color: #e9d5ff; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Vaša verifikacijska koda</p>
+                      <p style="margin: 12px 0 0; font-size: 48px; font-weight: 900; color: #ffffff; letter-spacing: 8px; font-family: 'Courier New', monospace;">${code}</p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Info Box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 32px; background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 12px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="32" valign="top">
+                          <div style="width: 24px; height: 24px; background: rgba(251, 191, 36, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <span style="color: #fbbf24; font-size: 16px; font-weight: 700;">ℹ</span>
+                          </div>
+                        </td>
+                        <td style="padding-left: 12px;">
+                          <p style="margin: 0; font-size: 14px; line-height: 20px; color: #fcd34d;">
+                            <strong style="font-weight: 700;">Pomembno:</strong> Ta koda velja samo <strong>15 minut</strong>. Če kode ne boste vnesli v tem času, boste morali zahtevati novo.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Instructions -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 32px;">
+                <tr>
+                  <td>
+                    <p style="margin: 0 0 16px; font-size: 15px; font-weight: 600; color: #ffffff;">Kako potrditi e-naslov:</p>
+                    <ol style="margin: 0; padding-left: 24px; font-size: 14px; line-height: 24px; color: #cbd5e1;">
+                      <li style="margin-bottom: 8px;">Odprite aplikacijo <strong style="color: #a78bfa;">Pr'Hran</strong></li>
+                      <li style="margin-bottom: 8px;">Vnesite zgornjo <strong style="color: #a78bfa;">6-mestno kodo</strong></li>
+                      <li style="margin-bottom: 0;">Kliknite <strong style="color: #a78bfa;">"Potrdi kodo"</strong></li>
+                    </ol>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 32px;">
+              <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), transparent);"></div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px;">
+              <p style="margin: 0 0 12px; font-size: 13px; line-height: 20px; color: #9ca3af; text-align: center;">
+                Če niste zahtevali te potrditve, lahko to sporočilo ignorirate.
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #6b7280; text-align: center;">
+                © ${new Date().getFullYear()} Pr'Hran. Vsi izdelani z ❤️ v Sloveniji.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -73,8 +189,9 @@ export const requestEmailVerification = authAction({
       body: JSON.stringify({
         from: `${fromName} <${fromEmail}>`,
         to: email,
-        subject: "Potrditev e-naslova",
+        subject: "🔐 Potrditev e-naslova - Pr'Hran",
         text,
+        html,
       }),
     });
 

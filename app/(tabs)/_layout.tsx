@@ -9,16 +9,16 @@ import { LinearGradient } from "expo-linear-gradient";
 
 export default function TabsLayout() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  
+
   // Check if user is guest (anonymous user)
   const profile = useQuery(
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
   );
-  
+
   // Detect guest mode
   const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
-  
+
   // Only query stores when authenticated
   const stores = useQuery(
     api.stores.getAll,
@@ -57,6 +57,12 @@ export default function TabsLayout() {
   // Redirect to auth if not authenticated
   if (!isAuthenticated) {
     return <Redirect href="/auth" />;
+  }
+
+  // CRITICAL: Block users without verified email (except anonymous/guest)
+  if (profile && !profile.isAnonymous && !profile.emailVerified) {
+    console.log("Email not verified in TabsLayout, redirecting to /verify");
+    return <Redirect href="/verify" />;
   }
 
   return (
