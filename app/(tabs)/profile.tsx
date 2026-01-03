@@ -63,6 +63,8 @@ export default function ProfileScreen() {
   const [familyError, setFamilyError] = useState("");
   const [familySuccess, setFamilySuccess] = useState("");
   const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
+  const [showAdminUsersModal, setShowAdminUsersModal] = useState(false);
+  const [adminUserType, setAdminUserType] = useState<"registered" | "active" | "guests" | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -75,6 +77,16 @@ export default function ProfileScreen() {
   const adminStats = useQuery(
     api.admin.getStats,
     isAuthenticated && profile?.isAdmin ? {} : "skip"
+  );
+  const detailedAdminStats = useQuery(
+    api.admin.getDetailedStats,
+    isAuthenticated && profile?.isAdmin ? {} : "skip"
+  );
+  const adminUsers = useQuery(
+    api.admin.getAllUsers,
+    isAuthenticated && profile?.isAdmin && adminUserType
+      ? { type: adminUserType, limit: 50 }
+      : "skip"
   );
   const receipts = useQuery(
     api.receipts.getReceipts,
@@ -219,6 +231,14 @@ export default function ProfileScreen() {
   const formatCurrency = (value: number) => {
     if (!Number.isFinite(value)) return "0.00 EUR";
     return value.toFixed(2).replace(".", ",") + " EUR";
+  };
+
+  const handleAdminStatClick = (type: "registered" | "active" | "guests") => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setAdminUserType(type);
+    setShowAdminUsersModal(true);
   };
 
   const handleCaptureReceipt = async () => {
@@ -816,27 +836,39 @@ export default function ProfileScreen() {
               style={styles.adminCard}
             >
               <View style={styles.adminRow}>
-                <View style={styles.adminStat}>
+                <TouchableOpacity
+                  style={styles.adminStat}
+                  onPress={() => handleAdminStatClick("registered")}
+                  activeOpacity={0.7}
+                >
                   <Ionicons name="people" size={20} color="#8b5cf6" />
                   <Text style={styles.adminStatLabel}>Uporabniki</Text>
                   <Text style={styles.adminStatValue}>
                     {adminStats?.totalUsers ?? "--"}
                   </Text>
-                </View>
-                <View style={styles.adminStat}>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.adminStat}
+                  onPress={() => handleAdminStatClick("active")}
+                  activeOpacity={0.7}
+                >
                   <Ionicons name="flash" size={20} color="#10b981" />
                   <Text style={styles.adminStatLabel}>Aktivni</Text>
                   <Text style={styles.adminStatValue}>
                     {adminStats?.activeUsers ?? "--"}
                   </Text>
-                </View>
-                <View style={styles.adminStat}>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.adminStat}
+                  onPress={() => handleAdminStatClick("guests")}
+                  activeOpacity={0.7}
+                >
                   <Ionicons name="eye-outline" size={20} color="#f59e0b" />
                   <Text style={styles.adminStatLabel}>Gostje</Text>
                   <Text style={styles.adminStatValue}>
                     {adminStats?.totalGuests ?? "--"}
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
 
               {adminStats?.topCountries && adminStats.topCountries.length > 0 && (
@@ -855,6 +887,37 @@ export default function ProfileScreen() {
                         <Text style={styles.geoCount}>{item.count}</Text>
                       </View>
                     ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Additional Admin Stats */}
+              {detailedAdminStats && (
+                <View style={styles.detailedStatsSection}>
+                  <Text style={styles.detailedStatsTitle}>📊 Podrobnosti</Text>
+                  <View style={styles.detailedStatsGrid}>
+                    <View style={styles.detailedStatItem}>
+                      <Text style={styles.detailedStatValue}>{detailedAdminStats.premiumUsers}</Text>
+                      <Text style={styles.detailedStatLabel}>Premium</Text>
+                    </View>
+                    <View style={styles.detailedStatItem}>
+                      <Text style={styles.detailedStatValue}>{detailedAdminStats.freeUsers}</Text>
+                      <Text style={styles.detailedStatLabel}>Free</Text>
+                    </View>
+                    <View style={styles.detailedStatItem}>
+                      <Text style={styles.detailedStatValue}>{detailedAdminStats.totalSearchesToday}</Text>
+                      <Text style={styles.detailedStatLabel}>Iskanja danes</Text>
+                    </View>
+                    <View style={styles.detailedStatItem}>
+                      <Text style={styles.detailedStatValue}>{detailedAdminStats.recentSignups}</Text>
+                      <Text style={styles.detailedStatLabel}>Novi (7d)</Text>
+                    </View>
+                  </View>
+                  <View style={styles.savingsRow}>
+                    <Ionicons name="trending-down" size={18} color="#10b981" />
+                    <Text style={styles.savingsText}>
+                      Skupaj prihranki: {formatCurrency(detailedAdminStats.totalSavings)}
+                    </Text>
                   </View>
                 </View>
               )}
@@ -1434,6 +1497,114 @@ export default function ProfileScreen() {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      )}
+
+      {/* Admin Users Modal */}
+      {showAdminUsersModal && (
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalContent, { maxHeight: "85%" }]}>
+            <LinearGradient
+              colors={["rgba(139, 92, 246, 0.2)", "rgba(59, 7, 100, 0.3)"]}
+              style={[styles.modalGradient, { height: "100%" }]}
+            >
+              <View style={styles.adminModalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>
+                    {adminUserType === "registered" ? "Registrirani uporabniki" :
+                     adminUserType === "active" ? "Aktivni uporabniki" : "Gostje"}
+                  </Text>
+                  <Text style={styles.modalSubtitle}>
+                    {adminUsers?.length || 0} uporabnikov
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.modalClose}
+                  onPress={() => {
+                    setShowAdminUsersModal(false);
+                    setAdminUserType(null);
+                  }}
+                >
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.adminUsersList} showsVerticalScrollIndicator={false}>
+                {adminUsers && adminUsers.length > 0 ? (
+                  adminUsers.map((user, index) => (
+                    <View key={user.userId} style={styles.adminUserCard}>
+                      <View style={styles.adminUserHeader}>
+                        <View style={[
+                          styles.adminUserAvatar,
+                          { backgroundColor: user.isPremium ? "#fbbf24" : "#8b5cf6" }
+                        ]}>
+                          <Text style={styles.adminUserAvatarText}>
+                            {(user.nickname || user.name || user.email || "?").charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={styles.adminUserInfo}>
+                          <View style={styles.adminUserNameRow}>
+                            <Text style={styles.adminUserName}>
+                              {user.nickname || user.name || "Anonymous"}
+                            </Text>
+                            {user.isPremium && (
+                              <View style={styles.premiumBadge}>
+                                <Ionicons name="star" size={10} color="#0b0814" />
+                                <Text style={styles.premiumBadgeText}>
+                                  {user.premiumType === "family" ? "Family" : "Plus"}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                          {user.email && (
+                            <Text style={styles.adminUserEmail}>{user.email}</Text>
+                          )}
+                        </View>
+                      </View>
+
+                      <View style={styles.adminUserStats}>
+                        <View style={styles.adminUserStatItem}>
+                          <Ionicons name="search" size={14} color="#6b7280" />
+                          <Text style={styles.adminUserStatText}>{user.dailySearches} iskanj</Text>
+                        </View>
+                        {user.totalSavings !== undefined && user.totalSavings > 0 && (
+                          <View style={styles.adminUserStatItem}>
+                            <Ionicons name="trending-down" size={14} color="#10b981" />
+                            <Text style={styles.adminUserStatText}>
+                              {formatCurrency(user.totalSavings)}
+                            </Text>
+                          </View>
+                        )}
+                        {user.location && (
+                          <View style={styles.adminUserStatItem}>
+                            <Ionicons name="location" size={14} color="#6b7280" />
+                            <Text style={styles.adminUserStatText}>{user.location.country}</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <View style={styles.adminUserMeta}>
+                        <Text style={styles.adminUserMetaText}>
+                          Registriran: {new Date(user._creationTime).toLocaleDateString('sl-SI')}
+                        </Text>
+                        {user.lastActivity && (
+                          <Text style={styles.adminUserMetaText}>
+                            Aktiven: {new Date(user.lastActivity).toLocaleDateString('sl-SI')}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.emptyAdminUsers}>
+                    <Ionicons name="people-outline" size={48} color="#6b7280" />
+                    <Text style={styles.emptyAdminUsersText}>Ni uporabnikov</Text>
+                  </View>
+                )}
+              </ScrollView>
             </LinearGradient>
           </View>
         </View>
@@ -2672,6 +2843,157 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#0b0814",
+  },
+  // Admin Detailed Stats
+  detailedStatsSection: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(139, 92, 246, 0.2)",
+  },
+  detailedStatsTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#e5e7eb",
+    marginBottom: 12,
+  },
+  detailedStatsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
+  },
+  detailedStatItem: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  detailedStatValue: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#fff",
+    marginBottom: 4,
+  },
+  detailedStatLabel: {
+    fontSize: 11,
+    color: "#9ca3af",
+    textAlign: "center",
+  },
+  savingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.2)",
+  },
+  savingsText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#10b981",
+  },
+  // Admin Users Modal
+  adminModalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(139, 92, 246, 0.2)",
+    marginBottom: 16,
+  },
+  adminUsersList: {
+    flex: 1,
+  },
+  adminUserCard: {
+    backgroundColor: "rgba(139, 92, 246, 0.08)",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  adminUserHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  adminUserAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  adminUserAvatarText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  adminUserInfo: {
+    flex: 1,
+  },
+  adminUserNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 2,
+  },
+  adminUserName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  adminUserEmail: {
+    fontSize: 13,
+    color: "#9ca3af",
+  },
+  adminUserStats: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 8,
+  },
+  adminUserStatItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  adminUserStatText: {
+    fontSize: 12,
+    color: "#cbd5e1",
+  },
+  adminUserMeta: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(139, 92, 246, 0.15)",
+  },
+  adminUserMetaText: {
+    fontSize: 11,
+    color: "#6b7280",
+    marginBottom: 2,
+  },
+  emptyAdminUsers: {
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  emptyAdminUsersText: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginTop: 12,
   },
 });
 
