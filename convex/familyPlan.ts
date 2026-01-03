@@ -26,18 +26,191 @@ async function sendFamilyInviteEmail(
   }
 
   const inviteUrl = `${siteUrl}/accept-invitation?token=${encodeURIComponent(token)}`;
-  const subject = "Povabilo v Pr'Hran Family";
+  const subject = "👨‍👩‍👧 Vabilo v Pr'Hran Family - Premium načrt";
+  const text = `Pozdravljeni!\n\n${inviterName} vas vabi v Pr'Hran Family!\n\nKliknite na povezavo za sprejem vabila:\n${inviteUrl}\n\nVabilo velja 7 dni.\n\nČe vabila niste pričakovali, sporočilo ignorirajte.`;
   const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
-      <h2 style="margin: 0 0 12px;">Pozdravljeni!</h2>
-      <p style="margin: 0 0 12px;">${inviterName} te vabi v Pr'Hran Family.</p>
-      <p style="margin: 0 0 16px;">
-        <a href="${inviteUrl}" style="color: #7c3aed; font-weight: 700; font-size: 16px;">Sprejmi vabilo</a>
-      </p>
-      <p style="margin: 0 0 8px;">Če gumb ne deluje, kopiraj povezavo:</p>
-      <p style="word-break: break-all; color: #0f172a; font-size: 12px;">${inviteUrl}</p>
-      <p style="margin-top: 16px; color: #475569; font-size: 12px;">Če vabila nisi pričakoval, sporočilo ignoriraj.</p>
-    </div>
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Vabilo</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #0a0a12 0%, #1a0a2e 50%, #0f0a1e 100%); min-height: 100vh;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="min-height: 100vh; background: linear-gradient(135deg, #0a0a12 0%, #1a0a2e 50%, #0f0a1e 100%);">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <!-- Main Container -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background: rgba(15, 23, 42, 0.95); border-radius: 24px; border: 1px solid rgba(251, 191, 36, 0.4); box-shadow: 0 20px 60px rgba(251, 191, 36, 0.3);">
+
+          <!-- Logo & Header -->
+          <tr>
+            <td align="center" style="padding: 48px 32px 24px;">
+              <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="position: relative;">
+                    <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%); border-radius: 24px; display: inline-block; text-align: center; line-height: 100px; box-shadow: 0 12px 40px rgba(251, 191, 36, 0.6), 0 0 0 8px rgba(251, 191, 36, 0.1), 0 0 0 16px rgba(251, 191, 36, 0.05);">
+                      <span style="font-size: 56px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);">👨‍👩‍👧</span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="margin: 28px 0 12px; font-size: 36px; font-weight: 900; color: #ffffff; letter-spacing: -1px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);">Pr'Hran Family</h1>
+              <p style="margin: 0; font-size: 17px; color: #fcd34d; font-weight: 600; letter-spacing: 0.5px;">✨ Premium načrt za vso družino</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 32px;">
+              <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.4), transparent);"></div>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 32px;">
+              <h2 style="margin: 0 0 16px; font-size: 28px; font-weight: 800; color: #ffffff; text-align: center; line-height: 1.2;">🎉 Dobili ste vabilo!</h2>
+              <p style="margin: 0 0 32px; font-size: 16px; line-height: 26px; color: #cbd5e1; text-align: center;">
+                <strong style="color: #fbbf24; font-size: 18px;">${inviterName}</strong> vas vabi,<br/>da se pridružite njihovem <strong style="color: #fcd34d;">Family načrtu</strong>! 🎊
+              </p>
+
+              <!-- Benefits Box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(251, 146, 60, 0.08)); border: 2px solid rgba(251, 191, 36, 0.3); border-radius: 16px; margin-bottom: 32px;">
+                <tr>
+                  <td style="padding: 28px;">
+                    <p style="margin: 0 0 20px; font-size: 16px; font-weight: 700; color: #fbbf24; text-align: center;">🌟 Kaj dobite s Family načrtom?</p>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="padding: 10px 0;">
+                          <table cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td width="32" valign="top">
+                                <span style="font-size: 22px;">✅</span>
+                              </td>
+                              <td style="padding-left: 12px;">
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #e5e7eb;"><strong style="color: #fcd34d;">Premium košarica</strong> - shranite najljubše izdelke</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 10px 0;">
+                          <table cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td width="32" valign="top">
+                                <span style="font-size: 22px;">✅</span>
+                              </td>
+                              <td style="padding-left: 12px;">
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #e5e7eb;"><strong style="color: #fcd34d;">Avtomatski kuponi</strong> - prihranite še več</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 10px 0;">
+                          <table cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td width="32" valign="top">
+                                <span style="font-size: 22px;">✅</span>
+                              </td>
+                              <td style="padding-left: 12px;">
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #e5e7eb;"><strong style="color: #fcd34d;">Neomejeno iskanje</strong> - vse cene vseh trgovin</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 10px 0;">
+                          <table cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td width="32" valign="top">
+                                <span style="font-size: 22px;">✅</span>
+                              </td>
+                              <td style="padding-left: 12px;">
+                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #e5e7eb;"><strong style="color: #fcd34d;">Brez oglasov</strong> - čista izkušnja</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding: 12px 0 32px;">
+                    <a href="${inviteUrl}" style="display: inline-block; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #0a0a12; text-decoration: none; font-size: 18px; font-weight: 800; padding: 18px 48px; border-radius: 16px; box-shadow: 0 12px 32px rgba(251, 191, 36, 0.4), 0 0 0 4px rgba(251, 191, 36, 0.1); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);">
+                      🎁 Sprejmi vabilo
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Info Box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td width="32" valign="top">
+                          <div style="width: 24px; height: 24px; background: rgba(139, 92, 246, 0.2); border-radius: 50%; text-align: center; line-height: 24px;">
+                            <span style="font-size: 16px;">⏰</span>
+                          </div>
+                        </td>
+                        <td style="padding-left: 12px;">
+                          <p style="margin: 0; font-size: 14px; line-height: 20px; color: #c4b5fd;">
+                            <strong style="font-weight: 700;">Pomembno:</strong> Vabilo velja <strong>7 dni</strong>. Če vabila ne sprejmete v tem času, bo poteklo.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Link fallback -->
+              <p style="margin: 24px 0 0; font-size: 13px; line-height: 20px; color: #9ca3af; text-align: center;">
+                Če gumb ne deluje, kopirajte povezavo:<br/>
+                <span style="font-size: 11px; color: #6b7280; word-break: break-all;">${inviteUrl}</span>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 32px;">
+              <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.4), transparent);"></div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 36px 32px;">
+              <p style="margin: 0 0 16px; font-size: 13px; line-height: 20px; color: #9ca3af; text-align: center;">
+                🔒 Če vabila niste pričakovali, lahko to sporočilo ignorirate.
+              </p>
+              <p style="margin: 0 0 8px; font-size: 13px; color: #6b7280; text-align: center;">
+                © ${new Date().getFullYear()} <strong style="color: #fbbf24;">Pr'Hran</strong>
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #64748b; text-align: center; letter-spacing: 0.5px;">
+                Izdelano z ❤️ v Sloveniji 🇸🇮
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
   `;
 
   const response = await fetch("https://api.resend.com/emails", {
@@ -50,6 +223,7 @@ async function sendFamilyInviteEmail(
       from: `${fromName} <${fromEmail}>`,
       to: toEmail,
       subject,
+      text,
       html,
     }),
   });
