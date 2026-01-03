@@ -49,9 +49,42 @@ async function sendFamilyInviteEmail(
               <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                 <tr>
                   <td style="position: relative;">
-                    <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%); border-radius: 24px; display: inline-block; text-align: center; line-height: 100px; box-shadow: 0 12px 40px rgba(251, 191, 36, 0.6), 0 0 0 8px rgba(251, 191, 36, 0.1), 0 0 0 16px rgba(251, 191, 36, 0.05);">
-                      <span style="font-size: 56px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);">👨‍👩‍👧</span>
-                    </div>
+                    <!-- Pr'Hran Family SVG Logo -->
+                    <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                      <!-- Outer glow rings -->
+                      <rect x="0" y="0" width="100" height="100" rx="24" fill="rgba(251, 191, 36, 0.05)" />
+                      <rect x="4" y="4" width="92" height="92" rx="22" fill="rgba(251, 191, 36, 0.1)" />
+
+                      <!-- Main gradient background -->
+                      <defs>
+                        <linearGradient id="familyLogoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+                          <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+                          <stop offset="100%" style="stop-color:#d97706;stop-opacity:1" />
+                        </linearGradient>
+                        <filter id="familyLogoShadow" x="-50%" y="-50%" width="200%" height="200%">
+                          <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+                          <feOffset dx="0" dy="4" result="offsetblur"/>
+                          <feComponentTransfer>
+                            <feFuncA type="linear" slope="0.6"/>
+                          </feComponentTransfer>
+                          <feMerge>
+                            <feMergeNode/>
+                            <feMergeNode in="SourceGraphic"/>
+                          </feMerge>
+                        </filter>
+                      </defs>
+
+                      <!-- Logo box with shadow -->
+                      <rect x="8" y="8" width="84" height="84" rx="20" fill="url(#familyLogoGradient)" filter="url(#familyLogoShadow)" />
+
+                      <!-- Letter P -->
+                      <text x="50" y="72" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="900" fill="#ffffff" text-anchor="middle" style="text-shadow: 0 2px 12px rgba(0,0,0,0.3);">P</text>
+
+                      <!-- Family badge - small crown icon -->
+                      <circle cx="75" cy="25" r="14" fill="#fbbf24" filter="url(#familyLogoShadow)" />
+                      <text x="75" y="31" font-size="16" fill="#0a0a12" text-anchor="middle" font-weight="900">👑</text>
+                    </svg>
                   </td>
                 </tr>
               </table>

@@ -82,13 +82,41 @@ export const requestEmailVerification = authAction({
           <!-- Logo & Header -->
           <tr>
             <td align="center" style="padding: 48px 32px 24px; position: relative;">
-              <!-- Animated Logo with Glow -->
+              <!-- Pr'Hran SVG Logo -->
               <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                 <tr>
                   <td style="position: relative;">
-                    <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 50%, #6d28d9 100%); border-radius: 24px; display: inline-block; text-align: center; line-height: 100px; box-shadow: 0 12px 40px rgba(168, 85, 247, 0.6), 0 0 0 8px rgba(168, 85, 247, 0.1), 0 0 0 16px rgba(168, 85, 247, 0.05);">
-                      <span style="font-size: 56px; font-weight: 900; color: #ffffff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);">🛒</span>
-                    </div>
+                    <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                      <!-- Outer glow rings -->
+                      <rect x="0" y="0" width="100" height="100" rx="24" fill="rgba(168, 85, 247, 0.05)" />
+                      <rect x="4" y="4" width="92" height="92" rx="22" fill="rgba(168, 85, 247, 0.1)" />
+
+                      <!-- Main gradient background -->
+                      <defs>
+                        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" style="stop-color:#a855f7;stop-opacity:1" />
+                          <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:1" />
+                          <stop offset="100%" style="stop-color:#6d28d9;stop-opacity:1" />
+                        </linearGradient>
+                        <filter id="logoShadow" x="-50%" y="-50%" width="200%" height="200%">
+                          <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+                          <feOffset dx="0" dy="4" result="offsetblur"/>
+                          <feComponentTransfer>
+                            <feFuncA type="linear" slope="0.6"/>
+                          </feComponentTransfer>
+                          <feMerge>
+                            <feMergeNode/>
+                            <feMergeNode in="SourceGraphic"/>
+                          </feMerge>
+                        </filter>
+                      </defs>
+
+                      <!-- Logo box with shadow -->
+                      <rect x="8" y="8" width="84" height="84" rx="20" fill="url(#logoGradient)" filter="url(#logoShadow)" />
+
+                      <!-- Letter P -->
+                      <text x="50" y="72" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="900" fill="#ffffff" text-anchor="middle" style="text-shadow: 0 2px 12px rgba(0,0,0,0.3);">P</text>
+                    </svg>
                   </td>
                 </tr>
               </table>
