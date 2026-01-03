@@ -62,7 +62,40 @@ export const requestEmailVerification = authAction({
       return { success: true, email };
     }
 
-    const text = `Potrdite vaš e-naslov\nKoda: ${code}\nKoda velja 15 minut.\nOdprite aplikacijo in vnesite kodo za potrditev.`;
+    const text = `
+╔═══════════════════════════════════════╗
+║         Pr'Hran - Potrditev           ║
+╚═══════════════════════════════════════╝
+
+Pozdravljeni!
+
+Hvala za registracijo v Pr'Hran aplikaciji! 🎉
+
+Da dokončate registracijo, vnesite spodnjo 6-mestno
+kodo v aplikaciji:
+
+┌─────────────────────────────────────┐
+│                                     │
+│    VAŠA VERIFIKACIJSKA KODA:        │
+│                                     │
+│           ${code}                │
+│                                     │
+└─────────────────────────────────────┘
+
+⏰ POMEMBNO: Ta koda velja samo 15 minut.
+
+📱 KAKO POTRDITI:
+   1. Odprite aplikacijo Pr'Hran
+   2. Vnesite zgornjo 6-mestno kodo
+   3. Kliknite "Potrdi kodo"
+
+Če niste zahtevali te potrditve, ignorirajte to
+sporočilo.
+
+---
+© ${new Date().getFullYear()} Pr'Hran
+Izdelano z ❤️ v Sloveniji 🇸🇮
+`;
 
     const html = `
 <!DOCTYPE html>
@@ -257,19 +290,24 @@ export const requestEmailVerification = authAction({
 </html>
     `;
 
+    const emailPayload = {
+      from: `${fromName} <${fromEmail}>`,
+      to: email,
+      subject: "🔐 Potrditev e-naslova - Pr'Hran",
+      text,
+      html,
+    };
+
+    console.log("[EMAIL DEBUG] Sending email with HTML length:", html.length, "chars");
+    console.log("[EMAIL DEBUG] Text length:", text.length, "chars");
+
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from: `${fromName} <${fromEmail}>`,
-        to: email,
-        subject: "🔐 Potrditev e-naslova - Pr'Hran",
-        text,
-        html,
-      }),
+      body: JSON.stringify(emailPayload),
     });
 
     if (!res.ok) {
