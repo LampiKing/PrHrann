@@ -255,10 +255,10 @@ export const searchFromSheets = action({
       const sheets = google.sheets({ version: "v4", auth });
       const spreadsheetId = "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y"; // From scraper
 
-      // Read all data from sheet (limit to first 1000 rows for speed)
+      // Read ALL data from sheet (all 45000+ products)
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "Sheet1!A:E1000", // Limit to first 1000 rows
+        range: "Sheet1!A:E", // No row limit - get everything
       });
 
       const rows = response.data.values || [];
