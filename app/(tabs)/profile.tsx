@@ -93,7 +93,7 @@ export default function ProfileScreen() {
   );
   const submitReceipt = useAction(api.receipts.submitReceipt);
   const deleteAccount = useAction(api.userProfiles.deleteAccount);
-  const inviteFamilyMember = useMutation(api.familyPlan.inviteFamilyMember);
+  const inviteFamilyMember = useAction(api.familyPlan.inviteFamilyMember);
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   

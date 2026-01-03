@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
 import { authMutation, authQuery } from "./functions";
+import { api } from "./_generated/api";
 
 const MAX_FAMILY_MEMBERS = 3; // Vključno z ownerjem
 const INVITATION_EXPIRY_DAYS = 7;
@@ -26,8 +27,27 @@ async function sendFamilyInviteEmail(
   }
 
   const inviteUrl = `${siteUrl}/accept-invitation?token=${encodeURIComponent(token)}`;
-  const subject = "👨‍👩‍👧 Vabilo v Pr'Hran Family - Premium načrt";
-  const text = `Pozdravljeni!\n\n${inviterName} vas vabi v Pr'Hran Family!\n\nKliknite na povezavo za sprejem vabila:\n${inviteUrl}\n\nVabilo velja 7 dni.\n\nČe vabila niste pričakovali, sporočilo ignorirajte.`;
+  const subject = `🎉 ${inviterName} te vabi v Pr'Hran Family!`;
+  const text = `Pozdravljeni!
+
+${inviterName} te vabi v Pr'Hran Family! 👨‍👩‍👧
+
+🌟 KAJ DOBIŠ:
+✅ Premium košarica - shrani najljubše izdelke
+✅ Avtomatski kuponi - prihrani še več
+✅ Neomejeno iskanje - vse cene vseh trgovin
+✅ Brez oglasov - čista izkušnja
+
+👉 SPREJMI VABILO:
+${inviteUrl}
+
+⏰ Vabilo velja 7 dni.
+
+Če vabila niste pričakovali, to sporočilo ignorirajte.
+
+---
+© ${new Date().getFullYear()} Pr'Hran
+Izdelano z ❤️ v Sloveniji 🇸🇮`;
   const html = `
 <!DOCTYPE html>
 <html lang="sl">
@@ -103,74 +123,22 @@ async function sendFamilyInviteEmail(
           <!-- Content -->
           <tr>
             <td style="padding: 40px 32px;">
-              <h2 style="margin: 0 0 16px; font-size: 28px; font-weight: 800; color: #ffffff; text-align: center; line-height: 1.2;">🎉 Dobili ste vabilo!</h2>
-              <p style="margin: 0 0 32px; font-size: 16px; line-height: 26px; color: #cbd5e1; text-align: center;">
-                <strong style="color: #fbbf24; font-size: 18px;">${inviterName}</strong> vas vabi,<br/>da se pridružite njihovem <strong style="color: #fcd34d;">Family načrtu</strong>! 🎊
-              </p>
+              <h2 style="margin: 0 0 20px; font-size: 32px; font-weight: 900; color: #ffffff; text-align: center; line-height: 1.2;">
+                <strong style="color: #fbbf24; font-size: 36px;">${inviterName}</strong><br/>
+                <span style="font-size: 20px; color: #cbd5e1; font-weight: 600;">te vabi v Pr'Hran Family! 🎉</span>
+              </h2>
 
-              <!-- Benefits Box -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(251, 146, 60, 0.08)); border: 2px solid rgba(251, 191, 36, 0.3); border-radius: 16px; margin-bottom: 32px;">
+              <!-- Benefits Box - KOMPAKTNEJŠI -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(251, 146, 60, 0.1)); border: 2px solid rgba(251, 191, 36, 0.4); border-radius: 16px; margin-bottom: 28px;">
                 <tr>
-                  <td style="padding: 28px;">
-                    <p style="margin: 0 0 20px; font-size: 16px; font-weight: 700; color: #fbbf24; text-align: center;">🌟 Kaj dobite s Family načrtom?</p>
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="padding: 10px 0;">
-                          <table cellpadding="0" cellspacing="0">
-                            <tr>
-                              <td width="32" valign="top">
-                                <span style="font-size: 22px;">✅</span>
-                              </td>
-                              <td style="padding-left: 12px;">
-                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #e5e7eb;"><strong style="color: #fcd34d;">Premium košarica</strong> - shranite najljubše izdelke</p>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 10px 0;">
-                          <table cellpadding="0" cellspacing="0">
-                            <tr>
-                              <td width="32" valign="top">
-                                <span style="font-size: 22px;">✅</span>
-                              </td>
-                              <td style="padding-left: 12px;">
-                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #e5e7eb;"><strong style="color: #fcd34d;">Avtomatski kuponi</strong> - prihranite še več</p>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 10px 0;">
-                          <table cellpadding="0" cellspacing="0">
-                            <tr>
-                              <td width="32" valign="top">
-                                <span style="font-size: 22px;">✅</span>
-                              </td>
-                              <td style="padding-left: 12px;">
-                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #e5e7eb;"><strong style="color: #fcd34d;">Neomejeno iskanje</strong> - vse cene vseh trgovin</p>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 10px 0;">
-                          <table cellpadding="0" cellspacing="0">
-                            <tr>
-                              <td width="32" valign="top">
-                                <span style="font-size: 22px;">✅</span>
-                              </td>
-                              <td style="padding-left: 12px;">
-                                <p style="margin: 0; font-size: 14px; line-height: 20px; color: #e5e7eb;"><strong style="color: #fcd34d;">Brez oglasov</strong> - čista izkušnja</p>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                    </table>
+                  <td style="padding: 24px;">
+                    <p style="margin: 0 0 16px; font-size: 17px; font-weight: 800; color: #fbbf24; text-align: center;">🌟 Kaj dobiš?</p>
+                    <p style="margin: 0; font-size: 15px; line-height: 24px; color: #e5e7eb; text-align: center;">
+                      ✅ <strong style="color: #fcd34d;">Premium košarica</strong><br/>
+                      ✅ <strong style="color: #fcd34d;">Avtomatski kuponi</strong><br/>
+                      ✅ <strong style="color: #fcd34d;">Neomejeno iskanje</strong><br/>
+                      ✅ <strong style="color: #fcd34d;">Brez oglasov</strong>
+                    </p>
                   </td>
                 </tr>
               </table>
@@ -186,32 +154,9 @@ async function sendFamilyInviteEmail(
                 </tr>
               </table>
 
-              <!-- Info Box -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px;">
-                <tr>
-                  <td style="padding: 20px;">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td width="32" valign="top">
-                          <div style="width: 24px; height: 24px; background: rgba(139, 92, 246, 0.2); border-radius: 50%; text-align: center; line-height: 24px;">
-                            <span style="font-size: 16px;">⏰</span>
-                          </div>
-                        </td>
-                        <td style="padding-left: 12px;">
-                          <p style="margin: 0; font-size: 14px; line-height: 20px; color: #c4b5fd;">
-                            <strong style="font-weight: 700;">Pomembno:</strong> Vabilo velja <strong>7 dni</strong>. Če vabila ne sprejmete v tem času, bo poteklo.
-                          </p>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Link fallback -->
-              <p style="margin: 24px 0 0; font-size: 13px; line-height: 20px; color: #9ca3af; text-align: center;">
-                Če gumb ne deluje, kopirajte povezavo:<br/>
-                <span style="font-size: 11px; color: #6b7280; word-break: break-all;">${inviteUrl}</span>
+              <!-- Info - KOMPAKTNO -->
+              <p style="margin: 16px 0 0; font-size: 14px; line-height: 22px; color: #c4b5fd; text-align: center;">
+                ⏰ Vabilo velja <strong style="color: #fbbf24;">7 dni</strong>
               </p>
             </td>
           </tr>
@@ -282,13 +227,46 @@ function generateInviteToken(): string {
 
 /**
  * Povabi člana v Family Plan
+ * POMEMBNO: To je ACTION (ne mutation) ker mora poslat email preko Resend API
  */
-export const inviteFamilyMember = authMutation({
+export const inviteFamilyMember = action({
   args: {
     email: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = ctx.user._id;
+    // Get user from auth
+    const user = await ctx.auth.getUserIdentity();
+    if (!user) {
+      throw new Error("Nisi prijavljen");
+    }
+    const userId = user.subject;
+
+    // Use internal mutation to create invitation and validate
+    const result = await ctx.runMutation(api.familyPlan.createFamilyInvitationInternal, {
+      userId,
+      email: args.email,
+    });
+
+    // Send email
+    await sendFamilyInviteEmail(args.email, result.token, result.inviterName);
+
+    return {
+      success: true,
+      message: `Vabilo poslano na ${args.email}`,
+    };
+  },
+});
+
+/**
+ * INTERNAL: Create family invitation (called from action)
+ */
+export const createFamilyInvitationInternal = mutation({
+  args: {
+    userId: v.string(),
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { userId, email } = args;
 
     // Pridobi profil uporabnika
     const profile = await ctx.db
@@ -312,14 +290,13 @@ export const inviteFamilyMember = authMutation({
     // Preveri število članov
     const currentMembers = profile.familyMembers || [];
     if (currentMembers.length >= MAX_FAMILY_MEMBERS - 1) {
-      // -1 ker owner ni v seznamu
       throw new Error(`Maksimalno število članov je ${MAX_FAMILY_MEMBERS} (vključno s tabo)`);
     }
 
     // Preveri če je email že povabljen
     const existingInvite = await ctx.db
       .query("familyInvitations")
-      .withIndex("by_invitee_email", (q) => q.eq("inviteeEmail", args.email))
+      .withIndex("by_invitee_email", (q) => q.eq("inviteeEmail", email))
       .filter((q) =>
         q.and(
           q.eq(q.field("inviterId"), userId),
@@ -334,7 +311,7 @@ export const inviteFamilyMember = authMutation({
 
     // Preveri če uporabnik z tem emailom že obstaja in je že v Family
     const allProfiles = await ctx.db.query("userProfiles").collect();
-    const inviteeProfile = allProfiles.find(p => p.email === args.email);
+    const inviteeProfile = allProfiles.find(p => p.email === email);
 
     if (inviteeProfile) {
       if (inviteeProfile.familyOwnerId) {
@@ -354,7 +331,7 @@ export const inviteFamilyMember = authMutation({
     await ctx.db.insert("familyInvitations", {
       inviterId: userId,
       inviterNickname: inviterName,
-      inviteeEmail: args.email,
+      inviteeEmail: email,
       inviteeUserId: inviteeProfile?.userId,
       status: "pending",
       inviteToken: token,
@@ -362,12 +339,9 @@ export const inviteFamilyMember = authMutation({
       expiresAt,
     });
 
-    await sendFamilyInviteEmail(args.email, token, inviterName);
-
     return {
-      success: true,
-      message: `Vabilo poslano na ${args.email}`,
-      token, // Za testiranje
+      token,
+      inviterName,
     };
   },
 });
