@@ -133,7 +133,7 @@ export default function ShoppingListsScreen() {
               <View style={styles.emptyIcon}>
                 <Ionicons name="list" size={64} color="#6b7280" />
               </View>
-              <Text style={styles.emptyTitle}>Se ni seznamov</Text>
+              <Text style={styles.emptyTitle}>Še ni seznamov</Text>
               <Text style={styles.emptyText}>
                 Ustvari svoj prvi nakupovalni seznam in začni varčevati.
               </Text>
@@ -193,7 +193,7 @@ export default function ShoppingListsScreen() {
                                 color="#10b981"
                               />
                               <Text style={[styles.listMetaText, { color: "#10b981" }]}>
-                                {list.checkedItems} kupl.
+                                {list.checkedItems} kupljenih
                               </Text>
                             </>
                           )}

@@ -1281,7 +1281,7 @@ export default function SearchScreen() {
                   Odkleni košarico in profil
                 </Text>
                 <Text style={[styles.guestBannerText, isCompact && styles.guestBannerTextCompact]}>
-                  Registracija odklene še 2 iskanji danes + Košarica + Profil.
+                  Registracija odklene še 2 iskanja danes + Košarica + Profil.
                 </Text>
               </View>
               <TouchableOpacity
@@ -1519,7 +1519,7 @@ export default function SearchScreen() {
                   <Text style={styles.guestLimitTitle}>Odkleni več možnosti</Text>
                   <Text style={styles.guestLimitText}>
                     Kot gost imaš 1 iskanje na dan.{"\n"}
-                    Registracija odklene še 2 iskanji danes + Košarica + Profil.
+                    Registracija odklene še 2 iskanja danes + Košarica + Profil.
                   </Text>
                   <View style={styles.guestLimitButton}>
                     <Text style={styles.guestLimitButtonText}>Prijava / Registracija</Text>
@@ -1810,7 +1810,7 @@ export default function SearchScreen() {
                     <Text style={styles.guestOptionBadgeText}>BREZPLAČNO</Text>
                     </View>
                     <Text style={styles.guestOptionTitle}>Registracija</Text>
-                    <Text style={styles.guestOptionDesc}>+2 iskanji danes + Košarica + Profil</Text>
+                    <Text style={styles.guestOptionDesc}>+2 iskanja danes + Košarica + Profil</Text>
                     <TouchableOpacity
                       style={styles.guestOptionBtn}
                       onPress={handleGuestAuthPress}

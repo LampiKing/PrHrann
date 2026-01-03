@@ -42,7 +42,7 @@ export default function LeaderboardScreen() {
           </View>
           <Text style={styles.guestTitle}>Lestvica je zaklenjena</Text>
           <Text style={styles.guestText}>
-            Registracija odklene lestvico, Košarico in Profil ter še 2 iskanji danes.
+            Registracija odklene lestvico, Košarico in Profil ter še 2 iskanja danes.
           </Text>
           <TouchableOpacity
             style={styles.guestButton}

@@ -461,7 +461,7 @@ export default function ProfileScreen() {
             resizeMode="contain"
           />
           <Text style={styles.title}>
-            {premiumType === "family" ? `Family ${displayNickname} profil` : `${displayNickname} profil`}
+            {premiumType === "family" ? `${displayNickname} Family profil` : `${displayNickname} profil`}
           </Text>
         </Animated.View>
 
