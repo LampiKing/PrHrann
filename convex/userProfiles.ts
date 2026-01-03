@@ -37,6 +37,7 @@ export const getProfile = authQuery({
       emailVerified: v.optional(v.boolean()),
       isAnonymous: v.optional(v.boolean()),
       isAdmin: v.optional(v.boolean()),
+      profilePictureUrl: v.optional(v.string()),
       birthDate: v.optional(
         v.object({
           day: v.number(),
@@ -102,6 +103,7 @@ export const getProfile = authQuery({
       emailVerified: profile.emailVerified ?? false,
       isAnonymous: profile.isAnonymous ?? false,
       isAdmin: computedAdmin,
+      profilePictureUrl: profile.profilePictureUrl,
       birthDate: profile.birthDate,
       isPremium: profile.isPremium,
       premiumUntil: profile.premiumUntil,
@@ -387,6 +389,35 @@ export const updateNickname = authMutation({
       nicknameLower: normalized,
       nicknameUpdatedAt: now,
       nicknameChangeAvailableAt: now + NICKNAME_COOLDOWN_MS,
+    });
+
+    return { success: true };
+  },
+});
+
+// Update profile picture
+export const updateProfilePicture = authMutation({
+  args: {
+    profilePictureUrl: v.string(),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const userId = ctx.user._id;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      return { success: false, error: "Profile not found." };
+    }
+
+    await ctx.db.patch(profile._id, {
+      profilePictureUrl: args.profilePictureUrl,
     });
 
     return { success: true };

@@ -31,12 +31,13 @@ export const getSeasonalLogoSource = (date = new Date()): ImageSourcePropType =>
 
 export default function Logo({ size = 110, pulse = true }: Props) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
   const logoSource = getSeasonalLogoSource();
 
   useEffect(() => {
     if (!pulse) return;
 
-    const animation = Animated.loop(
+    const pulseAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1.15,
@@ -51,17 +52,34 @@ export default function Logo({ size = 110, pulse = true }: Props) {
       ])
     );
 
-    animation.start();
+    const rotateAnimation = Animated.loop(
+      Animated.timing(rotateAnim, {
+        toValue: 1,
+        duration: 20000,
+        useNativeDriver: true,
+      })
+    );
 
-    return () => animation.stop();
-  }, [pulse, pulseAnim]);
+    pulseAnimation.start();
+    rotateAnimation.start();
+
+    return () => {
+      pulseAnimation.stop();
+      rotateAnimation.stop();
+    };
+  }, [pulse, pulseAnim, rotateAnim]);
+
+  const rotate = rotateAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
 
   return (
     <Animated.View
       style={[
         styles.container,
         { width: size, height: size },
-        pulse && { transform: [{ scale: pulseAnim }] },
+        pulse && { transform: [{ scale: pulseAnim }, { rotate }] },
       ]}
     >
       <Image

@@ -62,6 +62,7 @@ export default function ProfileScreen() {
   const [familyInviting, setFamilyInviting] = useState(false);
   const [familyError, setFamilyError] = useState("");
   const [familySuccess, setFamilySuccess] = useState("");
+  const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -96,7 +97,8 @@ export default function ProfileScreen() {
   const inviteFamilyMember = useAction(api.familyPlan.inviteFamilyMember);
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
-  
+  const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
+
   // Check if user is guest (anonymous)
   const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
   const isAdmin = profile?.isAdmin ?? false;
@@ -315,6 +317,54 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleProfilePictureUpload = async () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setUploadingProfilePic(true);
+      try {
+        let base64Image = "";
+        if (Platform.OS === "web") {
+          const response = await fetch(result.assets[0].uri);
+          const blob = await response.blob();
+          base64Image = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        } else {
+          const base64 = await FileSystem.readAsStringAsync(result.assets[0].uri, {
+            encoding: "base64",
+          });
+          base64Image = `data:image/jpeg;base64,${base64}`;
+        }
+
+        await updateProfilePicture({ profilePictureUrl: base64Image });
+
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } catch (error) {
+        console.error("Profile picture upload failed:", error);
+      } finally {
+        setUploadingProfilePic(false);
+      }
+    }
+  };
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -481,11 +531,35 @@ export default function ProfileScreen() {
       >
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <Image
-            source={getSeasonalLogoSource()}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <TouchableOpacity
+            style={styles.profilePictureContainer}
+            onPress={handleProfilePictureUpload}
+            disabled={uploadingProfilePic}
+            activeOpacity={0.7}
+          >
+            {profile?.profilePictureUrl ? (
+              <Image
+                source={{ uri: profile.profilePictureUrl }}
+                style={styles.profilePicture}
+                resizeMode="cover"
+              />
+            ) : (
+              <LinearGradient
+                colors={["#a855f7", "#8b5cf6"]}
+                style={styles.profilePicturePlaceholder}
+              >
+                <Ionicons name="person" size={48} color="#fff" />
+              </LinearGradient>
+            )}
+            {uploadingProfilePic && (
+              <View style={styles.uploadingOverlay}>
+                <ActivityIndicator size="small" color="#fff" />
+              </View>
+            )}
+            <View style={styles.profilePictureEditBadge}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </View>
+          </TouchableOpacity>
           <Text style={styles.title}>
             {premiumType === "family" ? `${displayNickname} Family profil` : `${displayNickname} profil`}
           </Text>
@@ -1411,6 +1485,52 @@ const styles = StyleSheet.create({
     width: 102,
     height: 102,
     marginBottom: 8,
+  },
+  profilePictureContainer: {
+    position: "relative",
+    width: 102,
+    height: 102,
+    marginBottom: 16,
+  },
+  profilePicture: {
+    width: 102,
+    height: 102,
+    borderRadius: 51,
+    borderWidth: 3,
+    borderColor: "rgba(168, 85, 247, 0.4)",
+  },
+  profilePicturePlaceholder: {
+    width: 102,
+    height: 102,
+    borderRadius: 51,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "rgba(168, 85, 247, 0.4)",
+  },
+  uploadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 51,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profilePictureEditBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#a855f7",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#0a0a12",
   },
   title: {
     fontSize: 26,

@@ -172,6 +172,21 @@ export default function LoyaltyCardsScreen() {
   const [showBarcodeModal, setShowBarcodeModal] = useState<
     { cardId: string; number: string } | null
   >(null);
+  const [showCouponsModal, setShowCouponsModal] = useState<string | null>(null);
+
+  // Get stores and coupons
+  const stores = useQuery(api.stores.getAll);
+  const getStoreIdByName = (storeName: string) => {
+    return stores?.find(s => s.name === storeName)?._id;
+  };
+
+  // Get coupons for the active store in coupons modal
+  const activeStoreForCoupons = showCouponsModal ? CARD_TO_STORE_NAME[showCouponsModal] : null;
+  const activeStoreId = activeStoreForCoupons ? getStoreIdByName(activeStoreForCoupons) : undefined;
+  const coupons = useQuery(
+    api.coupons.getByStore,
+    activeStoreId ? { storeId: activeStoreId } : "skip"
+  );
 
   // Get card data for modal
   const activeCard = showBarcodeModal
@@ -365,9 +380,27 @@ export default function LoyaltyCardsScreen() {
                 activeOpacity={0.7}
               >
                 <Ionicons name="add-circle-outline" size={22} color={card.color} />
-                <Text style={[styles.addButtonText, { color: card.color }]}> 
+                <Text style={[styles.addButtonText, { color: card.color }]}>
                   Dodaj še eno kartico
                 </Text>
+              </TouchableOpacity>
+
+              {/* Coupons Button */}
+              <TouchableOpacity
+                style={[styles.couponsButton, { backgroundColor: `${card.color}15`, borderColor: `${card.color}40` }]}
+                onPress={() => {
+                  if (Platform.OS !== "web") {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }
+                  setShowCouponsModal(card.id);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pricetags" size={20} color={card.color} />
+                <Text style={[styles.couponsButtonText, { color: card.color }]}>
+                  Prikaži kupone
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color={card.color} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -503,6 +536,131 @@ export default function LoyaltyCardsScreen() {
                 </View>
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Coupons Modal */}
+      <Modal
+        transparent
+        visible={!!showCouponsModal}
+        onRequestClose={() => setShowCouponsModal(null)}
+        animationType="fade"
+        hardwareAccelerated
+      >
+        <View style={styles.barcodeModalOverlay}>
+          <View style={styles.barcodeModal}>
+            {showCouponsModal && (() => {
+              const card = LOYALTY_CARDS.find(c => c.id === showCouponsModal);
+              if (!card) return null;
+
+              return (
+                <>
+                  <LinearGradient
+                    colors={[card.color, `${card.color}cc`]}
+                    style={styles.barcodeModalHeader}
+                  >
+                    <View style={styles.barcodeModalIconWrapper}>
+                      <View style={[styles.barcodeModalIcon, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
+                        <Ionicons name="pricetags" size={24} color="#fff" />
+                      </View>
+                      <View>
+                        <Text style={styles.barcodeModalTitle}>Kuponi</Text>
+                        <Text style={styles.barcodeModalStore}>{card.store}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.modalCloseBtn}
+                      onPress={() => {
+                        if (Platform.OS !== "web") {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }
+                        setShowCouponsModal(null);
+                      }}
+                    >
+                      <Ionicons name="close" size={24} color="#fff" />
+                    </TouchableOpacity>
+                  </LinearGradient>
+
+                  <ScrollView style={styles.couponsModalContent}>
+                    {!coupons || coupons.length === 0 ? (
+                      <View style={styles.noCouponsContainer}>
+                        <View style={styles.noCouponsIconWrapper}>
+                          <Ionicons name="pricetags-outline" size={64} color="#6b7280" />
+                        </View>
+                        <Text style={styles.noCouponsTitle}>Ni kuponov</Text>
+                        <Text style={styles.noCouponsText}>
+                          Za to trgovino trenutno ni na voljo nobenih kuponov.
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.couponsListContainer}>
+                        {coupons.map((coupon, index) => (
+                          <View key={coupon._id} style={styles.couponCard}>
+                            <LinearGradient
+                              colors={[`${card.color}20`, `${card.color}10`]}
+                              style={styles.couponGradient}
+                            >
+                              <View style={styles.couponHeader}>
+                                <View style={[styles.couponBadge, { backgroundColor: card.color }]}>
+                                  <Text style={styles.couponBadgeText}>
+                                    {coupon.discountValue}
+                                  </Text>
+                                </View>
+                                {coupon.code && (
+                                  <View style={styles.couponCodeWrapper}>
+                                    <Text style={styles.couponCodeLabel}>Koda:</Text>
+                                    <Text style={[styles.couponCode, { color: card.color }]}>
+                                      {coupon.code}
+                                    </Text>
+                                  </View>
+                                )}
+                              </View>
+
+                              <Text style={styles.couponDescription}>
+                                {coupon.description}
+                              </Text>
+
+                              {coupon.conditions && (
+                                <View style={styles.couponConditionsWrapper}>
+                                  <Ionicons name="information-circle-outline" size={16} color="#9ca3af" />
+                                  <Text style={styles.couponConditions}>
+                                    {coupon.conditions}
+                                  </Text>
+                                </View>
+                              )}
+
+                              {coupon.expiryDate && (
+                                <View style={styles.couponExpiryWrapper}>
+                                  <Ionicons name="time-outline" size={14} color="#6b7280" />
+                                  <Text style={styles.couponExpiry}>
+                                    Velja do: {new Date(coupon.expiryDate).toLocaleDateString('sl-SI')}
+                                  </Text>
+                                </View>
+                              )}
+                            </LinearGradient>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </ScrollView>
+
+                  <View style={styles.barcodeModalContent}>
+                    <TouchableOpacity
+                      style={[styles.barcodeCloseBtn, { backgroundColor: card.color }]}
+                      onPress={() => {
+                        if (Platform.OS !== "web") {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }
+                        setShowCouponsModal(null);
+                      }}
+                    >
+                      <Text style={styles.barcodeCloseBtnText}>Zapri</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              );
+            })()}
           </View>
         </View>
       </Modal>
@@ -1359,6 +1517,125 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
+  },
+  // Coupons Button Styles
+  couponsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginTop: 12,
+  },
+  couponsButtonText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    marginLeft: 10,
+  },
+  // Coupons Modal Content
+  couponsModalContent: {
+    maxHeight: 400,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  noCouponsContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  noCouponsIconWrapper: {
+    marginBottom: 16,
+    opacity: 0.5,
+  },
+  noCouponsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 8,
+  },
+  noCouponsText: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  couponsListContainer: {
+    gap: 12,
+  },
+  couponCard: {
+    borderRadius: 14,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  couponGradient: {
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 14,
+  },
+  couponHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  couponBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  couponBadgeText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  couponCodeWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  couponCodeLabel: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  couponCode: {
+    fontSize: 14,
+    fontWeight: "700",
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+  },
+  couponDescription: {
+    fontSize: 15,
+    color: "#e5e7eb",
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  couponConditionsWrapper: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    marginBottom: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
+  },
+  couponConditions: {
+    flex: 1,
+    fontSize: 12,
+    color: "#9ca3af",
+    lineHeight: 18,
+  },
+  couponExpiryWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 4,
+  },
+  couponExpiry: {
+    fontSize: 11,
+    color: "#6b7280",
+    fontStyle: "italic",
   },
 });
 

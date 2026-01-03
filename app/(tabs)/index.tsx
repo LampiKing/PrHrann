@@ -2522,9 +2522,9 @@ const styles = StyleSheet.create({
   },
   cardGradient: {
     borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-    ...createShadow("#8b5cf6", 0, 4, 0.3, 12, 6),
+    borderWidth: 2,
+    borderColor: "rgba(139, 92, 246, 0.35)",
+    ...createShadow("#8b5cf6", 0, 6, 0.35, 14, 8),
   },
   cardContent: {
     padding: 16,

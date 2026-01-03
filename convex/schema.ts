@@ -95,6 +95,7 @@ export default defineSchema({
     emailVerified: v.optional(v.boolean()),
     isAnonymous: v.optional(v.boolean()),
     isAdmin: v.optional(v.boolean()),
+    profilePictureUrl: v.optional(v.string()),
     // Datum rojstva
     birthDate: v.optional(
       v.object({
