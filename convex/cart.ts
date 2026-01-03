@@ -388,3 +388,116 @@ export const clearCart = authMutation({
     return null;
   },
 });
+
+/**
+ * Add to cart from search results (Google Sheets)
+ * Creates product/store on-the-fly if needed
+ */
+export const addToCartFromSearch = authMutation({
+  args: {
+    productName: v.string(),
+    productCategory: v.string(),
+    productUnit: v.string(),
+    storeName: v.string(),
+    storeColor: v.string(),
+    price: v.number(),
+    isOnSale: v.boolean(),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = ctx.user._id;
+
+    // Check if premium
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile?.isPremium) {
+      throw new Error("Košarica je na voljo samo premium uporabnikom");
+    }
+
+    // Find or create store
+    let store = await ctx.db
+      .query("stores")
+      .filter((q) => q.eq(q.field("name"), args.storeName))
+      .first();
+
+    if (!store) {
+      const storeId = await ctx.db.insert("stores", {
+        name: args.storeName,
+        color: args.storeColor,
+        isPremium: false,
+      });
+      store = await ctx.db.get(storeId);
+      if (!store) throw new Error("Failed to create store");
+    }
+
+    // Find or create product
+    let product = await ctx.db
+      .query("products")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("name"), args.productName),
+          q.eq(q.field("category"), args.productCategory)
+        )
+      )
+      .first();
+
+    if (!product) {
+      const productId = await ctx.db.insert("products", {
+        name: args.productName,
+        category: args.productCategory,
+        unit: args.productUnit,
+      });
+      product = await ctx.db.get(productId);
+      if (!product) throw new Error("Failed to create product");
+    }
+
+    // Check if already in cart
+    const existing = await ctx.db
+      .query("cartItems")
+      .withIndex("by_user_and_product", (q) =>
+        q.eq("userId", userId).eq("productId", product._id)
+      )
+      .first();
+
+    if (existing && existing.storeId === store._id) {
+      // Increase quantity
+      await ctx.db.patch(existing._id, {
+        quantity: existing.quantity + 1,
+      });
+      return {
+        success: true,
+        message: `Posodobljeno: ${args.productName} (${existing.quantity + 1}x)`,
+      };
+    } else if (existing) {
+      // Replace store
+      await ctx.db.patch(existing._id, {
+        storeId: store._id,
+        priceAtAdd: args.price,
+        quantity: 1,
+      });
+      return {
+        success: true,
+        message: `Zamenjano trgovino za: ${args.productName}`,
+      };
+    } else {
+      // Add new item
+      await ctx.db.insert("cartItems", {
+        userId,
+        productId: product._id,
+        storeId: store._id,
+        quantity: 1,
+        priceAtAdd: args.price,
+      });
+      return {
+        success: true,
+        message: `Dodano v košarico: ${args.productName}`,
+      };
+    }
+  },
+});

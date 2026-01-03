@@ -175,6 +175,7 @@ export default function SearchScreen() {
   const [searching, setSearching] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
+  const [addingToCart, setAddingToCart] = useState<string | null>(null);
   const [autoSearchBlockedQuery, setAutoSearchBlockedQuery] = useState<string | null>(null);
 
   // Guest mode + search gating state
@@ -327,6 +328,7 @@ export default function SearchScreen() {
   const recordSearch = useMutation(api.userProfiles.recordSearch);
   const requestEmailVerification = useAction(api.emailVerification.requestEmailVerification);
   const addToCart = useMutation(api.cart.addToCart);
+  const addToCartFromSearch = useMutation(api.cart.addToCartFromSearch);
   const analyzeImage = useAction(api.ai.analyzeProductImage);
 
   const closeGuestModal = useCallback(() => {
@@ -511,12 +513,18 @@ export default function SearchScreen() {
   // Auto-search when query changes (but only after recordSearch)
   const searchFromSheets = useAction(api.productsActions.searchFromSheets);
   const [rawSearchResults, setRawSearchResults] = useState<ProductResult[]>([]);
+  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
   useEffect(() => {
     if (approvedQuery.length >= 2) {
-      searchFromSheets({ query: approvedQuery, isPremium }).then(setRawSearchResults).catch(console.error);
+      setIsLoadingSearch(true);
+      searchFromSheets({ query: approvedQuery, isPremium })
+        .then(setRawSearchResults)
+        .catch(console.error)
+        .finally(() => setIsLoadingSearch(false));
     } else {
       setRawSearchResults([]);
+      setIsLoadingSearch(false);
     }
   }, [approvedQuery, isPremium, searchFromSheets]);
 
@@ -866,6 +874,59 @@ export default function SearchScreen() {
     [addToCart, isGuestMode, triggerCartToast, triggerCartPreview]
   );
 
+  const handleAddToCartFromSearch = useCallback(
+    async (product: ProductResult, price: PriceInfo) => {
+      if (isGuestMode) {
+        openGuestModal("cart");
+        return;
+      }
+      if (!isPremium) {
+        router.push("/premium");
+        return;
+      }
+
+      const cartKey = `sheet-${normalizeResultKey(product.name)}-${normalizeResultKey(price.storeName)}`;
+      setAddingToCart(cartKey);
+
+      try {
+        const result = await addToCartFromSearch({
+          productName: product.name,
+          productCategory: product.category,
+          productUnit: product.unit,
+          storeName: price.storeName,
+          storeColor: price.storeColor,
+          price: price.price,
+          isOnSale: price.isOnSale,
+        });
+
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+
+        setAddedToCart(cartKey);
+        setRecentCartItems((prev) => [
+          {
+            key: `${cartKey}-${Date.now()}`,
+            name: product.name,
+            store: price.storeName,
+            quantity: 1,
+          },
+          ...prev,
+        ].slice(0, 3));
+        triggerCartToast(result.message);
+        triggerCartPreview();
+        setTimeout(() => setAddedToCart(null), 1500);
+      } catch (error) {
+        console.error("Napaka pri dodajanju:", error);
+        const errorMessage = error instanceof Error ? error.message : "Napaka pri dodajanju v košarico";
+        alert(errorMessage);
+      } finally {
+        setAddingToCart(null);
+      }
+    },
+    [addToCartFromSearch, isGuestMode, isPremium, router, triggerCartToast, triggerCartPreview]
+  );
+
   const formatPrice = (price: number) => {
     if (!Number.isFinite(price) || price <= 0) return "Ni cene";
     return price.toFixed(2).replace(".", ",") + " EUR";
@@ -1128,17 +1189,19 @@ export default function SearchScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
-            {/* Expand Indicator */}
-            <View style={styles.expandIndicator}>
-              <Text style={styles.expandText}>
-                {isExpanded ? "Skrij cene" : `Primerjaj ${storeCount} trgovin`}
-              </Text>
-              <Ionicons
-                name={isExpanded ? "chevron-up" : "chevron-down"}
-                size={16}
-                color="#a78bfa"
-              />
-            </View>
+            {/* Expand Indicator - Only show if multiple stores have this product */}
+            {storeCount > 1 && (
+              <View style={styles.expandIndicator}>
+                <Text style={styles.expandText}>
+                  {isExpanded ? "Skrij cene" : `Primerjaj ${storeCount} trgovin`}
+                </Text>
+                <Ionicons
+                  name={isExpanded ? "chevron-up" : "chevron-down"}
+                  size={16}
+                  color="#a78bfa"
+                />
+              </View>
+            )}
           </TouchableOpacity>
 
           {/* Expanded Store List */}
@@ -1147,9 +1210,13 @@ export default function SearchScreen() {
               <View style={styles.storeListDivider} />
               {product.prices.map((price, priceIndex) => {
                 const isLowest = priceIndex === 0;
-                const cartKey = product._id && price.storeId ? `${product._id}-${price.storeId}` : null;
-                const isAdded = !!cartKey && addedToCart === cartKey;
+                const cartKey = product._id && price.storeId
+                  ? `${product._id}-${price.storeId}`
+                  : `sheet-${normalizeResultKey(product.name)}-${normalizeResultKey(price.storeName)}`;
+                const isAdded = addedToCart === cartKey;
+                const isAddingThis = addingToCart === cartKey;
                 const canAdd = !!product._id && !!price.storeId;
+                const canAddFromSearch = !product._id || !price.storeId;
                 const rowKey = price.storeId
                   ? String(price.storeId)
                   : `${resultKey}-${normalizeResultKey(price.storeName)}-${priceIndex}`;
@@ -1221,22 +1288,61 @@ export default function SearchScreen() {
                         )}
                       </View>
 
-                      <TouchableOpacity
-                        style={[
-                          styles.addButton,
-                          isAdded && styles.addButtonSuccess,
-                          cartLocked && styles.addButtonLocked,
-                          !canAdd && { opacity: 0.5 },
-                        ]}
-                        onPress={() => handleAddToCart(product, price)}
-                        disabled={cartLocked || !canAdd}
-                      >
-                        <Ionicons
-                          name={cartLocked ? "lock-closed" : isAdded ? "checkmark" : "cart-outline"}
-                          size={20}
-                          color={cartLocked ? "#cbd5e1" : isAdded ? "#10b981" : "#a78bfa"}
-                        />
-                      </TouchableOpacity>
+                      {canAdd ? (
+                        <TouchableOpacity
+                          style={[
+                            styles.addButton,
+                            isAdded && styles.addButtonSuccess,
+                            cartLocked && styles.addButtonLocked,
+                          ]}
+                          onPress={() => handleAddToCart(product, price)}
+                          disabled={cartLocked}
+                        >
+                          <Ionicons
+                            name={cartLocked ? "lock-closed" : isAdded ? "checkmark" : "cart-outline"}
+                            size={20}
+                            color={cartLocked ? "#cbd5e1" : isAdded ? "#10b981" : "#a78bfa"}
+                          />
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={[
+                            styles.addToCartButton,
+                            isAdded && styles.addToCartButtonSuccess,
+                            !isPremium && styles.addToCartButtonLocked,
+                          ]}
+                          onPress={() => handleAddToCartFromSearch(product, price)}
+                          disabled={isAddingThis || isGuestMode}
+                        >
+                          {!isPremium ? (
+                            <View style={styles.premiumBadge}>
+                              <Text style={styles.premiumBadgeText}>Premium</Text>
+                            </View>
+                          ) : (
+                            <LinearGradient
+                              colors={isAdded ? ["#10b981", "#059669"] : ["#8b5cf6", "#7c3aed"]}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={styles.addToCartGradient}
+                            >
+                              {isAddingThis ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                              ) : (
+                                <>
+                                  <Ionicons
+                                    name={isAdded ? "checkmark" : "cart-outline"}
+                                    size={16}
+                                    color="#fff"
+                                  />
+                                  <Text style={styles.addToCartText}>
+                                    {isAdded ? "Dodano" : "Dodaj"}
+                                  </Text>
+                                </>
+                              )}
+                            </LinearGradient>
+                          )}
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 );
@@ -1545,6 +1651,14 @@ export default function SearchScreen() {
                   : "Dosegel si dnevni limit iskanj. Nadgradi na PrHran Plus za neomejeno iskanje."}
               </Text>
             )}
+          </View>
+        )}
+
+        {/* Loading Indicator */}
+        {isLoadingSearch && searchQuery.length >= 2 && (
+          <View style={styles.loadingIndicatorContainer}>
+            <ActivityIndicator size="large" color="#a855f7" />
+            <Text style={styles.loadingIndicatorText}>Iskanje izdelkov...</Text>
           </View>
         )}
 
@@ -2169,6 +2283,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+  loadingIndicatorContainer: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  loadingIndicatorText: {
+    color: "#a78bfa",
+    fontSize: 15,
+    fontWeight: "600",
+  },
   title: {
     fontSize: 28,
     fontWeight: "900",
@@ -2729,6 +2856,43 @@ const styles = StyleSheet.create({
   addButtonLocked: {
     backgroundColor: "rgba(148, 163, 184, 0.12)",
     borderColor: "rgba(148, 163, 184, 0.35)",
+  },
+  addToCartButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+    minWidth: 80,
+  },
+  addToCartButtonSuccess: {
+    opacity: 1,
+  },
+  addToCartButtonLocked: {
+    opacity: 0.7,
+  },
+  addToCartGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    gap: 6,
+  },
+  addToCartText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  premiumBadge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
+  },
+  premiumBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fbbf24",
   },
   premiumFab: {
     position: "absolute",

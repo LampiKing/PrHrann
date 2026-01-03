@@ -287,6 +287,7 @@ export default function AuthScreen() {
         setSuccess("");
         setLoading(false);
         if (redirectTarget === "register") {
+          console.log("[AUTH] Redirecting to /verify after registration");
           router.replace("/verify");
         } else if (redirectTarget) {
           router.replace("/(tabs)");
@@ -294,6 +295,18 @@ export default function AuthScreen() {
       }
     );
   };
+
+  // Auto-close success overlay and redirect after registration
+  useEffect(() => {
+    if (showSuccessOverlay && pendingRedirect === "register") {
+      // Auto redirect to verify screen after 1.5 seconds for registrations
+      const timer = setTimeout(() => {
+        console.log("[AUTH] Auto-redirecting to verify screen");
+        closeSuccessOverlay();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessOverlay, pendingRedirect]);
 
   const validateEmail = (email: string) => {
     // More robust email validation
