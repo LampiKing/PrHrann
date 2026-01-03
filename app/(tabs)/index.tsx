@@ -306,6 +306,7 @@ export default function SearchScreen() {
   }, []);
 
   const recordSearch = useMutation(api.userProfiles.recordSearch);
+  const resendVerificationEmail = useMutation(api.userProfiles.resendVerificationEmail);
   const addToCart = useMutation(api.cart.addToCart);
   const analyzeImage = useAction(api.ai.analyzeProductImage);
 
@@ -313,6 +314,16 @@ export default function SearchScreen() {
     guestModalDismissedAtRef.current = Date.now();
     setShowGuestLimitModal(false);
   }, []);
+
+  const handleResendVerificationEmail = useCallback(async () => {
+    try {
+      const result = await resendVerificationEmail();
+      alert(result.message);
+    } catch (error) {
+      console.error("Failed to resend verification email:", error);
+      alert("Napaka pri pošiljanju emaila. Prosim poskusite znova.");
+    }
+  }, [resendVerificationEmail]);
 
   const openGuestModal = useCallback((context: "search" | "cart" | "camera") => {
     const now = Date.now();
@@ -414,8 +425,16 @@ export default function SearchScreen() {
         } else if (isPremiumLimit) {
           // TODO: Show premium upgrade modal
           alert(recordResult.error || "Daily search limit reached. Upgrade to PrHran Plus for unlimited search.");
+        } else if (recordResult.error?.includes("Email verification required")) {
+          // Email verification required - show option to resend
+          const shouldResend = confirm(
+            recordResult.error + "\n\nŽelite znova poslati potrditveni email?"
+          );
+          if (shouldResend) {
+            await handleResendVerificationEmail();
+          }
         } else {
-          // Email verification or other error
+          // Other error
           alert(recordResult.error || "Unable to perform search. Please try again.");
         }
 

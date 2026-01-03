@@ -391,6 +391,112 @@ export const updateNickname = authMutation({
   },
 });
 
+// Resend email verification
+export const resendVerificationEmail = authMutation({
+  args: {},
+  returns: v.object({
+    success: v.boolean(),
+    message: v.string(),
+  }),
+  handler: async (ctx) => {
+    const userId = ctx.user._id;
+    const userEmail = ctx.user.email;
+
+    if (!userEmail) {
+      return {
+        success: false,
+        message: "No email address found. Please register with an email.",
+      };
+    }
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      return {
+        success: false,
+        message: "Profile not found.",
+      };
+    }
+
+    if (profile.emailVerified) {
+      return {
+        success: false,
+        message: "Email is already verified.",
+      };
+    }
+
+    // Generate verification token (simple random token for demo)
+    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const siteUrl = process.env.SITE_URL || process.env.EXPO_PUBLIC_SITE_URL || "https://www.prhran.com";
+    const verifyUrl = `${siteUrl}/verify-email?token=${token}&email=${encodeURIComponent(userEmail)}`;
+
+    // Send verification email via Resend
+    const fromEmail = process.env.FROM_EMAIL;
+    const fromName = process.env.FROM_NAME || "Pr'Hran";
+    const resendApiKey = process.env.RESEND_API_KEY;
+
+    if (!fromEmail || !resendApiKey) {
+      console.error("Email configuration missing");
+      return {
+        success: false,
+        message: "Email service not configured. Please contact support.",
+      };
+    }
+
+    const subject = "Potrdi svoj e-naslov - Pr'Hran";
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+        <h2 style="margin: 0 0 12px;">Pozdravljeni!</h2>
+        <p style="margin: 0 0 12px;">Kliknite spodaj, da potrdite svoj e-naslov:</p>
+        <p style="margin: 0 0 16px;"><a href="${verifyUrl}" style="color: #7c3aed; font-weight: 700; font-size: 16px;">Potrdi e-naslov</a></p>
+        <p style="margin: 0 0 8px;">Če gumb ne deluje, kopirajte povezavo:</p>
+        <p style="word-break: break-all; color: #0f172a; font-size: 12px;">${verifyUrl}</p>
+        <p style="margin-top: 16px; color: #475569; font-size: 12px;">Če niste zahtevali tega sporočila, ga lahko ignorirate.</p>
+      </div>
+    `;
+
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: `${fromName} <${fromEmail}>`,
+          to: userEmail,
+          subject,
+          html,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Email send failed: ${response.status} ${errorText}`);
+        return {
+          success: false,
+          message: "Failed to send verification email. Please try again later.",
+        };
+      }
+
+      console.log(`Verification email sent to ${userEmail}`);
+      return {
+        success: true,
+        message: `Potrditveni email je bil poslan na ${userEmail}. Preverite svojo pošto.`,
+      };
+    } catch (error) {
+      console.error("Email send error:", error);
+      return {
+        success: false,
+        message: "Failed to send verification email. Please try again later.",
+      };
+    }
+  },
+});
+
 // Upgrade to premium (simulation)
 export const upgradeToPremium = authMutation({
   args: {
