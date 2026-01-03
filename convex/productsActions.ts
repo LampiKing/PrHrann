@@ -16,6 +16,16 @@ const STORE_COLORS: Record<string, string> = {
   tus: "#0d8a3c",
 };
 const MAX_RESULTS = 20; // Optimal balance between results and speed
+const MAX_MATCHES_TO_PROCESS = 100; // Early termination for performance
+
+// COSMETICS/BODY CARE BLACKLIST - Exclude these from food searches
+const COSMETICS_KEYWORDS = new Set([
+  "za", "telo", "koza", "kozo", "nega", "nege", "krem", "krema",
+  "losjon", "balzam", "sampon", "gel", "pena", "milo", "mydlo",
+  "kozmetika", "toaletna", "toaletni", "kopel", "tus", "prha",
+  "obraz", "ustnice", "lase", "lasje", "nohte", "nohti", "zobe",
+  "deo", "deodorant", "parfum", "mirisna", "sprej"
+]);
 
 // CACHE: Reduce Google Sheets API calls - cache for 1 hour
 let cachedSheetData: any[] | null = null;
@@ -80,6 +90,13 @@ const scoreDisplayName = (value: string) => {
   if (/-/.test(value)) score -= 2;
   if (value.length > 12) score += 1;
   return score;
+};
+
+// Check if product is cosmetics/body care (not food)
+const isCosmeticsProduct = (nameNormalized: string): boolean => {
+  const words = nameNormalized.split(/\s+/);
+  // Check if product name contains cosmetics keywords
+  return words.some((word) => COSMETICS_KEYWORDS.has(word));
 };
 
 type StorePrice = {
@@ -229,20 +246,44 @@ export const searchFromSheets = action({
       const searchNormalized = normalizeSearchText(args.query);
       const searchWords = searchNormalized.split(/\s+/).filter(Boolean);
 
-      // Filter: ALL search words must appear in product name
-      const filtered = Array.from(productsByKey.values()).filter((product) => {
+      // OPTIMIZED FILTERING with EARLY TERMINATION and COSMETICS EXCLUSION
+      const filtered: ProductAccumulator[] = [];
+      const isSingleWordSearch = searchWords.length === 1;
+
+      for (const product of productsByKey.values()) {
+        // Early termination for performance - stop after finding enough matches
+        if (filtered.length >= MAX_MATCHES_TO_PROCESS) break;
+
         const productWords = product.nameNormalized.split(/\s+/);
 
-        // ALL search words must match
-        return searchWords.every((searchWord) => {
-          // Each search word must either:
-          // 1. Be an exact match to a product word, OR
-          // 2. Be contained in a product word (for partial matches like "mleko" in "mleko123")
-          return productWords.some((productWord) =>
-            productWord === searchWord || productWord.includes(searchWord)
+        // EXCLUDE COSMETICS/BODY CARE for food searches
+        const isCosmetics = isCosmeticsProduct(product.nameNormalized);
+        if (isCosmetics) continue;
+
+        // For single-word searches (like "mleko"), require EXACT or STARTS-WITH match
+        // This prevents "mleko" from matching "mleko za telo"
+        if (isSingleWordSearch) {
+          const searchWord = searchWords[0];
+          const matches = productWords.some(
+            (productWord) =>
+              productWord === searchWord || productWord.startsWith(searchWord)
           );
-        });
-      });
+          if (matches) {
+            filtered.push(product);
+          }
+        } else {
+          // For multi-word searches, ALL search words must match
+          const allMatch = searchWords.every((searchWord) => {
+            return productWords.some(
+              (productWord) =>
+                productWord === searchWord || productWord.includes(searchWord)
+            );
+          });
+          if (allMatch) {
+            filtered.push(product);
+          }
+        }
+      }
 
       const hydrated = filtered
         .map((product) => {
@@ -268,6 +309,12 @@ export const searchFromSheets = action({
           const aNameNorm = a.nameNormalized;
           const bNameNorm = b.nameNormalized;
 
+          // Deprioritize cosmetics (safety check - shouldn't appear due to filter)
+          const aIsCosmetics = isCosmeticsProduct(aNameNorm);
+          const bIsCosmetics = isCosmeticsProduct(bNameNorm);
+          if (aIsCosmetics && !bIsCosmetics) return 1;
+          if (!aIsCosmetics && bIsCosmetics) return -1;
+
           // Exact match gets priority
           const aExact = aNameNorm === searchNormalized ? 0 : 1;
           const bExact = bNameNorm === searchNormalized ? 0 : 1;
@@ -284,7 +331,12 @@ export const searchFromSheets = action({
         .slice(0, MAX_RESULTS)
         .map(({ nameNormalized, ...rest }) => rest);
 
-      console.log(`[searchFromSheets] Query: "${args.query}" | Found: ${sorted.length} products`);
+      console.log(
+        `[searchFromSheets] Query: "${args.query}" | ` +
+        `Processed: ${filtered.length}/${productsByKey.size} | ` +
+        `Results: ${sorted.length} | ` +
+        `Early termination: ${filtered.length >= MAX_MATCHES_TO_PROCESS ? 'YES' : 'NO'}`
+      );
       return sorted;
     } catch (error) {
       console.error("Error in searchFromSheets:", error);
