@@ -421,7 +421,7 @@ export default function SearchScreen() {
   };
   
   // Auto-search when query changes (but only after recordSearch)
-  const searchFromSheets = useAction(api.products.searchFromSheets);
+  const searchFromSheets = useAction(api.productsActions.searchFromSheets);
   const [rawSearchResults, setRawSearchResults] = useState<ProductResult[]>([]);
 
   useEffect(() => {

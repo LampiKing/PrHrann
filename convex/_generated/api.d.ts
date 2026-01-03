@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as addSheetHeader from "../addSheetHeader.js";
 import type * as admin from "../admin.js";
 import type * as ai from "../ai.js";
 import type * as aiCouponParser from "../aiCouponParser.js";
@@ -26,6 +27,7 @@ import type * as leaderboard from "../leaderboard.js";
 import type * as notify from "../notify.js";
 import type * as priceAlerts from "../priceAlerts.js";
 import type * as products from "../products.js";
+import type * as productsActions from "../productsActions.js";
 import type * as receipts from "../receipts.js";
 import type * as savings from "../savings.js";
 import type * as security from "../security.js";
@@ -44,6 +46,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  addSheetHeader: typeof addSheetHeader;
   admin: typeof admin;
   ai: typeof ai;
   aiCouponParser: typeof aiCouponParser;
@@ -62,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   notify: typeof notify;
   priceAlerts: typeof priceAlerts;
   products: typeof products;
+  productsActions: typeof productsActions;
   receipts: typeof receipts;
   savings: typeof savings;
   security: typeof security;
