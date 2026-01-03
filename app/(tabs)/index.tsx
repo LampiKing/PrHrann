@@ -1896,26 +1896,29 @@ export default function SearchScreen() {
                 </LinearGradient>
               </View>
 
-              <Text style={styles.premiumModalTitle}>PrHran Plus za kamero</Text>
+              <Text style={styles.premiumModalTitle}>📸 PrHran Plus - Unlock Kamera</Text>
               <Text style={styles.premiumModalSubtitle}>
-                Slikanje izdelkov je na voljo v Plus. Nadgradi za neomejeno iskanje in
-                slikanje izdelkov.
+                Slikanje izdelkov je na voljo samo v Plus načrtu. Nadgradi za neomejeno iskanje in
+                slikanje izdelkov za najnižje cene! 🎯
               </Text>
 
               <View style={styles.premiumFeatures}>
                 <View style={styles.premiumFeatureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Neomejeno iskanje izdelkov</Text>
+                  <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
+                  <Text style={styles.premiumFeatureText}>✨ Neomejeno iskanje vseh izdelkov</Text>
                 </View>
                 <View style={styles.premiumFeatureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Slikaj in najdi najnižjo ceno</Text>
+                  <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
+                  <Text style={styles.premiumFeatureText}>📸 Slikaj izdelek in najdi najnižjo ceno</Text>
                 </View>
                 <View style={styles.premiumFeatureItem}>
-                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Ekskluzivni kuponi do 30%</Text>
+                  <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
+                  <Text style={styles.premiumFeatureText}>🎁 Ekskluzivni kuponi do 30% popusta</Text>
                 </View>
-                {/* Removed "Brez oglasov" - oglasi niso prisotni v nobenem planu */}
+                <View style={styles.premiumFeatureItem}>
+                  <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
+                  <Text style={styles.premiumFeatureText}>🏆 Sodeluj v lestvici in osvoji nagrade</Text>
+                </View>
               </View>
 
               <View style={styles.premiumPriceContainer}>
@@ -1943,7 +1946,7 @@ export default function SearchScreen() {
               </TouchableOpacity>
 
               <Text style={styles.premiumNote}>
-                Prekliči kadarkoli - brez skritih stroškov
+                💚 Prekliči kadarkoli • Brez skritih stroškov • 100% varno
               </Text>
             </LinearGradient>
           </View>
@@ -1993,12 +1996,13 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 12,
+    marginTop: -20,
   },
   logo: {
-    width: 600,
-    height: 600,
-    marginBottom: 12,
+    width: 800,
+    height: 800,
+    marginBottom: 4,
   },
   searchingHint: {
     flexDirection: "row",
@@ -2013,15 +2017,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   title: {
-    fontSize: 32,
-    fontWeight: "800",
+    fontSize: 36,
+    fontWeight: "900",
     color: "#fff",
-    letterSpacing: -1,
+    letterSpacing: -1.5,
+    textShadowColor: "rgba(139, 92, 246, 0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: "#a78bfa",
-    marginTop: 4,
+    fontSize: 15,
+    color: "#c4b5fd",
+    marginTop: 2,
+    fontWeight: "600",
+    letterSpacing: 0.5,
   },
   searchContainer: {
     marginBottom: 16,

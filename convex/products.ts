@@ -307,12 +307,36 @@ export const searchFromSheets = action({
         product.highestPrice = Math.max(product.highestPrice, finalPrice);
       }
 
-      // Filter by query
+      // DEEP SEARCH - Match anywhere in name, very flexible
       const searchLower = args.query.toLowerCase().trim();
-      const filtered = products.filter(p => p.name.toLowerCase().includes(searchLower)).slice(0, 50); // Limit to 50 results
+      const searchWords = searchLower.split(/\s+/); // Split by whitespace
 
-      // Sort by lowest price
-      return filtered.sort((a, b) => a.lowestPrice - b.lowestPrice);
+      const filtered = products.filter(p => {
+        const nameLower = p.name.toLowerCase();
+        // Match if ALL search words are found in the product name (in any order)
+        return searchWords.every(word => nameLower.includes(word));
+      }).slice(0, 100); // Increased limit to 100 results for better coverage
+
+      // Sort by relevance first (exact match), then by lowest price
+      const sorted = filtered.sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+
+        // Exact match gets priority
+        const aExact = aName === searchLower ? 0 : 1;
+        const bExact = bName === searchLower ? 0 : 1;
+        if (aExact !== bExact) return aExact - bExact;
+
+        // Then starts-with match
+        const aStarts = aName.startsWith(searchLower) ? 0 : 1;
+        const bStarts = bName.startsWith(searchLower) ? 0 : 1;
+        if (aStarts !== bStarts) return aStarts - bStarts;
+
+        // Finally by price
+        return a.lowestPrice - b.lowestPrice;
+      });
+
+      return sorted;
     } catch (error) {
       console.error("Error in searchFromSheets:", error);
       return []; // Return empty on error
