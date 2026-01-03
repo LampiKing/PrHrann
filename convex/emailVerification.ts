@@ -154,7 +154,7 @@ Izdelano z ❤️ v Sloveniji 🇸🇮
                 </tr>
               </table>
               <h1 style="margin: 28px 0 12px; font-size: 36px; font-weight: 900; color: #ffffff; letter-spacing: -1px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);">Pr'Hran</h1>
-              <p style="margin: 0; font-size: 17px; color: #c4b5fd; font-weight: 600; letter-spacing: 0.5px;">✨ Primerjavajte cene z lahkoto</p>
+              <p style="margin: 0; font-size: 17px; color: #e5e7eb; font-weight: 600; letter-spacing: 0.5px;">Nakupuj <strong style="color: #fbbf24;">pametno</strong></p>
             </td>
           </tr>
 
@@ -176,7 +176,7 @@ Izdelano z ❤️ v Sloveniji 🇸🇮
                 <tr>
                   <td align="center" style="padding: 32px 0;">
                     <div style="display: inline-block; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 20px; padding: 28px 56px; box-shadow: 0 16px 48px rgba(139, 92, 246, 0.5), 0 0 0 6px rgba(139, 92, 246, 0.1);">
-                      <p style="margin: 0 0 8px; font-size: 13px; color: #e9d5ff; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">🔑 Vaša verifikacijska koda</p>
+                      <p style="margin: 0 0 8px; font-size: 13px; color: #ffffff; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">🔑 Vaša verifikacijska koda</p>
                       <p style="margin: 0; font-size: 52px; font-weight: 900; color: #ffffff; letter-spacing: 12px; font-family: 'Courier New', monospace; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);">${code}</p>
                     </div>
                   </td>

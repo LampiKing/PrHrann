@@ -620,11 +620,12 @@ export default function AuthScreen() {
         </Animated.View>
       )}
 
-      {/* Animated Background Orbs */}
+      {/* Animated Floating Icons - Shopping Related */}
+      {/* Shopping Cart Icon */}
       <Animated.View
         style={[
-          styles.backgroundOrb,
-          styles.orb1,
+          styles.floatingIcon,
+          styles.iconCart,
           {
             transform: [
               {
@@ -639,14 +640,24 @@ export default function AuthScreen() {
                   outputRange: [0, -20, 0],
                 }),
               },
+              {
+                rotate: orb1Anim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: ['-5deg', '5deg', '-5deg'],
+                }),
+              },
             ],
           },
         ]}
-      />
+      >
+        <Ionicons name="cart" size={56} color="#a855f7" />
+      </Animated.View>
+
+      {/* Floating Price Tag Icon */}
       <Animated.View
         style={[
-          styles.backgroundOrb,
-          styles.orb2,
+          styles.floatingIcon,
+          styles.iconPriceTag,
           {
             transform: [
               {
@@ -661,27 +672,48 @@ export default function AuthScreen() {
                   outputRange: [0, 30, 0],
                 }),
               },
+              {
+                rotate: orb2Anim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: ['5deg', '-5deg', '5deg'],
+                }),
+              },
             ],
           },
         ]}
-      />
+      >
+        <Ionicons name="pricetag" size={48} color="#fbbf24" />
+      </Animated.View>
+
+      {/* Floating Discount Badge */}
       <Animated.View
         style={[
-          styles.backgroundOrb,
-          styles.orb3,
+          styles.floatingIcon,
+          styles.iconDiscount,
           {
             opacity: orb1Anim.interpolate({
               inputRange: [0, 0.5, 1],
-              outputRange: [0.3, 0.6, 0.3],
+              outputRange: [0.3, 0.7, 0.3],
             }),
+            transform: [
+              {
+                scale: orb1Anim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0.9, 1.1, 0.9],
+                }),
+              },
+            ],
           },
         ]}
-      />
-      {/* Additional WOW orbs */}
+      >
+        <Ionicons name="flash" size={42} color="#ec4899" />
+      </Animated.View>
+
+      {/* Floating Gift/Savings Icon */}
       <Animated.View
         style={[
-          styles.backgroundOrb,
-          styles.orb4,
+          styles.floatingIcon,
+          styles.iconGift,
           {
             transform: [
               {
@@ -696,22 +728,42 @@ export default function AuthScreen() {
                   outputRange: [0, -50, 0],
                 }),
               },
+              {
+                rotate: orb2Anim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: ['-10deg', '10deg', '-10deg'],
+                }),
+              },
             ],
           },
         ]}
-      />
+      >
+        <Ionicons name="gift" size={40} color="#d946ef" />
+      </Animated.View>
+
+      {/* Floating Basket Icon */}
       <Animated.View
         style={[
-          styles.backgroundOrb,
-          styles.orb5,
+          styles.floatingIcon,
+          styles.iconBasket,
           {
             opacity: orb1Anim.interpolate({
               inputRange: [0, 0.25, 0.5, 0.75, 1],
-              outputRange: [0.2, 0.5, 0.8, 0.5, 0.2],
+              outputRange: [0.4, 0.7, 1.0, 0.7, 0.4],
             }),
+            transform: [
+              {
+                translateY: orb2Anim.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0, -20, 0],
+                }),
+              },
+            ],
           },
         ]}
-      />
+      >
+        <Ionicons name="basket" size={44} color="#06b6d4" />
+      </Animated.View>
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
@@ -802,7 +854,7 @@ export default function AuthScreen() {
                       style={[styles.modeOption, isLogin ? styles.modeOptionActive : styles.modeOptionInactive]}
                       onPress={() => switchMode(true)}
                     >
-                      <Ionicons name="log-in-outline" size={16} color={isLogin ? "#0f172a" : "#cbd5e1"} />
+                      <Ionicons name="log-in-outline" size={16} color={isLogin ? "#0f172a" : "#e5e7eb"} />
                       <Text style={[styles.modeOptionText, isLogin ? styles.modeOptionTextActive : styles.modeOptionTextInactive]}>
                         Prijava
                       </Text>
@@ -811,7 +863,7 @@ export default function AuthScreen() {
                       style={[styles.modeOption, !isLogin ? styles.modeOptionActive : styles.modeOptionInactive]}
                       onPress={() => switchMode(false)}
                     >
-                      <Ionicons name="person-add-outline" size={16} color={!isLogin ? "#0f172a" : "#cbd5e1"} />
+                      <Ionicons name="person-add-outline" size={16} color={!isLogin ? "#0f172a" : "#e5e7eb"} />
                       <Text style={[styles.modeOptionText, !isLogin ? styles.modeOptionTextActive : styles.modeOptionTextInactive]}>
                         Registracija
                       </Text>
@@ -1208,49 +1260,29 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     alignSelf: "center",
   },
-  backgroundOrb: {
+  floatingIcon: {
     position: "absolute",
-    borderRadius: 999,
+    opacity: 0.25,
   },
-  orb1: {
-    width: 300,
-    height: 300,
-    backgroundColor: "#8b5cf6",
-    top: -80,
-    left: -100,
-    opacity: 0.15,
+  iconCart: {
+    top: -40,
+    left: -20,
   },
-  orb2: {
-    width: 250,
-    height: 250,
-    backgroundColor: "#d946ef",
-    bottom: 100,
-    right: -80,
-    opacity: 0.12,
+  iconPriceTag: {
+    bottom: 120,
+    right: -10,
   },
-  orb3: {
-    width: 200,
-    height: 200,
-    backgroundColor: "#fbbf24",
-    top: "40%",
-    left: -60,
-    opacity: 0.08,
+  iconDiscount: {
+    top: "38%",
+    left: -10,
   },
-  orb4: {
-    width: 150,
-    height: 150,
-    backgroundColor: "#ec4899",
-    bottom: "20%",
-    right: -40,
-    opacity: 0.1,
+  iconGift: {
+    bottom: "22%",
+    right: 10,
   },
-  orb5: {
-    width: 100,
-    height: 100,
-    backgroundColor: "#06b6d4",
-    top: "60%",
-    right: "10%",
-    opacity: 0.15,
+  iconBasket: {
+    top: "58%",
+    right: "8%",
   },
   logoSection: {
     alignItems: "center",
@@ -1359,7 +1391,9 @@ const styles = StyleSheet.create({
     ...createShadow("#a78bfa", 0, 6, 0.35, 12, 8),
   },
   modeOptionInactive: {
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    borderWidth: 1.5,
+    borderColor: "rgba(167, 139, 250, 0.4)",
   },
   modeOptionText: {
     fontSize: 15,
@@ -1369,7 +1403,7 @@ const styles = StyleSheet.create({
     color: "#0f0a1e",
   },
   modeOptionTextInactive: {
-    color: "#cbd5e1",
+    color: "#e5e7eb",
   },
   errorContainer: {
     flexDirection: "row",

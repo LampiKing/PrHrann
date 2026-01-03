@@ -1674,7 +1674,7 @@ export default function SearchScreen() {
               </LinearGradient>
             </View>
             <Text style={styles.emptyTitle}>Začni z iskanjem</Text>
-            <Text style={styles.emptyText}>Vpiši ime izdelka in takoj primerjaj cene{"\n"}v SPAR, MERKATOR in TUŠ.</Text>
+            <Text style={styles.emptyText}>Vpiši ime izdelka in takoj primerjaj cene{"\n"}v trgovinah SPAR, Mercator in Tuš.{"\n"}Kmalu pridejo še druge trgovine!</Text>
 
             {/* Fun Fact Card */}
             <View style={styles.funFactCard}>
@@ -1914,7 +1914,7 @@ export default function SearchScreen() {
                   <View style={styles.scannerIconContainer}>
                     <Ionicons name="scan-outline" size={64} color="#a78bfa" />
                   </View>
-                  <Text style={styles.scannerPlaceholderText}>Slikaj izdelek in takoj najdi{"\n"}najnižjo ceno v SPAR, MERKATOR in TUŠ!</Text>
+                  <Text style={styles.scannerPlaceholderText}>Slikaj izdelek in takoj najdi{"\n"}najnižjo ceno v trgovinah SPAR, Mercator in Tuš!</Text>
                 </View>
               )}
 

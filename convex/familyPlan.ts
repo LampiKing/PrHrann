@@ -109,7 +109,7 @@ Izdelano z ❤️ v Sloveniji 🇸🇮`;
                 </tr>
               </table>
               <h1 style="margin: 28px 0 12px; font-size: 36px; font-weight: 900; color: #ffffff; letter-spacing: -1px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);">Pr'Hran Family</h1>
-              <p style="margin: 0; font-size: 17px; color: #fcd34d; font-weight: 600; letter-spacing: 0.5px;">✨ Premium načrt za vso družino</p>
+              <p style="margin: 0; font-size: 17px; color: #e5e7eb; font-weight: 600; letter-spacing: 0.5px;">Nakupuj <strong style="color: #fbbf24;">pametno</strong></p>
             </td>
           </tr>
 
