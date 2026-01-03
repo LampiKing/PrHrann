@@ -38,9 +38,14 @@ const FAMILY_BONUS_FEATURES = [
 
 export default function PremiumScreen() {
   const router = useRouter();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const upgradeToPremium = useMutation(api.userProfiles.upgradeToPremium);
-  
+
+  // Animations - MUST be before any early returns
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const successAnim = useRef(new Animated.Value(0)).current;
+
   // Check if user is guest (anonymous)
   const profile = useQuery(
     api.userProfiles.getProfile,
@@ -49,7 +54,7 @@ export default function PremiumScreen() {
   const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
   const isAlreadyPremium = profile?.isPremium ?? false;
   const currentPremiumType = profile?.premiumType ?? "solo";
-  
+
   const [selectedPlan, setSelectedPlan] = useState<"individual" | "family">(
     isAlreadyPremium && currentPremiumType === "solo" ? "family" : "individual"
   );
@@ -57,12 +62,25 @@ export default function PremiumScreen() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  // Remove continuous glow/pulsing; keep page static and calm
-  // Spinner animation removed for clearer, more stable UI
-  const successAnim = useRef(new Animated.Value(0)).current;
+  // Show loading during auth check
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={["#0f0a1e", "#1a0a2e", "#270a3a"]}
+          style={StyleSheet.absoluteFill}
+        />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <Animated.View style={{ opacity: fadeAnim }}>
+              <Ionicons name="diamond" size={48} color="#fbbf24" />
+              <Text style={{ color: "#9ca3af", marginTop: 16, fontSize: 14 }}>Nalaganje...</Text>
+            </Animated.View>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   useEffect(() => {
     Animated.parallel([
@@ -162,12 +180,12 @@ export default function PremiumScreen() {
             >
               <Ionicons name="checkmark-circle" size={80} color="#fff" />
             </LinearGradient>
-            <Text style={styles.successTitle}>Cestitamo!</Text>
+            <Text style={styles.successTitle}>Čestitamo!</Text>
             <Text style={styles.successText}>
               Zdaj ste {selectedPlan === "family" ? "PrHran Family" : "PrHran Plus"} uporabnik!
             </Text>
             <Text style={styles.successSubtext}>
-              Uzivajte v vseh funkcijah brez omejitev.
+              Uživajte v vseh funkcijah brez omejitev.
             </Text>
           </Animated.View>
         </View>

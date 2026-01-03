@@ -1472,17 +1472,17 @@ export default function SearchScreen() {
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>3</Text>
-                <Text style={styles.statLabel}>Trgovine (več kmalu)</Text>
+                <Text style={styles.statLabel}>Trgovine</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>10000+</Text>
+                <Text style={styles.statNumber}>45000+</Text>
                 <Text style={styles.statLabel}>Izdelkov</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>Dnevno</Text>
-                <Text style={styles.statLabel}>posodabljanje izdelkov</Text>
+                <Text style={styles.statLabel}>Posodabljanje</Text>
               </View>
             </View>
           </View>

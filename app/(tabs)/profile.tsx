@@ -845,15 +845,6 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Nastavitve</Text>
 
           <View style={styles.settingsList}>
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            <TouchableOpacity style={styles.settingItem} onPress={() => router.push("/receipts" as any)}>
-              <View style={styles.settingIcon}>
-                <Ionicons name="receipt-outline" size={20} color="#10b981" />
-              </View>
-              <Text style={styles.settingText}>Moji Računi</Text>
-              <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-            </TouchableOpacity>
-
             <TouchableOpacity style={styles.settingItem} onPress={() => router.push("/notifications")}>
               <View style={styles.settingIcon}>
                 <Ionicons name="notifications-outline" size={20} color="#a78bfa" />
