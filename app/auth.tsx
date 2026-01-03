@@ -279,6 +279,7 @@ export default function AuthScreen() {
         setShowSuccessOverlay(false);
         setPendingRedirect(null);
         setSuccess("");
+        setLoading(false);
         if (redirectTarget === "register") {
           router.replace("/verify");
         } else if (redirectTarget) {
@@ -438,12 +439,14 @@ export default function AuthScreen() {
         // Send verification email
         try {
           await requestEmailVerification({});
+          console.log("Verification email sent");
         } catch (emailErr) {
           console.warn("Failed to send verification email:", emailErr);
         }
 
+        setLoading(false);
         openSuccessOverlay(
-          "Račun ustvarjen! Poslali smo povezavo za potrditev e-naslova.",
+          "Račun ustvarjen! Preveri e-pošto za potrditveno povezavo.",
           "register"
         );
       }

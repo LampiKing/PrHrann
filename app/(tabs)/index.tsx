@@ -162,7 +162,7 @@ export default function SearchScreen() {
   const [searching, setSearching] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
-  const [searchResultsSnapshot, setSearchResultsSnapshot] = useState<ProductResult[]>([]);
+  const [searchResultsSnapshot] = useState<ProductResult[]>([]);
 
   // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
@@ -422,23 +422,19 @@ export default function SearchScreen() {
   };
   
   // Auto-search when query changes (but only after recordSearch)
-  const searchResultsQuery = useQuery(
-    api.products.search,
-    approvedQuery.length >= 2 ? { query: approvedQuery, isPremium } : "skip"
-  ) as ProductResult[] | undefined;
+  const searchFromSheets = useAction(api.products.searchFromSheets);
+  const [rawSearchResults, setRawSearchResults] = useState<ProductResult[]>([]);
 
   useEffect(() => {
-    if (approvedQuery.length < 2) {
-      setSearchResultsSnapshot([]);
-      return;
+    if (approvedQuery.length >= 2) {
+      searchFromSheets({ query: approvedQuery, isPremium }).then(setRawSearchResults).catch(console.error);
+    } else {
+      setRawSearchResults([]);
     }
-    if (searchResultsQuery !== undefined) {
-      setSearchResultsSnapshot(searchResultsQuery);
-    }
-  }, [approvedQuery, searchResultsQuery]);
+  }, [approvedQuery, isPremium, searchFromSheets]);
 
-  // Use only snapshot to prevent flickering
-  const rawResults = searchResultsSnapshot;
+  // Use searchResults directly
+  const rawResults = rawSearchResults;
   const searchResults = rawResults
     .map((product) => {
       const prices = product.prices
@@ -1265,7 +1261,7 @@ export default function SearchScreen() {
             resizeMode="contain"
           />
           <Text style={styles.title}>Pr'Hran</Text>
-          <Text style={styles.subtitle}>Pametno nakupovanje</Text>
+          <Text style={styles.subtitle}>Vsak evro šteje. Varčuj pametno!</Text>
         </View>
 
         <View style={styles.stickyHeader}>
@@ -1677,7 +1673,7 @@ export default function SearchScreen() {
                         ]}
                       />
                       <View style={styles.analyzingContent}>
-                        <Logo size={120} />
+                        <Logo size={240} />
                         <Text style={styles.analyzingText}>Analiziram sliko...</Text>
                       </View>
                     </View>
@@ -2000,8 +1996,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   logo: {
-    width: 300,
-    height: 300,
+    width: 600,
+    height: 600,
     marginBottom: 12,
   },
   searchingHint: {

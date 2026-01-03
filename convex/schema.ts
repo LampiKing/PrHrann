@@ -18,7 +18,8 @@ export default defineSchema({
     imageUrl: v.optional(v.string()),
   })
     .index("by_name", ["name"])
-    .index("by_category", ["category"]),
+    .index("by_category", ["category"])
+    .searchIndex("search_name", { searchField: "name" }),
 
   // Cene izdelkov po trgovinah
   prices: defineTable({

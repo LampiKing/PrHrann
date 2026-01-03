@@ -408,7 +408,7 @@ export default function ProfileScreen() {
     }
   };
 
-  if (!isAuthenticated || isGuest) {
+  if (!isAuthenticated || !profile || isGuest) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -460,10 +460,9 @@ export default function ProfileScreen() {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Moj profil</Text>
-          <View style={styles.nicknameRow}>
-            <Text style={styles.nicknameText}>{displayNickname}</Text>
-          </View>
+          <Text style={styles.title}>
+            {premiumType === "family" ? `Family ${displayNickname} profil` : `${displayNickname} profil`}
+          </Text>
         </Animated.View>
 
         {/* Plan Card */}
@@ -1430,8 +1429,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   authLogo: {
-    width: 218,
-    height: 218,
+    width: 436,
+    height: 436,
     marginBottom: 24,
   },
   authTitle: {

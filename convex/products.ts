@@ -1,5 +1,6 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
+import { google } from "googleapis";
 
 const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
 
@@ -37,12 +38,13 @@ export const search = query({
       return [];
     }
 
-    const allProducts = await ctx.db.query("products").collect();
     const searchLower = args.query.toLowerCase().trim();
     
-    const matchedProducts = allProducts.filter(
-      (p) => p.name.toLowerCase().includes(searchLower)
-    );
+    // Use search index for better performance
+    const matchedProducts = await ctx.db
+      .query("products")
+      .withSearchIndex("search_name", (q) => q.search("name", searchLower))
+      .take(1000); // Limit to prevent overload, can increase if needed
 
     const stores = await ctx.db.query("stores").collect();
     const storeMap = new Map(
@@ -201,5 +203,119 @@ export const seedProducts = mutation({
       }
     }
     return null;
+  },
+});
+
+// Count products
+export const countProducts = query({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const products = await ctx.db.query("products").collect();
+    return products.length;
+  },
+});
+
+// Search from Google Sheets (alternative to Convex DB)
+export const searchFromSheets = action({
+  args: { 
+    query: v.string(),
+    isPremium: v.boolean(),
+  },
+  returns: v.array(
+    v.object({
+      name: v.string(),
+      category: v.string(),
+      unit: v.string(),
+      prices: v.array(
+        v.object({
+          storeName: v.string(),
+          storeColor: v.string(),
+          price: v.number(),
+          originalPrice: v.optional(v.number()),
+          isOnSale: v.boolean(),
+        })
+      ),
+      lowestPrice: v.number(),
+      highestPrice: v.number(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    if (!args.query || args.query.trim().length < 2) {
+      return [];
+    }
+
+    try {
+      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+      });
+
+      const sheets = google.sheets({ version: "v4", auth });
+      const spreadsheetId = "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y"; // From scraper
+
+      // Read all data from sheet (limit to first 1000 rows for speed)
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "Sheet1!A:E1000", // Limit to first 1000 rows
+      });
+
+      const rows = response.data.values || [];
+      if (rows.length === 0) return [];
+
+      // Parse rows (assuming headers: name, price, sale_price, store, date)
+      const products: any[] = [];
+      for (let i = 1; i < rows.length; i++) { // Skip header
+        const row = rows[i];
+        if (row.length < 4) continue;
+        const name = row[0]?.trim();
+        const price = parseFloat(row[1]?.toString().replace(",", ".") || "0");
+        const salePrice = row[2] ? parseFloat(row[2].toString().replace(",", ".")) : undefined;
+        const store = row[3]?.trim();
+
+        if (!name || !store || !price || price <= 0) continue;
+        if (!ALLOWED_STORE_NAMES.has(store)) continue;
+
+        // Find or create product entry
+        let product = products.find(p => p.name === name);
+        if (!product) {
+          product = {
+            name,
+            category: "Neznana kategorija",
+            unit: "1 kos",
+            prices: [],
+            lowestPrice: Infinity,
+            highestPrice: 0,
+          };
+          products.push(product);
+        }
+
+        const isOnSale = salePrice !== undefined && salePrice < price;
+        const finalPrice = salePrice ?? price;
+        const storeColor = store === "Spar" ? "#c8102e" : store === "Mercator" ? "#d3003c" : "#0d8a3c";
+
+        product.prices.push({
+          storeName: store,
+          storeColor,
+          price: finalPrice,
+          originalPrice: isOnSale ? price : undefined,
+          isOnSale,
+        });
+
+        product.lowestPrice = Math.min(product.lowestPrice, finalPrice);
+        product.highestPrice = Math.max(product.highestPrice, finalPrice);
+      }
+
+      // Filter by query
+      const searchLower = args.query.toLowerCase().trim();
+      const filtered = products.filter(p => p.name.toLowerCase().includes(searchLower)).slice(0, 50); // Limit to 50 results
+
+      // Sort by lowest price
+      return filtered.sort((a, b) => a.lowestPrice - b.lowestPrice);
+    } catch (error) {
+      console.error("Error in searchFromSheets:", error);
+      return []; // Return empty on error
+    }
   },
 });

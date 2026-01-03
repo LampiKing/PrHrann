@@ -71,7 +71,6 @@ export default function LeaderboardScreen() {
     : currentYear;
   const leaderboardEntries = leaderboard?.entries ?? [];
   const topThree = leaderboardEntries.slice(0, 3);
-  const restEntries = leaderboardEntries.slice(3);
   const podiumSlots = [
     {
       rank: 2,
@@ -166,9 +165,9 @@ export default function LeaderboardScreen() {
           <Text style={styles.updateHintText}>Lestvica se osvežuje vsakih 10 minut.</Text>
         </View>
 
-        <View style={styles.rewardCard}>
+        <View style={styles.podiumCard}>
           <View style={styles.rewardHeader}>
-            <Text style={styles.rewardTitle}>🎁 Nagrade Sezone</Text>
+            <Text style={styles.rewardTitle}>🎁 Nagrade</Text>
             <Text style={styles.rewardSubtitle}>Za najboljše varčevalce! 🌟</Text>
           </View>
           <View style={styles.rewardRow}>
@@ -183,10 +182,8 @@ export default function LeaderboardScreen() {
             <Text style={styles.rewardRank}>🥉 3. mesto</Text>
             <Text style={styles.rewardPrize}>Premium 1 mesec 💫</Text>
           </View>
-        </View>
 
-        <View style={styles.podiumCard}>
-          <Text style={styles.podiumTitle}>Top 3 varčevalci</Text>
+          <Text style={[styles.podiumTitle, { marginTop: 24 }]}>Top 3 varčevalci</Text>
           <View style={styles.podiumRow}>
             <LinearGradient
               colors={["rgba(148, 163, 184, 0.35)", "rgba(15, 23, 42, 0.0)"]}
@@ -231,21 +228,65 @@ export default function LeaderboardScreen() {
         </View>
 
         <View style={styles.listCard}>
-          <Text style={styles.listTitle}>Top 100 varčevalci</Text>
-          {restEntries.length ? (
-            restEntries.map((entry) => (
-              <View key={entry.userId} style={styles.listRow}>
-                <View style={styles.rankBadge}>
-                  <Text style={styles.rankText}>#{entry.rank}</Text>
-                </View>
-                <View style={styles.listInfo}>
-                  <Text style={styles.listName}>{entry.nickname}</Text>
-                  <Text style={styles.listSaving}>{formatCurrency(entry.savings)}</Text>
-                </View>
-              </View>
-            ))
+          <Text style={styles.listTitle}>Tvoje mesto</Text>
+          {summary?.rank && leaderboardEntries.length > 0 ? (
+            <>
+              {/* Show 2 entries before user (if exist) */}
+              {leaderboardEntries
+                .filter((entry) => entry.rank >= (summary.rank! - 2) && entry.rank < summary.rank!)
+                .map((entry) => (
+                  <View key={entry.userId} style={styles.listRow}>
+                    <View style={styles.rankBadge}>
+                      <Text style={styles.rankText}>#{entry.rank}</Text>
+                    </View>
+                    <View style={styles.listInfo}>
+                      <Text style={styles.listName}>{entry.nickname}</Text>
+                      <Text style={styles.listSaving}>{formatCurrency(entry.savings)}</Text>
+                    </View>
+                  </View>
+                ))}
+
+              {/* Current user - highlighted */}
+              {leaderboardEntries
+                .filter((entry) => entry.rank === summary.rank)
+                .map((entry) => (
+                  <LinearGradient
+                    key={entry.userId}
+                    colors={["rgba(251, 191, 36, 0.25)", "rgba(139, 92, 246, 0.25)"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.listRow, styles.currentUserRow]}
+                  >
+                    <View style={[styles.rankBadge, styles.currentUserRankBadge]}>
+                      <Text style={[styles.rankText, styles.currentUserRankText]}>#{entry.rank}</Text>
+                    </View>
+                    <View style={styles.listInfo}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.listName, styles.currentUserName]}>{entry.nickname}</Text>
+                        <Text style={styles.youBadge}>TI</Text>
+                      </View>
+                      <Text style={[styles.listSaving, styles.currentUserSaving]}>{formatCurrency(entry.savings)}</Text>
+                    </View>
+                  </LinearGradient>
+                ))}
+
+              {/* Show 2 entries after user (if exist) */}
+              {leaderboardEntries
+                .filter((entry) => entry.rank > summary.rank! && entry.rank <= (summary.rank! + 2))
+                .map((entry) => (
+                  <View key={entry.userId} style={styles.listRow}>
+                    <View style={styles.rankBadge}>
+                      <Text style={styles.rankText}>#{entry.rank}</Text>
+                    </View>
+                    <View style={styles.listInfo}>
+                      <Text style={styles.listName}>{entry.nickname}</Text>
+                      <Text style={styles.listSaving}>{formatCurrency(entry.savings)}</Text>
+                    </View>
+                  </View>
+                ))}
+            </>
           ) : (
-            <Text style={styles.emptyText}>Ni podatkov za lestvico.</Text>
+            <Text style={styles.emptyText}>Dodaj račune za uvrstitev na lestvico.</Text>
           )}
         </View>
       </ScrollView>
@@ -644,6 +685,39 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9ca3af",
     textAlign: "center",
+  },
+  currentUserRow: {
+    borderWidth: 2,
+    borderColor: "rgba(251, 191, 36, 0.5)",
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  currentUserRankBadge: {
+    backgroundColor: "rgba(251, 191, 36, 0.4)",
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.6)",
+  },
+  currentUserRankText: {
+    color: "#fbbf24",
+    fontWeight: "900",
+  },
+  currentUserName: {
+    color: "#fbbf24",
+    fontWeight: "800",
+    fontSize: 15,
+  },
+  currentUserSaving: {
+    color: "#fcd34d",
+    fontWeight: "700",
+  },
+  youBadge: {
+    backgroundColor: "rgba(251, 191, 36, 0.3)",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#fbbf24",
   },
   guestLock: {
     alignItems: "center",
