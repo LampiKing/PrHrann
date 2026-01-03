@@ -45,6 +45,13 @@ interface BestCoupon {
   finalSubtotal: number;
 }
 
+interface StackedCoupon {
+  code: string;
+  description: string;
+  savings: number;
+  appliedTo: string;
+}
+
 interface StoreGroup {
   storeId: Id<"stores">;
   storeName: string;
@@ -52,6 +59,8 @@ interface StoreGroup {
   items: CartItemType[];
   subtotal: number;
   bestCoupon?: BestCoupon;
+  stackedCoupons?: StackedCoupon[];
+  stackingStrategy?: string;
 }
 
 type BrandAccent = { color: string; position?: "left" | "right"; width?: number };
@@ -115,7 +124,7 @@ const getStoreBrand = (name?: string, fallbackColor?: string) => {
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isAuthenticated } = useConvexAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
@@ -507,8 +516,42 @@ export default function CartScreen() {
                     ))}
                   </View>
 
-                  {/* Coupon Badge */}
-                  {group.bestCoupon && (
+                  {/* Premium Stacked Coupons */}
+                  {group.stackedCoupons && group.stackedCoupons.length > 0 && (
+                    <View style={styles.stackedCouponsContainer}>
+                      <View style={styles.stackedCouponsHeader}>
+                        <Ionicons name="layers" size={18} color="#fbbf24" />
+                        <Text style={styles.stackedCouponsTitle}>Premium Kuponiranje</Text>
+                        <View style={styles.stackedCountBadge}>
+                          <Text style={styles.stackedCountText}>{group.stackedCoupons.length}x</Text>
+                        </View>
+                      </View>
+                      {group.stackedCoupons.map((coupon: StackedCoupon, idx: number) => (
+                        <View key={idx} style={styles.stackedCouponItem}>
+                          <LinearGradient
+                            colors={["rgba(251, 191, 36, 0.15)", "rgba(245, 158, 11, 0.1)"]}
+                            style={styles.stackedCouponGradient}
+                          >
+                            <View style={styles.stackedCouponIcon}>
+                              <Ionicons name="pricetag" size={16} color="#fbbf24" />
+                            </View>
+                            <View style={styles.stackedCouponInfo}>
+                              <Text style={styles.stackedCouponCode}>{coupon.code}</Text>
+                              <Text style={styles.stackedCouponDesc}>{coupon.description}</Text>
+                              <Text style={styles.stackedCouponApplied}>→ {coupon.appliedTo}</Text>
+                            </View>
+                            <Text style={styles.stackedCouponSavings}>-{formatPrice(coupon.savings)}</Text>
+                          </LinearGradient>
+                        </View>
+                      ))}
+                      {group.stackingStrategy && (
+                        <Text style={styles.stackingStrategyText}>✨ {group.stackingStrategy}</Text>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Single Coupon (Free users or single coupon) */}
+                  {group.bestCoupon && !group.stackedCoupons && (
                     <View style={styles.couponBadge}>
                       <LinearGradient
                         colors={["rgba(16, 185, 129, 0.2)", "rgba(5, 150, 105, 0.1)"]}
@@ -1354,6 +1397,92 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "rgba(0, 0, 0, 0.6)",
     marginTop: 2,
+  },
+  // Premium Stacked Coupons Styles
+  stackedCouponsContainer: {
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: "rgba(251, 191, 36, 0.08)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.25)",
+  },
+  stackedCouponsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 8,
+  },
+  stackedCouponsTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#fbbf24",
+    flex: 1,
+  },
+  stackedCountBadge: {
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  stackedCountText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#fbbf24",
+  },
+  stackedCouponItem: {
+    marginBottom: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  stackedCouponGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.2)",
+    borderRadius: 8,
+  },
+  stackedCouponIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stackedCouponInfo: {
+    flex: 1,
+  },
+  stackedCouponCode: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#fbbf24",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  stackedCouponDesc: {
+    fontSize: 11,
+    color: "#9ca3af",
+    marginBottom: 2,
+  },
+  stackedCouponApplied: {
+    fontSize: 10,
+    color: "#e5e7eb",
+    fontWeight: "600",
+  },
+  stackedCouponSavings: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#fbbf24",
+  },
+  stackingStrategyText: {
+    fontSize: 11,
+    color: "#cbd5e1",
+    textAlign: "center",
+    marginTop: 8,
+    fontStyle: "italic",
   },
 });
 

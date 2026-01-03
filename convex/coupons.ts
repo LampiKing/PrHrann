@@ -25,12 +25,192 @@ function getCouponType(coupon: {
   if (!coupon || (typeof coupon !== 'object')) {
     return "percentage_total"; // Safe default
   }
-  
+
   if (coupon.couponType) return coupon.couponType;
   // Legacy support
   if (coupon.discountType === "percentage") return "percentage_total";
   if (coupon.discountType === "fixed") return "fixed";
   return "percentage_total"; // Default
+}
+
+// Helper function for calculating stacked coupons (can be called from other modules)
+export async function calculateStackedCouponsHelper(
+  ctx: any,
+  args: {
+    storeId: Id<"stores">;
+    items: Array<{
+      productId: Id<"products">;
+      productName: string;
+      category: string;
+      price: number;
+      quantity: number;
+      isOnSale: boolean;
+    }>;
+    isPremium: boolean;
+    hasLoyaltyCard: boolean;
+  }
+): Promise<{
+  stackedCoupons: Array<{
+    couponId: Id<"coupons">;
+    code: string;
+    description: string;
+    couponType: "percentage_total" | "percentage_single_item" | "fixed" | "category_discount";
+    discountValue: number;
+    savings: number;
+    appliedTo: string;
+  }>;
+  totalSavings: number;
+  originalTotal: number;
+  finalTotal: number;
+  stackingStrategy: string;
+} | null> {
+  // Only available for premium users
+  if (!args.isPremium) return null;
+  if (args.items.length === 0) return null;
+
+  const coupons = await ctx.db
+    .query("coupons")
+    .withIndex("by_store", (q: any) => q.eq("storeId", args.storeId))
+    .collect();
+
+  const now = Date.now();
+  const currentDay = new Date().getDay();
+
+  // Filter valid combinable coupons
+  const validCoupons = coupons.filter((c: any) => {
+    if (c.validUntil < now) return false;
+    if (c.validFrom && c.validFrom > now) return false;
+    if (c.validDays && c.validDays.length > 0 && !c.validDays.includes(currentDay)) return false;
+    if (c.isPremiumOnly && !args.isPremium) return false;
+    if (c.isActive === false) return false;
+    if (c.requiresLoyaltyCard && !args.hasLoyaltyCard) return false;
+    if (!c.canCombine) return false; // Only combinable coupons
+    return true;
+  });
+
+  if (validCoupons.length === 0) return null;
+
+  const originalTotal = args.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  // Calculate best stacking strategy
+  const categoryCoupons: any[] = [];
+  const itemCoupons: any[] = [];
+  const totalCoupons: any[] = [];
+
+  for (const coupon of validCoupons) {
+    const couponType = getCouponType(coupon);
+    if (coupon.minPurchase && originalTotal < coupon.minPurchase) continue;
+
+    if (couponType === "category_discount") categoryCoupons.push(coupon);
+    else if (couponType === "percentage_single_item") itemCoupons.push(coupon);
+    else totalCoupons.push(coupon);
+  }
+
+  const appliedCoupons: any[] = [];
+  let runningTotal = originalTotal;
+  let runningItems = [...args.items];
+
+  // 1. Apply category discounts first (most specific)
+  for (const coupon of categoryCoupons) {
+    const excludeSaleItems = coupon.excludeSaleItems ?? false;
+    let eligibleItems = runningItems;
+    if (excludeSaleItems) {
+      eligibleItems = runningItems.filter(item => !item.isOnSale);
+    }
+
+    if (!coupon.applicableCategories || coupon.applicableCategories.length === 0) continue;
+    const categoryItems = eligibleItems.filter(item =>
+      coupon.applicableCategories!.includes(item.category)
+    );
+    if (categoryItems.length === 0) continue;
+
+    const categoryTotal = categoryItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const savings = categoryTotal * (coupon.discountValue / 100);
+
+    appliedCoupons.push({
+      couponId: coupon._id,
+      code: coupon.code,
+      description: coupon.description,
+      couponType: getCouponType(coupon),
+      discountValue: coupon.discountValue,
+      savings: Math.round(savings * 100) / 100,
+      appliedTo: `kategorija: ${coupon.applicableCategories.join(", ")}`,
+    });
+
+    runningTotal -= savings;
+  }
+
+  // 2. Apply single item discounts (medium specificity)
+  for (const coupon of itemCoupons) {
+    const excludeSaleItems = coupon.excludeSaleItems ?? false;
+    let eligibleItems = runningItems;
+    if (excludeSaleItems) {
+      eligibleItems = runningItems.filter(item => !item.isOnSale);
+    }
+
+    if (eligibleItems.length === 0) continue;
+
+    const sortedItems = [...eligibleItems].sort((a, b) => b.price - a.price);
+    const bestItem = sortedItems[0];
+    const savings = bestItem.price * (coupon.discountValue / 100);
+
+    appliedCoupons.push({
+      couponId: coupon._id,
+      code: coupon.code,
+      description: coupon.description,
+      couponType: getCouponType(coupon),
+      discountValue: coupon.discountValue,
+      savings: Math.round(savings * 100) / 100,
+      appliedTo: bestItem.productName,
+    });
+
+    runningTotal -= savings;
+  }
+
+  // 3. Apply total discounts last (least specific)
+  for (const coupon of totalCoupons) {
+    const excludeSaleItems = coupon.excludeSaleItems ?? false;
+    let eligibleItems = runningItems;
+    if (excludeSaleItems) {
+      eligibleItems = runningItems.filter(item => !item.isOnSale);
+    }
+
+    const couponType = getCouponType(coupon);
+    let savings = 0;
+
+    if (couponType === "percentage_total") {
+      const eligibleTotal = eligibleItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      savings = eligibleTotal * (coupon.discountValue / 100);
+    } else if (couponType === "fixed") {
+      savings = Math.min(coupon.discountValue, runningTotal);
+    }
+
+    if (savings > 0) {
+      appliedCoupons.push({
+        couponId: coupon._id,
+        code: coupon.code,
+        description: coupon.description,
+        couponType,
+        discountValue: coupon.discountValue,
+        savings: Math.round(savings * 100) / 100,
+        appliedTo: "celoten nakup",
+      });
+
+      runningTotal -= savings;
+    }
+  }
+
+  if (appliedCoupons.length === 0) return null;
+
+  const totalSavings = appliedCoupons.reduce((sum, c) => sum + c.savings, 0);
+
+  return {
+    stackedCoupons: appliedCoupons,
+    totalSavings: Math.round(totalSavings * 100) / 100,
+    originalTotal: Math.round(originalTotal * 100) / 100,
+    finalTotal: Math.round((originalTotal - totalSavings) * 100) / 100,
+    stackingStrategy: `Uporabljeno ${appliedCoupons.length} kuponov: ${appliedCoupons.map(c => c.code).join(", ")}`,
+  };
 }
 
 // Pridobi vse aktivne kupone za trgovino
@@ -338,6 +518,49 @@ export const calculateBestCoupon = query({
       originalTotal: Math.round(originalTotal * 100) / 100,
       finalTotal: Math.round((originalTotal - best.savings) * 100) / 100,
     };
+  },
+});
+
+// PREMIUM FEATURE: Stack multiple compatible coupons (internal only)
+export const calculateStackedCoupons = query({
+  args: {
+    storeId: v.id("stores"),
+    items: v.array(v.object({
+      productId: v.id("products"),
+      productName: v.string(),
+      category: v.string(),
+      price: v.number(),
+      quantity: v.number(),
+      isOnSale: v.boolean(),
+    })),
+    isPremium: v.boolean(),
+    hasLoyaltyCard: v.boolean(),
+  },
+  returns: v.union(
+    v.object({
+      stackedCoupons: v.array(v.object({
+        couponId: v.id("coupons"),
+        code: v.string(),
+        description: v.string(),
+        couponType: v.union(
+          v.literal("percentage_total"),
+          v.literal("percentage_single_item"),
+          v.literal("fixed"),
+          v.literal("category_discount")
+        ),
+        discountValue: v.number(),
+        savings: v.number(),
+        appliedTo: v.string(),
+      })),
+      totalSavings: v.number(),
+      originalTotal: v.number(),
+      finalTotal: v.number(),
+      stackingStrategy: v.string(),
+    }),
+    v.null()
+  ),
+  handler: async (ctx, args) => {
+    return await calculateStackedCouponsHelper(ctx, args);
   },
 });
 

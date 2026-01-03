@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { authQuery, authMutation } from "./functions";
 import { Id } from "./_generated/dataModel";
+import { calculateStackedCouponsHelper } from "./coupons";
 
 const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
 
@@ -56,6 +57,17 @@ export const getCart = authQuery({
             finalSubtotal: v.number(),
           })
         ),
+        stackedCoupons: v.optional(
+          v.array(
+            v.object({
+              code: v.string(),
+              description: v.string(),
+              savings: v.number(),
+              appliedTo: v.string(),
+            })
+          )
+        ),
+        stackingStrategy: v.optional(v.string()),
       })
     ),
     total: v.number(),
@@ -147,8 +159,38 @@ export const getCart = authQuery({
     const groupedWithCoupons = await Promise.all(
       Array.from(storeGroups.values()).map(async (group) => {
         const subtotal = Math.round(group.subtotal * 100) / 100;
-        
-        // Pridobi vse veljavne kupone za to trgovino
+        const hasLoyaltyCard = profile?.loyaltyCards?.includes(group.storeId) ?? false;
+
+        // PREMIUM FEATURE: Try coupon stacking first
+        if (isPremium) {
+          const stackedResult = await calculateStackedCouponsHelper(ctx, {
+            storeId: group.storeId,
+            items: group.items.map(item => ({
+              productId: item.productId,
+              productName: item.productName,
+              category: item.productCategory,
+              price: item.currentPrice,
+              quantity: item.quantity,
+              isOnSale: item.isOnSale,
+            })),
+            isPremium: true,
+            hasLoyaltyCard,
+          });
+
+          if (stackedResult && stackedResult.stackedCoupons.length > 1) {
+            // Use stacked coupons (multiple coupons combined)
+            totalSavings += stackedResult.totalSavings;
+            return {
+              ...group,
+              subtotal,
+              bestCoupon: undefined, // Don't show single coupon
+              stackedCoupons: stackedResult.stackedCoupons,
+              stackingStrategy: stackedResult.stackingStrategy,
+            };
+          }
+        }
+
+        // Fallback to single best coupon (free users or premium with only 1 applicable coupon)
         const coupons = await ctx.db
           .query("coupons")
           .withIndex("by_store", (q) => q.eq("storeId", group.storeId))
@@ -156,7 +198,6 @@ export const getCart = authQuery({
 
         const now = Date.now();
         const currentDay = new Date().getDay();
-        const hasLoyaltyCard = profile?.loyaltyCards?.includes(group.storeId) ?? false;
 
         // Filtriraj veljavne kupone
         const validCoupons = coupons.filter((c) => {
@@ -235,6 +276,8 @@ export const getCart = authQuery({
           ...group,
           subtotal,
           bestCoupon: bestCoupon || undefined,
+          stackedCoupons: undefined,
+          stackingStrategy: undefined,
         };
       })
     );
