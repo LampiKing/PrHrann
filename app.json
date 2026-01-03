@@ -4,7 +4,7 @@
     "slug": "prhran",
     "version": "1.3.0",
     "orientation": "portrait",
-    "icon": "./assets/images/Logo Default.png",
+    "icon": "./assets/images/optimized/Logo Default.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -15,7 +15,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/Logo Default.png",
+        "foregroundImage": "./assets/images/optimized/Logo Default.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.prhran.app",
@@ -29,19 +29,25 @@
       "bundler": "metro",
       "output": "static",
       "backgroundColor": "#0a0a12",
-      "favicon": "./assets/images/Logo Default.png",
+      "favicon": "./assets/images/optimized/Logo Default.png",
       "build": {
         "babel": {
           "include": ["@expo/vector-icons"]
         }
-      }
+      },
+      "meta": {
+        "name": "Pr'Hran - Primerjaj Hrano",
+        "description": "Primerjaj cene živil med trgovinami in prihrani denar"
+      },
+      "preferRelatedApplications": true,
+      "relatedApplications": []
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/Logo Default.png",
+          "image": "./assets/images/optimized/Logo Default.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#0a0a12"

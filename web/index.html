@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="sl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#a855f7" />
+    <meta name="description" content="Primerjaj cene živil med trgovinami in prihrani denar" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Pr'Hran" />
+
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://convex.cloud" />
+    <link rel="dns-prefetch" href="https://convex.cloud" />
+
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico" />
+
+    <title>Pr'Hran - Primerjaj Hrano</title>
+
+    <style>
+      html, body, #root {
+        height: 100%;
+        background-color: #0a0a12;
+      }
+      body {
+        overflow: hidden;
+        margin: 0;
+      }
+      #root {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>Pr'Hran zahteva JavaScript za delovanje.</noscript>
+    <div id="root"></div>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/service-worker.js')
+            .then((registration) => {
+              console.log('Service Worker registriran:', registration.scope);
+            })
+            .catch((error) => {
+              console.log('Service Worker registracija ni uspela:', error);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>
