@@ -255,10 +255,10 @@ export const searchFromSheets = action({
       const sheets = google.sheets({ version: "v4", auth });
       const spreadsheetId = "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y"; // From scraper
 
-      // Read ALL data from sheet (all 45000+ products)
+      // Read ALL data from sheet (all 45000+ products, all columns)
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: "Sheet1!A:E", // No row limit - get everything
+        range: "Sheet1!A:Z", // ✅ Read all columns (not just A:E)
       });
 
       const rows = response.data.values || [];
@@ -307,34 +307,50 @@ export const searchFromSheets = action({
         product.highestPrice = Math.max(product.highestPrice, finalPrice);
       }
 
+      // NORMALIZE TEXT - handle Slovenian characters (č, š, ž, etc.)
+      const normalizeText = (text: string): string => {
+        return text
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+          .replace(/[čć]/g, 'c')
+          .replace(/[š]/g, 's')
+          .replace(/[ž]/g, 'z')
+          .replace(/[đ]/g, 'd')
+          .replace(/[ö]/g, 'o')
+          .replace(/[ä]/g, 'a')
+          .replace(/[ü]/g, 'u')
+          .trim();
+      };
+
       // DEEP SEARCH - Match anywhere in name, very flexible
-      const searchLower = args.query.toLowerCase().trim();
-      const searchWords = searchLower.split(/\s+/); // Split by whitespace
+      const searchNormalized = normalizeText(args.query);
+      const searchWords = searchNormalized.split(/\s+/); // Split by whitespace
 
       const filtered = products.filter(p => {
-        const nameLower = p.name.toLowerCase();
+        const nameNormalized = normalizeText(p.name);
         // Match if ALL search words are found in the product name (in any order)
-        return searchWords.every(word => nameLower.includes(word));
-      }).slice(0, 100); // Increased limit to 100 results for better coverage
+        return searchWords.every(word => nameNormalized.includes(word));
+      });
 
       // Sort by relevance first (exact match), then by lowest price
       const sorted = filtered.sort((a, b) => {
-        const aName = a.name.toLowerCase();
-        const bName = b.name.toLowerCase();
+        const aNameNorm = normalizeText(a.name);
+        const bNameNorm = normalizeText(b.name);
 
         // Exact match gets priority
-        const aExact = aName === searchLower ? 0 : 1;
-        const bExact = bName === searchLower ? 0 : 1;
+        const aExact = aNameNorm === searchNormalized ? 0 : 1;
+        const bExact = bNameNorm === searchNormalized ? 0 : 1;
         if (aExact !== bExact) return aExact - bExact;
 
         // Then starts-with match
-        const aStarts = aName.startsWith(searchLower) ? 0 : 1;
-        const bStarts = bName.startsWith(searchLower) ? 0 : 1;
+        const aStarts = aNameNorm.startsWith(searchNormalized) ? 0 : 1;
+        const bStarts = bNameNorm.startsWith(searchNormalized) ? 0 : 1;
         if (aStarts !== bStarts) return aStarts - bStarts;
 
         // Finally by price
         return a.lowestPrice - b.lowestPrice;
-      });
+      }).slice(0, 500); // ✅ SLICE AFTER SORT! Increased to 500 for better coverage
 
       return sorted;
     } catch (error) {

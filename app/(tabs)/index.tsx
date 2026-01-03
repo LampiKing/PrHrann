@@ -162,7 +162,6 @@ export default function SearchScreen() {
   const [searching, setSearching] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
-  const [searchResultsSnapshot] = useState<ProductResult[]>([]);
 
   // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
@@ -453,7 +452,7 @@ export default function SearchScreen() {
     })
     .filter((product): product is ProductResult => product !== null);
   const isSearchResultsLoading =
-    searching || (approvedQuery.length >= 2 && searchResultsSnapshot.length === 0);
+    searching || (approvedQuery.length >= 2 && rawSearchResults.length === 0);
 
   // Sort results based on swipe direction
   const sortedResults = searchResults
