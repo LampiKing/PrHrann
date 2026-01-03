@@ -15,7 +15,13 @@ const STORE_COLORS: Record<string, string> = {
   mercator: "#d3003c",
   tus: "#0d8a3c",
 };
-const MAX_RESULTS = 50; // Increased from 10 to show more results
+const MAX_RESULTS = 20; // Optimal balance between results and speed
+
+// CACHE: Reduce Google Sheets API calls - cache for 1 hour
+let cachedSheetData: any[] | null = null;
+let cacheTimestamp = 0;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 const normalizeStoreKey = (value: string) =>
   value
     .toLowerCase()
@@ -123,28 +129,43 @@ export const searchFromSheets = action({
     }
 
     try {
-      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
-      const auth = new google.auth.GoogleAuth({
-        credentials,
-        scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-      });
+      const now = Date.now();
+      let rows: any[];
 
-      const sheets = google.sheets({ version: "v4", auth });
-      const spreadsheetId = "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y"; // From scraper
+      // Use cache if available and fresh
+      if (cachedSheetData && (now - cacheTimestamp) < CACHE_TTL_MS) {
+        console.log(`[searchFromSheets] Using cached data (age: ${Math.floor((now - cacheTimestamp) / 1000)}s)`);
+        rows = cachedSheetData;
+      } else {
+        // Fetch fresh data
+        console.log("[searchFromSheets] Fetching fresh data from Google Sheets...");
+        const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
+        const auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+        });
 
-      // Read required columns only (name, price, sale_price, store)
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: "List1!A:D", // Changed from Sheet1 to List1 (actual sheet name)
-      });
+        const sheets = google.sheets({ version: "v4", auth });
+        const spreadsheetId = "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y";
 
-      const rows = response.data.values || [];
-      if (rows.length === 0) {
-        console.log("[searchFromSheets] ERROR: No rows found in Google Sheets");
-        return [];
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: "List1!A:D",
+        });
+
+        rows = response.data.values || [];
+        if (rows.length === 0) {
+          console.log("[searchFromSheets] ERROR: No rows found in Google Sheets");
+          return [];
+        }
+
+        // Update cache
+        cachedSheetData = rows;
+        cacheTimestamp = now;
+        console.log(`[searchFromSheets] Cached ${rows.length} rows`);
       }
 
-      console.log(`[searchFromSheets] Total rows in sheet: ${rows.length}`);
+      console.log(`[searchFromSheets] Total rows: ${rows.length}`);
 
       // Parse rows (name, price, sale_price, store)
       const productsByKey = new Map<string, ProductAccumulator>();
