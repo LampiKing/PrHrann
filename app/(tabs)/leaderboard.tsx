@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useConvexAuth } from "convex/react";
@@ -16,7 +16,7 @@ const formatCurrency = (value: number) => {
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const [showInfoModal, setShowInfoModal] = useState(false);
   const profile = useQuery(
     api.userProfiles.getProfile,
@@ -31,6 +31,22 @@ export default function LeaderboardScreen() {
     api.leaderboard.getLeaderboard,
     isAuthenticated ? { limit: 100 } : "skip"
   );
+
+  // Show loading during auth initialization
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
+        <View style={[styles.guestLock, { paddingTop: insets.top + 40 }]}>
+          <View style={styles.guestLogoWrap}>
+            <Image source={getSeasonalLogoSource()} style={styles.guestLogo} resizeMode="contain" />
+          </View>
+          <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
+          <Text style={styles.guestText}>Nalaganje lestvice...</Text>
+        </View>
+      </View>
+    );
+  }
 
   if (!isAuthenticated || isGuest) {
     return (

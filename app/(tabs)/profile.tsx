@@ -42,7 +42,7 @@ type AwardEntry = {
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -407,6 +407,24 @@ export default function ProfileScreen() {
       setShowCancelModal(false);
     }
   };
+
+  // Show loading state while auth is initializing
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
+        <View style={[styles.authPrompt, { paddingTop: insets.top + 40 }]}>
+          <Image
+            source={getSeasonalLogoSource()}
+            style={styles.authLogo}
+            resizeMode="contain"
+          />
+          <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
+          <Text style={styles.authText}>Nalaganje profila...</Text>
+        </View>
+      </View>
+    );
+  }
 
   if (!isAuthenticated || !profile || isGuest) {
     return (

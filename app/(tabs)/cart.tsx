@@ -115,7 +115,7 @@ const getStoreBrand = (name?: string, fallbackColor?: string) => {
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
