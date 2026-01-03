@@ -1420,8 +1420,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   authLogo: {
-    width: 436,
-    height: 436,
+    width: 200,
+    height: 200,
     marginBottom: 24,
   },
   authTitle: {
