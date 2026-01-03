@@ -20,7 +20,7 @@ import * as Haptics from "expo-haptics";
 
 export default function ReceiptsScreen() {
   const router = useRouter();
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -28,6 +28,21 @@ export default function ReceiptsScreen() {
     api.receipts.getMyReceipts,
     isAuthenticated ? {} : "skip"
   );
+
+  // Show loading during auth check
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.guestLock}>
+            <ActivityIndicator size="large" color="#8b5cf6" />
+            <Text style={styles.guestText}>Nalaganje...</Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   const submitReceipt = useAction(api.receipts.submitReceipt);
 

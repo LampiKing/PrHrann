@@ -262,7 +262,15 @@ export const searchFromSheets = action({
       });
 
       const rows = response.data.values || [];
-      if (rows.length === 0) return [];
+      if (rows.length === 0) {
+        console.log("[searchFromSheets] ERROR: No rows found in Google Sheets");
+        return [];
+      }
+
+      console.log(`[searchFromSheets] Total rows in sheet: ${rows.length}`);
+      console.log(`[searchFromSheets] Header row: ${JSON.stringify(rows[0])}`);
+      console.log(`[searchFromSheets] Sample row 1: ${JSON.stringify(rows[1])}`);
+      console.log(`[searchFromSheets] Sample row 2: ${JSON.stringify(rows[2])}`);
 
       // Parse rows (assuming headers: name, price, sale_price, store, date)
       const products: any[] = [];
@@ -352,10 +360,72 @@ export const searchFromSheets = action({
         return a.lowestPrice - b.lowestPrice;
       }).slice(0, 500); // ✅ SLICE AFTER SORT! Increased to 500 for better coverage
 
+      console.log(`[searchFromSheets] Query: "${args.query}" | Found: ${sorted.length} products`);
       return sorted;
     } catch (error) {
       console.error("Error in searchFromSheets:", error);
       return []; // Return empty on error
+    }
+  },
+});
+
+// Count total products in Google Sheets
+export const countProductsInSheets = action({
+  args: {},
+  returns: v.object({
+    totalRows: v.number(),
+    validProducts: v.number(),
+    sampleProducts: v.array(v.string()),
+  }),
+  handler: async () => {
+    try {
+      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+      });
+
+      const sheets = google.sheets({ version: "v4", auth });
+      const spreadsheetId = "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y";
+
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "Sheet1!A:Z",
+      });
+
+      const rows = response.data.values || [];
+      const totalRows = rows.length - 1; // Exclude header
+
+      const validProducts = new Set<string>();
+      const sampleProducts: string[] = [];
+
+      for (let i = 1; i < rows.length && i < 100; i++) {
+        const row = rows[i];
+        if (row.length < 4) continue;
+        const name = row[0]?.trim();
+        const price = parseFloat(row[1]?.toString().replace(",", ".") || "0");
+        const store = row[3]?.trim();
+
+        if (name && store && price > 0 && ALLOWED_STORE_NAMES.has(store)) {
+          validProducts.add(name);
+          if (sampleProducts.length < 20) {
+            sampleProducts.push(name);
+          }
+        }
+      }
+
+      return {
+        totalRows,
+        validProducts: validProducts.size,
+        sampleProducts,
+      };
+    } catch (error) {
+      console.error("Error in countProductsInSheets:", error);
+      return {
+        totalRows: 0,
+        validProducts: 0,
+        sampleProducts: [],
+      };
     }
   },
 });
