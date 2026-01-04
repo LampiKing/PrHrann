@@ -40,7 +40,8 @@
         "description": "Primerjaj cene živil med trgovinami in prihrani denar"
       },
       "preferRelatedApplications": true,
-      "relatedApplications": []
+      "relatedApplications": [],
+      "serviceWorkerScript": "service-worker.js"
     },
     "plugins": [
       "expo-router",

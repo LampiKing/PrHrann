@@ -1,5 +1,5 @@
 // Service Worker for Pr'Hran PWA
-const CACHE_NAME = 'prhran-v2.5.0';
+const CACHE_NAME = 'prhran-v2.6.0';
 const urlsToCache = [
   '/',
   '/manifest.json',

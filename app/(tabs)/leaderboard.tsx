@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   guestLogo: {
-    width: 153,
+    width: 76,
     height: 153,
   },
   guestTitle: {
