@@ -262,7 +262,7 @@ export const seedProducts = mutation({
 
 /**
  * BULK UPSERT - Masovno nalaganje izdelkov
- * Upsert = Update če obstaja, Insert če ne
+ * PRAVILNA struktura: products + prices tabeli ločeno!
  */
 export const bulkUpsert = mutation({
   args: {
@@ -283,48 +283,72 @@ export const bulkUpsert = mutation({
 
     for (const product of args.products) {
       try {
-        // Poišči trgovino
-        const store = await ctx.db
+        // 1. Poišči/ustvari trgovino
+        let store = await ctx.db
           .query("stores")
           .filter((q) => q.eq(q.field("name"), product.storeName))
           .first();
 
         if (!store) {
-          skipped++;
-          continue;
+          // Ustvari trgovino če ne obstaja
+          const storeId = await ctx.db.insert("stores", {
+            name: product.storeName,
+            color: "#8b5cf6",
+            isPremium: false,
+          });
+          store = await ctx.db.get(storeId);
+          if (!store) {
+            skipped++;
+            continue;
+          }
         }
 
-        // Preveri če izdelek že obstaja (po imenu IN trgovini)
-        const existing = await ctx.db
+        // 2. Poišči/ustvari izdelek (samo ime, brez cene!)
+        let existingProduct = await ctx.db
           .query("products")
-          .filter((q) =>
-            q.and(
-              q.eq(q.field("name"), product.productName),
-              q.eq(q.field("storeId"), store._id)
-            )
+          .filter((q) => q.eq(q.field("name"), product.productName))
+          .first();
+
+        let productId;
+        if (!existingProduct) {
+          // Ustvari nov izdelek
+          productId = await ctx.db.insert("products", {
+            name: product.productName,
+            category: "Splošno",
+            unit: "",
+          });
+          inserted++;
+        } else {
+          productId = existingProduct._id;
+        }
+
+        // 3. Poišči/ustvari ceno v prices tabeli
+        const existingPrice = await ctx.db
+          .query("prices")
+          .withIndex("by_product_and_store", (q) =>
+            q.eq("productId", productId).eq("storeId", store!._id)
           )
           .first();
 
-        if (existing) {
-          // UPDATE - samo posodobi ceno
-          await ctx.db.patch(existing._id, {
-            price: product.salePrice, // Uporabi sale_price kot glavno ceno
-            originalPrice: product.price, // Original price
+        if (existingPrice) {
+          // UPDATE cene
+          await ctx.db.patch(existingPrice._id, {
+            price: product.salePrice,
+            originalPrice: product.price,
             isOnSale: product.salePrice < product.price,
             lastUpdated: Date.now(),
           });
           updated++;
         } else {
-          // INSERT - nov izdelek
-          await ctx.db.insert("products", {
-            name: product.productName,
+          // INSERT nove cene
+          await ctx.db.insert("prices", {
+            productId,
             storeId: store._id,
             price: product.salePrice,
             originalPrice: product.price,
             isOnSale: product.salePrice < product.price,
             lastUpdated: Date.now(),
           });
-          inserted++;
         }
       } catch (error) {
         skipped++;
