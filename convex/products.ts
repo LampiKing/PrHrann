@@ -259,3 +259,85 @@ export const seedProducts = mutation({
     return null;
   },
 });
+
+/**
+ * BULK UPSERT - Masovno nalaganje izdelkov
+ * Upsert = Update če obstaja, Insert če ne
+ */
+export const bulkUpsert = mutation({
+  args: {
+    products: v.array(
+      v.object({
+        productName: v.string(),
+        price: v.number(),
+        salePrice: v.number(),
+        storeName: v.string(),
+        lastUpdated: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+
+    for (const product of args.products) {
+      try {
+        // Poišči trgovino
+        const store = await ctx.db
+          .query("stores")
+          .filter((q) => q.eq(q.field("name"), product.storeName))
+          .first();
+
+        if (!store) {
+          skipped++;
+          continue;
+        }
+
+        // Preveri če izdelek že obstaja (po imenu IN trgovini)
+        const existing = await ctx.db
+          .query("products")
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("name"), product.productName),
+              q.eq(q.field("storeId"), store._id)
+            )
+          )
+          .first();
+
+        if (existing) {
+          // UPDATE - samo posodobi ceno
+          await ctx.db.patch(existing._id, {
+            price: product.salePrice, // Uporabi sale_price kot glavno ceno
+            originalPrice: product.price, // Original price
+            isOnSale: product.salePrice < product.price,
+            lastUpdated: Date.now(),
+          });
+          updated++;
+        } else {
+          // INSERT - nov izdelek
+          await ctx.db.insert("products", {
+            name: product.productName,
+            storeId: store._id,
+            price: product.salePrice,
+            originalPrice: product.price,
+            isOnSale: product.salePrice < product.price,
+            lastUpdated: Date.now(),
+          });
+          inserted++;
+        }
+      } catch (error) {
+        skipped++;
+        console.error(`Napaka pri izdelku ${product.productName}:`, error);
+      }
+    }
+
+    return {
+      success: true,
+      inserted,
+      updated,
+      skipped,
+      total: args.products.length,
+    };
+  },
+});
