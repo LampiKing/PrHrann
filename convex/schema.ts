@@ -456,5 +456,80 @@ export default defineSchema({
     .index("by_product", ["productId"])
     .index("by_product_name", ["productName"])
     .index("by_valid_until", ["validUntil"]),
+
+  // Scraper status tracking (za admin monitoring)
+  scraperRuns: defineTable({
+    type: v.union(
+      v.literal("daily_prices"),   // Dnevna posodobitev cen
+      v.literal("catalog_sales")    // Tedenska posodobitev katalogov
+    ),
+    status: v.union(
+      v.literal("running"),
+      v.literal("success"),
+      v.literal("failed"),
+      v.literal("partial")  // Delno uspešno (nekatere trgovine failed)
+    ),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    duration: v.optional(v.number()), // Milliseconds
+    storeResults: v.array(v.object({
+      storeName: v.string(),          // "Mercator", "Spar", "Tuš"
+      status: v.string(),              // "success", "failed", "skipped"
+      itemsProcessed: v.number(),      // Koliko izdelkov/strani
+      itemsUpdated: v.number(),        // Koliko sprememb
+      errorMessage: v.optional(v.string()),
+    })),
+    totalItemsProcessed: v.number(),
+    totalItemsUpdated: v.number(),
+    errorMessage: v.optional(v.string()),
+    metadata: v.optional(v.object({
+      catalogsScraped: v.optional(v.array(v.string())), // ["Mercator Weekly 01-2026"]
+      newSalesFound: v.optional(v.number()),
+      expiredSales: v.optional(v.number()),
+    })),
+  })
+    .index("by_type", ["type"])
+    .index("by_status", ["status"])
+    .index("by_started_at", ["startedAt"]),
+
+  // User suggestions & feedback (nagrada: 1 dan premium)
+  userSuggestions: defineTable({
+    userId: v.string(),
+    userNickname: v.optional(v.string()),
+    suggestionType: v.union(
+      v.literal("feature"),        // Nova funkcionalnost
+      v.literal("improvement"),    // Izboljšava obstoječe
+      v.literal("bug"),            // Bug report
+      v.literal("store"),          // Predlog nove trgovine
+      v.literal("product"),        // Manjkajoč izdelek
+      v.literal("other")           // Ostalo
+    ),
+    title: v.string(),             // Kratek naslov
+    description: v.string(),        // Podroben opis
+    status: v.union(
+      v.literal("pending"),        // Čaka na pregled
+      v.literal("reviewing"),      // V pregledu
+      v.literal("approved"),       // Odobreno - nagrada dodeljena
+      v.literal("implemented"),    // Že implementirano
+      v.literal("rejected"),       // Zavrnjeno
+      v.literal("duplicate")       // Duplikat
+    ),
+    priority: v.optional(v.union(
+      v.literal("low"),
+      v.literal("medium"),
+      v.literal("high"),
+      v.literal("critical")
+    )),
+    adminNotes: v.optional(v.string()),
+    rewardGiven: v.boolean(),      // Ali je dobil 1 dan premium
+    rewardGivenAt: v.optional(v.number()),
+    submittedAt: v.number(),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.string()), // Admin userId
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_type", ["suggestionType"])
+    .index("by_submitted_at", ["submittedAt"]),
 });
 
