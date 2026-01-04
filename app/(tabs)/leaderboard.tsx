@@ -323,8 +323,17 @@ export default function LeaderboardScreen() {
               <Text style={styles.infoTitle}>Kako deluje lestvica?</Text>
             </View>
             <Text style={styles.infoText}>
-              Lestvica temelji izključno na potrjenih računih. Košarica ne vpliva na
-              prihranek ali uvrstitev. Osvežitev poteka vsakih 10 minut.
+              🏆 <Text style={styles.infoBold}>Tekmuj za najboljše prihranke!</Text>
+              {"\n\n"}
+              📸 <Text style={styles.infoBold}>Slikaj račune</Text> - Vsak dan do 23:00 dodaj račune iz trgovin (Mercator, Spar, Tuš). Aplikacija izračuna, koliko bi plačal v drugih trgovinah.
+              {"\n\n"}
+              💰 <Text style={styles.infoBold}>Zberi prihranke</Text> - Tvoj letni prihranek se posodablja z vsakim potrjenim računom. Več računov = večji prihranek = višja pozicija!
+              {"\n\n"}
+              🎯 <Text style={styles.infoBold}>Kaj NE šteje?</Text> Košarica in primerjava cen brez nakupa ne vplivata na lestvico. Samo POTRJENI računi štejejo.
+              {"\n\n"}
+              🏅 <Text style={styles.infoBold}>Nagrade</Text> - Top 10 prejme značke (Zlati, Srebrni, Bronasti). Top 100 dobi special badge. Osvežitev vsakih 10 minut.
+              {"\n\n"}
+              👨‍👩‍👧 <Text style={styles.infoBold}>Family Plan</Text> - Tekmujte skupaj! Do 3 člane. Skupni prihranki = močnejša ekipa na lestvici.
             </Text>
             <TouchableOpacity
               style={styles.infoCloseButton}
@@ -808,7 +817,11 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 13,
     color: "#d1d5db",
-    lineHeight: 20,
+    lineHeight: 22,
+  },
+  infoBold: {
+    fontWeight: "700",
+    color: "#fbbf24",
   },
   infoCloseButton: {
     marginTop: 18,
