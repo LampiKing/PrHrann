@@ -177,6 +177,7 @@ export default function SearchScreen() {
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
   const [autoSearchBlockedQuery, setAutoSearchBlockedQuery] = useState<string | null>(null);
+  const [searchCache, setSearchCache] = useState<Map<string, typeof rawSearchResults>>(new Map());
 
   // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
@@ -517,11 +518,22 @@ export default function SearchScreen() {
 
   useEffect(() => {
     if (approvedQuery.length >= 2) {
-      setIsLoadingSearch(true);
-      searchFromSheets({ query: approvedQuery, isPremium })
-        .then(setRawSearchResults)
-        .catch(console.error)
-        .finally(() => setIsLoadingSearch(false));
+      const cacheKey = `${approvedQuery}-${isPremium}`;
+      const cached = searchCache.get(cacheKey);
+
+      if (cached) {
+        setRawSearchResults(cached);
+        setIsLoadingSearch(false);
+      } else {
+        setIsLoadingSearch(true);
+        searchFromSheets({ query: approvedQuery, isPremium })
+          .then((results) => {
+            setRawSearchResults(results);
+            setSearchCache(new Map(searchCache.set(cacheKey, results)));
+          })
+          .catch(console.error)
+          .finally(() => setIsLoadingSearch(false));
+      }
     } else {
       setRawSearchResults([]);
       setIsLoadingSearch(false);
