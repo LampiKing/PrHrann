@@ -413,5 +413,28 @@ export default defineSchema({
     .index("by_invitee_user", ["inviteeUserId"])
     .index("by_token", ["inviteToken"])
     .index("by_status", ["status"]),
+
+  // SEARCH ANALYTICS - AI Learning System
+  searchAnalytics: defineTable({
+    userId: v.optional(v.string()), // Optional - tudi gosti lahko iščejo
+    searchQuery: v.string(), // Kaj je uporabnik iskal
+    searchQueryLower: v.string(), // Lowercase za analizo
+    resultsCount: v.number(), // Koliko rezultatov je bilo najdenih
+    timestamp: v.number(), // Kdaj je bilo iskano
+    // Če je uporabnik kliknil na rezultat
+    clickedProductId: v.optional(v.id("products")),
+    clickedProductName: v.optional(v.string()),
+    clickedAtPosition: v.optional(v.number()), // Na katerem mestu v rezultatih
+    // Session tracking
+    sessionId: v.optional(v.string()), // Za tracking user journey
+    deviceType: v.optional(v.string()), // "mobile" | "web"
+    // Success metrics
+    foundWhatLookingFor: v.optional(v.boolean()), // AI lahko sklepa
+    addedToCart: v.optional(v.boolean()), // Če je dodal v košarico
+  })
+    .index("by_user", ["userId"])
+    .index("by_query", ["searchQueryLower"])
+    .index("by_timestamp", ["timestamp"])
+    .index("by_session", ["sessionId"]),
 });
 

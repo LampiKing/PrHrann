@@ -3,6 +3,43 @@ import { v } from "convex/values";
 
 const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
 
+/**
+ * FUZZY MATCHING - Inteligentno iskanje
+ * Najde izdelke tudi če uporabnik napiše besede v napačnem vrstnem redu
+ * Primer: "jagodna milka" najde "MILKA JAGODA"
+ */
+function fuzzyMatch(productName: string, searchQuery: string): number {
+  const nameLower = productName.toLowerCase();
+  const queryLower = searchQuery.toLowerCase();
+
+  // Exact match - najvišji score
+  if (nameLower === queryLower) return 1000;
+  if (nameLower.includes(queryLower)) return 900;
+
+  // Split query into words
+  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
+  if (queryWords.length === 0) return 0;
+
+  // Preveri koliko besed se ujema
+  let matchCount = 0;
+  let positionBonus = 0;
+
+  for (const word of queryWords) {
+    if (nameLower.includes(word)) {
+      matchCount++;
+      // Bonus če je beseda na začetku
+      if (nameLower.startsWith(word)) positionBonus += 100;
+    }
+  }
+
+  // Če se nobena beseda ne ujema, 0 score
+  if (matchCount === 0) return 0;
+
+  // Score = (matched words / total words) * 100 + position bonus
+  const matchPercentage = (matchCount / queryWords.length) * 100;
+  return matchPercentage + positionBonus;
+}
+
 // Iskanje izdelkov
 export const search = query({
   args: { 
@@ -37,13 +74,31 @@ export const search = query({
       return [];
     }
 
-    const searchLower = args.query.toLowerCase().trim();
-    
-    // Use search index for better performance
-    const matchedProducts = await ctx.db
+    const searchQuery = args.query.trim();
+
+    // HYBRID SEARCH: Combine search index + fuzzy matching
+    // 1. Use search index to get candidates (fast)
+    const searchCandidates = await ctx.db
       .query("products")
-      .withSearchIndex("search_name", (q) => q.search("name", searchLower))
-      .take(1000); // Limit to prevent overload, can increase if needed
+      .withSearchIndex("search_name", (q) => q.search("name", searchQuery.toLowerCase()))
+      .take(1000);
+
+    // 2. If not enough results, fallback to scanning all products (for fuzzy)
+    let allProducts = searchCandidates;
+    if (searchCandidates.length < 20) {
+      allProducts = await ctx.db.query("products").take(5000);
+    }
+
+    // 3. Score each product with fuzzy matching
+    const scoredProducts = allProducts
+      .map(product => ({
+        product,
+        score: fuzzyMatch(product.name, searchQuery)
+      }))
+      .filter(item => item.score > 0) // Only keep matches
+      .sort((a, b) => b.score - a.score) // Best matches first
+      .slice(0, 50) // Top 50 results
+      .map(item => item.product);
 
     const stores = await ctx.db.query("stores").collect();
     const storeMap = new Map(
@@ -53,7 +108,7 @@ export const search = query({
     );
 
     const results = await Promise.all(
-      matchedProducts.map(async (product) => {
+      scoredProducts.map(async (product) => {
         const prices = await ctx.db
           .query("prices")
           .withIndex("by_product", (q) => q.eq("productId", product._id))

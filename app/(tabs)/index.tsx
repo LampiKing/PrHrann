@@ -982,6 +982,12 @@ export default function SearchScreen() {
     // Alkohol
     if (categoryLower.includes("alkohol") || categoryLower.includes("pivo") || categoryLower.includes("vino")) return "🍺";
 
+    // Prigrizki (chips, snacks)
+    if (categoryLower.includes("prigriz") || categoryLower.includes("čips") || categoryLower.includes("chips") || categoryLower.includes("snack")) return "🍿";
+
+    // Ostalo
+    if (categoryLower.includes("ostalo")) return "📦";
+
     // Default
     return "🛒";
   };
