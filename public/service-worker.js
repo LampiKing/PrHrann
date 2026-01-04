@@ -1,9 +1,11 @@
 // Service Worker for Pr'Hran PWA
-const CACHE_NAME = 'prhran-v1';
+const CACHE_NAME = 'prhran-v2.5.0';
 const urlsToCache = [
   '/',
   '/manifest.json',
   '/favicon.ico',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 // Install event - cache critical resources

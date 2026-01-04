@@ -111,8 +111,8 @@ export default function ProfileScreen() {
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
 
-  // Check if user is guest (anonymous)
-  const isGuest = profile ? (profile.isAnonymous || !profile.email) : false;
+  // Check if user is guest (anonymous) - only if truly anonymous, not just missing email
+  const isGuest = profile?.isAnonymous ?? false;
   const isAdmin = profile?.isAdmin ?? false;
 
   const isPremium = profile?.isPremium ?? false;
@@ -504,7 +504,8 @@ export default function ProfileScreen() {
     );
   }
 
-  if (!isAuthenticated || !profile || isGuest) {
+  // Only show auth prompt if truly not authenticated or no profile exists
+  if (!isAuthenticated || !profile) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
