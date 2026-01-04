@@ -196,10 +196,72 @@ def normalize_store(value: str) -> str:
     return value.strip()
 
 
-def format_category(value: str) -> str:
-    if not value:
-        return "Neznana kategorija"
-    return value.replace("-", " ").replace("_", " ").title()
+def format_category(value: str, product_name: str = "") -> str:
+    """
+    Formatira kategorijo in poskuša ugotoviti kategorijo iz imena izdelka,
+    če kategorija ni podana.
+    """
+    if value:
+        # Če imamo kategorijo, jo samo formatiraj
+        return value.replace("-", " ").replace("_", " ").title()
+
+    # Če kategorija manjka, poskusi ugotoviti iz imena izdelka
+    name_lower = product_name.lower()
+
+    # MLEČNI IZDELKI
+    if any(word in name_lower for word in ["mleko", "jogurt", "sir", "maslo", "skuta", "smetana", "kefir", "ml milk", "cheese", "butter", "cream"]):
+        return "Mlečni izdelki"
+
+    # ČOKOLADA IN SLADKARIJE
+    if any(word in name_lower for word in ["čokolada", "milka", "nutella", "kinder", "chocolate", "bonbon", "gumi", "sweet", "candy", "kokice"]):
+        return "Sladkarije"
+
+    # MESO
+    if any(word in name_lower for word in ["meso", "piščanec", "govedina", "svinjina", "prsut", "salama", "meat", "chicken", "beef", "pork", "salami"]):
+        return "Meso in mesni izdelki"
+
+    # SADJE IN ZELENJAVA
+    if any(word in name_lower for word in ["banana", "jabolko", "pomaranča", "paradižnik", "krompir", "solata", "paprika", "fruit", "vegetable", "sadje", "zelenjava"]):
+        return "Sadje in zelenjava"
+
+    # KRUH IN PEČIVO
+    if any(word in name_lower for word in ["kruh", "bread", "žemlja", "toast", "burek", "croissant", "pekov"]):
+        return "Kruh in pečivo"
+
+    # PIJAČE
+    if any(word in name_lower for word in ["sok", "juice", "cola", "pepsi", "fanta", "voda", "water", "pivo", "beer", "vino", "wine", "čaj", "tea", "kava", "coffee"]):
+        return "Pijače"
+
+    # KOSMIČI IN ZAJTRK
+    if any(word in name_lower for word in ["kosmiči", "cereals", "müsli", "muesli", "ovseni"]):
+        return "Kosmiči in zajtrk"
+
+    # TESTENINE IN RIŽ
+    if any(word in name_lower for word in ["testenine", "pasta", "špageti", "riž", "rice", "makaroni"]):
+        return "Testenine in riž"
+
+    # KONZERVE
+    if any(word in name_lower for word in ["konzerva", "tuna", "fižol", "grah", "paradižnik", "canned"]):
+        return "Konzervirani izdelki"
+
+    # ZAMRZNJENI IZDELKI
+    if any(word in name_lower for word in ["zmrzal", "frozen", "sladoled", "ice cream", "pica"]):
+        return "Zamrznjeni izdelki"
+
+    # SNACKS
+    if any(word in name_lower for word in ["čips", "chips", "smoki", "flips", "snack"]):
+        return "Prigrizki"
+
+    # HIGIENA
+    if any(word in name_lower for word in ["šampon", "gel", "zobna", "pasta", "milo", "soap", "shampoo"]):
+        return "Higiena"
+
+    # ČISTILA
+    if any(word in name_lower for word in ["čistilo", "detergent", "pralno", "mehčalec", "cleaner"]):
+        return "Čistila"
+
+    # Default če ne najdemo nič
+    return "Ostalo"
 
 
 def normalize_sale_price(price: float, sale_price: Optional[float]) -> Optional[float]:
@@ -234,7 +296,7 @@ class Product:
             "ime": self.name,
             "redna_cena": self.price,
             "akcijska_cena": normalize_sale_price(self.price, self.sale_price),
-            "kategorija": format_category(self.category),
+            "kategorija": format_category(self.category, self.name),  # ← Dodaj product name
             "trgovina": normalize_store(self.store),
         }
 
