@@ -66,15 +66,14 @@ export default function ProfileScreen() {
   const [showAdminUsersModal, setShowAdminUsersModal] = useState(false);
   const [adminUserType, setAdminUserType] = useState<"registered" | "active" | "guests" | null>(null);
   const [showAISuggestionsModal, setShowAISuggestionsModal] = useState(false);
-  const [showScraperStatsModal, setShowScraperStatsModal] = useState(false);
-  const [showUserSuggestionsModal, setShowUserSuggestionsModal] = useState(false);
-  const [showFeedbackFormModal, setShowFeedbackFormModal] = useState(false);
-
-  // Feedback form state
-  const [feedbackType, setFeedbackType] = useState<"feature" | "improvement" | "bug" | "store" | "product" | "other">("feature");
-  const [feedbackTitle, setFeedbackTitle] = useState("");
-  const [feedbackDescription, setFeedbackDescription] = useState("");
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  // TODO: Uncomment when modals are implemented
+  // const [showScraperStatsModal, setShowScraperStatsModal] = useState(false);
+  // const [showUserSuggestionsModal, setShowUserSuggestionsModal] = useState(false);
+  // const [showFeedbackFormModal, setShowFeedbackFormModal] = useState(false);
+  // const [feedbackType, setFeedbackType] = useState<"feature" | "improvement" | "bug" | "store" | "product" | "other">("feature");
+  // const [feedbackTitle, setFeedbackTitle] = useState("");
+  // const [feedbackDescription, setFeedbackDescription] = useState("");
+  // const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -139,24 +138,35 @@ export default function ProfileScreen() {
 
   // Scraper monitoring & User suggestions - AFTER isGuest is defined
   // Use "skip" if APIs don't exist yet (before schema regeneration)
-  const hasScraperAPI = !!(api as any).scraperMonitoring;
-  const hasSuggestionsAPI = !!(api as any).userSuggestions;
+  const apiWithOptional = api as typeof api & {
+    scraperMonitoring?: {
+      getScraperStats: typeof api.admin.getStats;
+    };
+    userSuggestions?: {
+      getAllSuggestions: typeof api.admin.getStats;
+      getMySuggestions: typeof api.admin.getStats;
+      getSuggestionStats: typeof api.admin.getStats;
+    };
+  };
+  const hasScraperAPI = !!apiWithOptional.scraperMonitoring;
+  const hasSuggestionsAPI = !!apiWithOptional.userSuggestions;
 
   const scraperStats = useQuery(
-    hasScraperAPI ? (api as any).scraperMonitoring.getScraperStats : undefined,
-    hasScraperAPI && isAuthenticated && profile?.isAdmin ? {} : "skip"
+    apiWithOptional.scraperMonitoring?.getScraperStats ?? api.admin.getStats,
+    !hasScraperAPI || !isAuthenticated || !profile?.isAdmin ? "skip" : {}
   );
-  const userSuggestions = useQuery(
-    hasSuggestionsAPI ? (api as any).userSuggestions.getAllSuggestions : undefined,
-    hasSuggestionsAPI && isAuthenticated && profile?.isAdmin ? { limit: 50 } : "skip"
-  );
-  const mySuggestions = useQuery(
-    hasSuggestionsAPI ? (api as any).userSuggestions.getMySuggestions : undefined,
-    hasSuggestionsAPI && isAuthenticated && !isGuest ? {} : "skip"
-  );
+  // TODO: Uncomment when modals are implemented
+  // const userSuggestions = useQuery(
+  //   apiWithOptional.userSuggestions?.getAllSuggestions ?? api.admin.getStats,
+  //   !hasSuggestionsAPI || !isAuthenticated || !profile?.isAdmin ? "skip" : { limit: 50 }
+  // );
+  // const mySuggestions = useQuery(
+  //   apiWithOptional.userSuggestions?.getMySuggestions ?? api.admin.getStats,
+  //   !hasSuggestionsAPI || !isAuthenticated || isGuest ? "skip" : {}
+  // );
   const suggestionStats = useQuery(
-    hasSuggestionsAPI ? (api as any).userSuggestions.getSuggestionStats : undefined,
-    hasSuggestionsAPI && isAuthenticated && profile?.isAdmin ? {} : "skip"
+    apiWithOptional.userSuggestions?.getSuggestionStats ?? api.admin.getStats,
+    !hasSuggestionsAPI || !isAuthenticated || !profile?.isAdmin ? "skip" : {}
   );
 
   const submitReceipt = useAction(api.receipts.submitReceipt);
@@ -869,14 +879,10 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* User Feedback Button */}
+        {/* User Feedback Button - TODO: Add modal when implemented */}
         {!isGuest && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <TouchableOpacity
-              style={styles.feedbackButton}
-              onPress={() => setShowFeedbackFormModal(true)}
-              activeOpacity={0.8}
-            >
+            <View style={styles.feedbackButton}>
               <LinearGradient
                 colors={["rgba(236, 72, 153, 0.2)", "rgba(147, 51, 234, 0.2)"]}
                 start={{ x: 0, y: 0 }}
@@ -894,7 +900,7 @@ export default function ProfileScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#ec4899" />
               </LinearGradient>
-            </TouchableOpacity>
+            </View>
           </Animated.View>
         )}
 
@@ -1029,12 +1035,8 @@ export default function ProfileScreen() {
               )}
 
               {/* Scraper Monitoring */}
-              {scraperStats && (
-                <TouchableOpacity
-                  style={styles.scraperMonitoringCard}
-                  onPress={() => setShowScraperStatsModal(true)}
-                  activeOpacity={0.7}
-                >
+              {scraperStats && hasScraperAPI && "dailyPrices" in scraperStats && "catalogSales" in scraperStats && (
+                <View style={styles.scraperMonitoringCard}>
                   <View style={styles.scraperHeader}>
                     <Ionicons name="sync" size={20} color="#3b82f6" />
                     <Text style={styles.scraperTitle}>Scraper Status</Text>
@@ -1044,13 +1046,13 @@ export default function ProfileScreen() {
                       <Text style={styles.scraperLabel}>Cene</Text>
                       <View style={styles.scraperStatus}>
                         <Ionicons
-                          name={scraperStats.dailyPrices.lastRun?.status === "success" ? "checkmark-circle" : "alert-circle"}
+                          name={(scraperStats as { dailyPrices: { lastRun?: { status: string } } }).dailyPrices.lastRun?.status === "success" ? "checkmark-circle" : "alert-circle"}
                           size={16}
-                          color={scraperStats.dailyPrices.lastRun?.status === "success" ? "#10b981" : "#ef4444"}
+                          color={(scraperStats as { dailyPrices: { lastRun?: { status: string } } }).dailyPrices.lastRun?.status === "success" ? "#10b981" : "#ef4444"}
                         />
                         <Text style={styles.scraperTime}>
-                          {scraperStats.dailyPrices.lastRun
-                            ? new Date(scraperStats.dailyPrices.lastRun.completedAt || scraperStats.dailyPrices.lastRun.startedAt).toLocaleString("sl-SI", {
+                          {(scraperStats as { dailyPrices: { lastRun?: { completedAt?: number; startedAt: number } } }).dailyPrices.lastRun
+                            ? new Date((scraperStats as { dailyPrices: { lastRun: { completedAt?: number; startedAt: number } } }).dailyPrices.lastRun.completedAt || (scraperStats as { dailyPrices: { lastRun: { completedAt?: number; startedAt: number } } }).dailyPrices.lastRun.startedAt).toLocaleString("sl-SI", {
                                 day: "2-digit",
                                 month: "2-digit",
                                 hour: "2-digit",
@@ -1064,13 +1066,13 @@ export default function ProfileScreen() {
                       <Text style={styles.scraperLabel}>Katalogi</Text>
                       <View style={styles.scraperStatus}>
                         <Ionicons
-                          name={scraperStats.catalogSales.lastRun?.status === "success" ? "checkmark-circle" : "alert-circle"}
+                          name={(scraperStats as { catalogSales: { lastRun?: { status: string } } }).catalogSales.lastRun?.status === "success" ? "checkmark-circle" : "alert-circle"}
                           size={16}
-                          color={scraperStats.catalogSales.lastRun?.status === "success" ? "#10b981" : "#ef4444"}
+                          color={(scraperStats as { catalogSales: { lastRun?: { status: string } } }).catalogSales.lastRun?.status === "success" ? "#10b981" : "#ef4444"}
                         />
                         <Text style={styles.scraperTime}>
-                          {scraperStats.catalogSales.lastRun
-                            ? new Date(scraperStats.catalogSales.lastRun.completedAt || scraperStats.catalogSales.lastRun.startedAt).toLocaleString("sl-SI", {
+                          {(scraperStats as { catalogSales: { lastRun?: { completedAt?: number; startedAt: number } } }).catalogSales.lastRun
+                            ? new Date((scraperStats as { catalogSales: { lastRun: { completedAt?: number; startedAt: number } } }).catalogSales.lastRun.completedAt || (scraperStats as { catalogSales: { lastRun: { completedAt?: number; startedAt: number } } }).catalogSales.lastRun.startedAt).toLocaleString("sl-SI", {
                                 day: "2-digit",
                                 month: "2-digit",
                                 hour: "2-digit",
@@ -1081,44 +1083,40 @@ export default function ProfileScreen() {
                       </View>
                     </View>
                   </View>
-                </TouchableOpacity>
+                </View>
               )}
 
               {/* User Suggestions */}
-              {suggestionStats && (
-                <TouchableOpacity
-                  style={styles.suggestionsCard}
-                  onPress={() => setShowUserSuggestionsModal(true)}
-                  activeOpacity={0.7}
-                >
+              {suggestionStats && hasSuggestionsAPI && "total" in suggestionStats && "pending" in suggestionStats && "approved" in suggestionStats && "rewardsGiven" in suggestionStats && (
+                <View style={styles.suggestionsCard}>
                   <View style={styles.suggestionsHeader}>
                     <Ionicons name="chatbubbles" size={20} color="#ec4899" />
                     <Text style={styles.suggestionsTitle}>Predlogi uporabnikov</Text>
-                    {suggestionStats.pending > 0 && (
+                    {(suggestionStats as { pending: number }).pending > 0 && (
                       <View style={styles.suggestionsBadge}>
-                        <Text style={styles.suggestionsBadgeText}>{suggestionStats.pending}</Text>
+                        <Text style={styles.suggestionsBadgeText}>{(suggestionStats as { pending: number }).pending}</Text>
                       </View>
                     )}
                   </View>
                   <View style={styles.suggestionsRow}>
                     <View style={styles.suggestionStat}>
-                      <Text style={styles.suggestionStatValue}>{suggestionStats.total}</Text>
+                      <Text style={styles.suggestionStatValue}>{(suggestionStats as { total: number }).total}</Text>
                       <Text style={styles.suggestionStatLabel}>Skupaj</Text>
                     </View>
                     <View style={styles.suggestionStat}>
-                      <Text style={[styles.suggestionStatValue, { color: "#fbbf24" }]}>{suggestionStats.pending}</Text>
+                      <Text style={[styles.suggestionStatValue, { color: "#fbbf24" }]}>{(suggestionStats as { pending: number }).pending}</Text>
                       <Text style={styles.suggestionStatLabel}>Čaka</Text>
                     </View>
                     <View style={styles.suggestionStat}>
-                      <Text style={[styles.suggestionStatValue, { color: "#10b981" }]}>{suggestionStats.approved}</Text>
+                      <Text style={[styles.suggestionStatValue, { color: "#10b981" }]}>{(suggestionStats as { approved: number }).approved}</Text>
                       <Text style={styles.suggestionStatLabel}>Odobreno</Text>
                     </View>
                     <View style={styles.suggestionStat}>
-                      <Text style={[styles.suggestionStatValue, { color: "#8b5cf6" }]}>{suggestionStats.rewardsGiven}</Text>
+                      <Text style={[styles.suggestionStatValue, { color: "#8b5cf6" }]}>{(suggestionStats as { rewardsGiven: number }).rewardsGiven}</Text>
                       <Text style={styles.suggestionStatLabel}>Nagrajeno</Text>
                     </View>
                   </View>
-                </TouchableOpacity>
+                </View>
               )}
             </LinearGradient>
           </Animated.View>
