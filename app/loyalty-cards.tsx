@@ -600,7 +600,7 @@ export default function LoyaltyCardsScreen() {
                       </View>
                     ) : (
                       <View style={styles.couponsListContainer}>
-                        {coupons.map((coupon, index) => (
+                        {coupons.map((coupon) => (
                           <View key={coupon._id} style={styles.couponCard}>
                             <LinearGradient
                               colors={[`${card.color}20`, `${card.color}10`]}

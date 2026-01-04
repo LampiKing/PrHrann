@@ -65,6 +65,7 @@ export default function ProfileScreen() {
   const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
   const [showAdminUsersModal, setShowAdminUsersModal] = useState(false);
   const [adminUserType, setAdminUserType] = useState<"registered" | "active" | "guests" | null>(null);
+  const [showAISuggestionsModal, setShowAISuggestionsModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -88,6 +89,23 @@ export default function ProfileScreen() {
       ? { type: adminUserType, limit: 50 }
       : "skip"
   );
+  // TODO: Uncomment when convex schema is regenerated
+  // const aiSuggestions = useQuery(
+  //   api.searchAnalytics.generateAISuggestions,
+  //   isAuthenticated && profile?.isAdmin ? {} : "skip"
+  // );
+  // Placeholder until schema regenerated - will be empty array for now
+  const aiSuggestions: Array<{
+    type: string;
+    priority: string;
+    searchQuery: string;
+    suggestion: string;
+    metrics: {
+      searchCount: number;
+      averageResults: number;
+      clickRate: number;
+    };
+  }> = [];
   const receipts = useQuery(
     api.receipts.getReceipts,
     isAuthenticated ? { limit: 20 } : "skip"
@@ -922,6 +940,31 @@ export default function ProfileScreen() {
                   </View>
                 </View>
               )}
+
+              {/* AI Suggestions */}
+              {aiSuggestions && aiSuggestions.length > 0 && (
+                <TouchableOpacity
+                  style={styles.aiSuggestionsCard}
+                  onPress={() => setShowAISuggestionsModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={["rgba(236, 72, 153, 0.2)", "rgba(147, 51, 234, 0.2)"]}
+                    style={styles.aiSuggestionsGradient}
+                  >
+                    <View style={styles.aiSuggestionsHeader}>
+                      <Ionicons name="bulb" size={24} color="#ec4899" />
+                      <Text style={styles.aiSuggestionsTitle}>AI Predlogi</Text>
+                    </View>
+                    <Text style={styles.aiSuggestionsCount}>
+                      {aiSuggestions.length} {aiSuggestions.length === 1 ? "predlog" : aiSuggestions.length === 2 ? "predloga" : "predlogov"}
+                    </Text>
+                    <Text style={styles.aiSuggestionsSubtitle}>
+                      Klikni za prikaz predlogov izboljšav
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
             </LinearGradient>
           </Animated.View>
         )}
@@ -1535,7 +1578,7 @@ export default function ProfileScreen() {
 
               <ScrollView style={styles.adminUsersList} showsVerticalScrollIndicator={false}>
                 {adminUsers && adminUsers.length > 0 ? (
-                  adminUsers.map((user: typeof adminUsers[0], index: number) => (
+                  adminUsers.map((user: typeof adminUsers[0]) => (
                     <View key={user.userId} style={styles.adminUserCard}>
                       <View style={styles.adminUserHeader}>
                         <View style={[
@@ -1603,6 +1646,116 @@ export default function ProfileScreen() {
                   <View style={styles.emptyAdminUsers}>
                     <Ionicons name="people-outline" size={48} color="#6b7280" />
                     <Text style={styles.emptyAdminUsersText}>Ni uporabnikov</Text>
+                  </View>
+                )}
+              </ScrollView>
+            </LinearGradient>
+          </View>
+        </View>
+      )}
+
+      {/* AI Suggestions Modal */}
+      {showAISuggestionsModal && (
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalContent, { maxHeight: "85%" }]}>
+            <LinearGradient
+              colors={["rgba(236, 72, 153, 0.2)", "rgba(147, 51, 234, 0.3)"]}
+              style={[styles.modalGradient, { height: "100%" }]}
+            >
+              <View style={styles.adminModalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>AI Predlogi za Izboljšave</Text>
+                  <Text style={styles.modalSubtitle}>
+                    {aiSuggestions?.length || 0} {aiSuggestions?.length === 1 ? "predlog" : "predlogov"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.modalClose}
+                  onPress={() => setShowAISuggestionsModal(false)}
+                >
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.adminUsersList} showsVerticalScrollIndicator={false}>
+                {aiSuggestions && aiSuggestions.length > 0 ? (
+                  aiSuggestions.map((suggestion: {
+                    type: string;
+                    priority: string;
+                    searchQuery: string;
+                    suggestion: string;
+                    metrics: {
+                      searchCount: number;
+                      averageResults: number;
+                      clickRate: number;
+                    };
+                  }, index: number) => (
+                    <View key={index} style={styles.aiSuggestionCard}>
+                      {/* Priority Badge */}
+                      <View style={[
+                        styles.aiPriorityBadge,
+                        suggestion.priority === "high"
+                          ? styles.aiPriorityHigh
+                          : suggestion.priority === "medium"
+                          ? styles.aiPriorityMedium
+                          : styles.aiPriorityLow
+                      ]}>
+                        <Text style={styles.aiPriorityText}>
+                          {suggestion.priority === "high" ? "🔴 Visoka" :
+                           suggestion.priority === "medium" ? "🟡 Srednja" : "🟢 Nizka"}
+                        </Text>
+                      </View>
+
+                      {/* Type Badge */}
+                      <View style={styles.aiTypeBadge}>
+                        <Text style={styles.aiTypeText}>
+                          {suggestion.type === "missing_product" ? "📦 Manjka izdelek" :
+                           suggestion.type === "poor_results" ? "🔍 Slabi rezultati" :
+                           suggestion.type === "poor_relevance" ? "❌ Slaba relevantnost" :
+                           "✅ Popularno iskanje"}
+                        </Text>
+                      </View>
+
+                      {/* Search Query */}
+                      <View style={styles.aiQueryContainer}>
+                        <Ionicons name="search" size={16} color="#cbd5e1" />
+                        <Text style={styles.aiQueryText}>"{suggestion.searchQuery}"</Text>
+                      </View>
+
+                      {/* Suggestion */}
+                      <Text style={styles.aiSuggestionText}>{suggestion.suggestion}</Text>
+
+                      {/* Metrics */}
+                      <View style={styles.aiMetricsContainer}>
+                        <View style={styles.aiMetric}>
+                          <Ionicons name="search-outline" size={14} color="#6b7280" />
+                          <Text style={styles.aiMetricText}>
+                            {suggestion.metrics.searchCount} iskanj
+                          </Text>
+                        </View>
+                        <View style={styles.aiMetric}>
+                          <Ionicons name="list-outline" size={14} color="#6b7280" />
+                          <Text style={styles.aiMetricText}>
+                            Avg {suggestion.metrics.averageResults.toFixed(1)} rezultatov
+                          </Text>
+                        </View>
+                        <View style={styles.aiMetric}>
+                          <Ionicons name="hand-left-outline" size={14} color="#6b7280" />
+                          <Text style={styles.aiMetricText}>
+                            {suggestion.metrics.clickRate.toFixed(1)}% click rate
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.emptyAdminUsers}>
+                    <Ionicons name="bulb-outline" size={48} color="#6b7280" />
+                    <Text style={styles.emptyAdminUsersText}>Ni predlogov</Text>
+                    <Text style={[styles.emptyAdminUsersText, { fontSize: 14, marginTop: 8 }]}>
+                      AI bo analiziral iskanja v naslednjih 7 dneh
+                    </Text>
                   </View>
                 )}
               </ScrollView>
@@ -3009,6 +3162,123 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     color: "#0b0814",
+  },
+  // AI Suggestions Styles
+  aiSuggestionsCard: {
+    marginTop: 16,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  aiSuggestionsGradient: {
+    padding: 20,
+  },
+  aiSuggestionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 8,
+  },
+  aiSuggestionsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#f3f4f6",
+  },
+  aiSuggestionsCount: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#ec4899",
+    marginBottom: 4,
+  },
+  aiSuggestionsSubtitle: {
+    fontSize: 13,
+    color: "#9ca3af",
+  },
+  aiSuggestionCard: {
+    backgroundColor: "rgba(15, 10, 30, 0.6)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(236, 72, 153, 0.2)",
+  },
+  aiPriorityBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  aiPriorityHigh: {
+    backgroundColor: "rgba(239, 68, 68, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.4)",
+  },
+  aiPriorityMedium: {
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.4)",
+  },
+  aiPriorityLow: {
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.4)",
+  },
+  aiPriorityText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#f3f4f6",
+  },
+  aiTypeBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(139, 92, 246, 0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  aiTypeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#c4b5fd",
+  },
+  aiQueryContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    borderRadius: 10,
+  },
+  aiQueryText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#e9d5ff",
+    flex: 1,
+  },
+  aiSuggestionText: {
+    fontSize: 14,
+    color: "#d1d5db",
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  aiMetricsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(236, 72, 153, 0.15)",
+  },
+  aiMetric: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  aiMetricText: {
+    fontSize: 12,
+    color: "#9ca3af",
   },
 });
 
