@@ -864,6 +864,35 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
+        {/* User Feedback Button */}
+        {!isGuest && (
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <TouchableOpacity
+              style={styles.feedbackButton}
+              onPress={() => setShowFeedbackFormModal(true)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={["rgba(236, 72, 153, 0.2)", "rgba(147, 51, 234, 0.2)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.feedbackButtonGradient}
+              >
+                <View style={styles.feedbackButtonContent}>
+                  <View style={styles.feedbackButtonHeader}>
+                    <Ionicons name="bulb-outline" size={24} color="#ec4899" />
+                    <Text style={styles.feedbackButtonTitle}>Predlagaj izboljšavo</Text>
+                  </View>
+                  <Text style={styles.feedbackButtonSubtitle}>
+                    Povej nam svoje mnenje in dobij 1 dan premium BREZPLAČNO za koristne predloge!
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#ec4899" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {isAdmin && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.adminHeader}>
@@ -991,6 +1020,99 @@ export default function ProfileScreen() {
                       Klikni za prikaz predlogov izboljšav
                     </Text>
                   </LinearGradient>
+                </TouchableOpacity>
+              )}
+
+              {/* Scraper Monitoring */}
+              {scraperStats && (
+                <TouchableOpacity
+                  style={styles.scraperMonitoringCard}
+                  onPress={() => setShowScraperStatsModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.scraperHeader}>
+                    <Ionicons name="sync" size={20} color="#3b82f6" />
+                    <Text style={styles.scraperTitle}>Scraper Status</Text>
+                  </View>
+                  <View style={styles.scraperRow}>
+                    <View style={styles.scraperItem}>
+                      <Text style={styles.scraperLabel}>Cene</Text>
+                      <View style={styles.scraperStatus}>
+                        <Ionicons
+                          name={scraperStats.dailyPrices.lastRun?.status === "success" ? "checkmark-circle" : "alert-circle"}
+                          size={16}
+                          color={scraperStats.dailyPrices.lastRun?.status === "success" ? "#10b981" : "#ef4444"}
+                        />
+                        <Text style={styles.scraperTime}>
+                          {scraperStats.dailyPrices.lastRun
+                            ? new Date(scraperStats.dailyPrices.lastRun.completedAt || scraperStats.dailyPrices.lastRun.startedAt).toLocaleString("sl-SI", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "--"}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.scraperItem}>
+                      <Text style={styles.scraperLabel}>Katalogi</Text>
+                      <View style={styles.scraperStatus}>
+                        <Ionicons
+                          name={scraperStats.catalogSales.lastRun?.status === "success" ? "checkmark-circle" : "alert-circle"}
+                          size={16}
+                          color={scraperStats.catalogSales.lastRun?.status === "success" ? "#10b981" : "#ef4444"}
+                        />
+                        <Text style={styles.scraperTime}>
+                          {scraperStats.catalogSales.lastRun
+                            ? new Date(scraperStats.catalogSales.lastRun.completedAt || scraperStats.catalogSales.lastRun.startedAt).toLocaleString("sl-SI", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "Ni podatkov"}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {/* User Suggestions */}
+              {suggestionStats && (
+                <TouchableOpacity
+                  style={styles.suggestionsCard}
+                  onPress={() => setShowUserSuggestionsModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.suggestionsHeader}>
+                    <Ionicons name="chatbubbles" size={20} color="#ec4899" />
+                    <Text style={styles.suggestionsTitle}>Predlogi uporabnikov</Text>
+                    {suggestionStats.pending > 0 && (
+                      <View style={styles.suggestionsBadge}>
+                        <Text style={styles.suggestionsBadgeText}>{suggestionStats.pending}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.suggestionsRow}>
+                    <View style={styles.suggestionStat}>
+                      <Text style={styles.suggestionStatValue}>{suggestionStats.total}</Text>
+                      <Text style={styles.suggestionStatLabel}>Skupaj</Text>
+                    </View>
+                    <View style={styles.suggestionStat}>
+                      <Text style={[styles.suggestionStatValue, { color: "#fbbf24" }]}>{suggestionStats.pending}</Text>
+                      <Text style={styles.suggestionStatLabel}>Čaka</Text>
+                    </View>
+                    <View style={styles.suggestionStat}>
+                      <Text style={[styles.suggestionStatValue, { color: "#10b981" }]}>{suggestionStats.approved}</Text>
+                      <Text style={styles.suggestionStatLabel}>Odobreno</Text>
+                    </View>
+                    <View style={styles.suggestionStat}>
+                      <Text style={[styles.suggestionStatValue, { color: "#8b5cf6" }]}>{suggestionStats.rewardsGiven}</Text>
+                      <Text style={styles.suggestionStatLabel}>Nagrajeno</Text>
+                    </View>
+                  </View>
                 </TouchableOpacity>
               )}
             </LinearGradient>
@@ -3307,6 +3429,145 @@ const styles = StyleSheet.create({
   aiMetricText: {
     fontSize: 12,
     color: "#9ca3af",
+  },
+  // Scraper Monitoring Styles
+  scraperMonitoringCard: {
+    backgroundColor: "rgba(15, 10, 30, 0.4)",
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "rgba(59, 130, 246, 0.3)",
+  },
+  scraperHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  scraperTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#f3f4f6",
+  },
+  scraperRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  scraperItem: {
+    flex: 1,
+    backgroundColor: "rgba(15, 10, 30, 0.6)",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(59, 130, 246, 0.2)",
+  },
+  scraperLabel: {
+    fontSize: 12,
+    color: "#9ca3af",
+    marginBottom: 6,
+  },
+  scraperStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  scraperTime: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#e2e8f0",
+  },
+  // User Suggestions Styles
+  suggestionsCard: {
+    backgroundColor: "rgba(15, 10, 30, 0.4)",
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "rgba(236, 72, 153, 0.3)",
+  },
+  suggestionsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  suggestionsTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#f3f4f6",
+    flex: 1,
+  },
+  suggestionsBadge: {
+    backgroundColor: "#fbbf24",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minWidth: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  suggestionsBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#0b0814",
+  },
+  suggestionsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  suggestionStat: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: "rgba(15, 10, 30, 0.6)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: "rgba(236, 72, 153, 0.2)",
+  },
+  suggestionStatValue: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#f3f4f6",
+    marginBottom: 4,
+  },
+  suggestionStatLabel: {
+    fontSize: 11,
+    color: "#9ca3af",
+    textAlign: "center",
+  },
+  // Feedback Button Styles
+  feedbackButton: {
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(236, 72, 153, 0.3)",
+  },
+  feedbackButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 20,
+    gap: 12,
+  },
+  feedbackButtonContent: {
+    flex: 1,
+  },
+  feedbackButtonHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+  feedbackButtonTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#f3f4f6",
+  },
+  feedbackButtonSubtitle: {
+    fontSize: 13,
+    color: "#9ca3af",
+    lineHeight: 18,
   },
 });
 
