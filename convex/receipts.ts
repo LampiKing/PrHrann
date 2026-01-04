@@ -100,18 +100,18 @@ async function parseReceiptWithOpenAI(imageBase64: string): Promise<ParsedReceip
         {
           role: "system",
           content:
-            "Extract receipt data. Return ONLY valid JSON with keys: storeName, purchaseDate (YYYY-MM-DD), purchaseTime (HH:MM), totalPaid (number), currency (string), items (array of {name, quantity, unitPrice, lineTotal}). If missing, use null for strings and 0 for numbers, items can be empty.",
+            "You are an expert OCR system for grocery receipts. Extract receipt data from ANY format: physical receipts, digital receipts, screenshots, emails, PDFs, or virtual receipts. Focus on ESSENTIAL information only: store name (Mercator, Spar, Tuš), date, time, total amount, and itemized list. Return ONLY valid JSON with keys: storeName, purchaseDate (YYYY-MM-DD), purchaseTime (HH:MM), totalPaid (number), currency (string), items (array of {name, quantity, unitPrice, lineTotal}). If missing, use null for strings and 0 for numbers. Items array can be empty if not visible. Be flexible with formats - accept e-receipts, loyalty app screenshots, and virtual receipts. Prioritize accuracy over completeness.",
         },
         {
           role: "user",
           content: [
-            { type: "text", text: "Extract the receipt data." },
-            { type: "image_url", image_url: { url: imageUrl, detail: "low" } },
+            { type: "text", text: "Extract essential receipt data from this image. Accept any format: physical receipt, digital receipt, screenshot, email, or virtual receipt. Focus on store name, date, time, total, and items." },
+            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
           ],
         },
       ],
-      max_tokens: 500,
-      temperature: 0,
+      max_tokens: 1000,
+      temperature: 0.1,
     }),
   });
 

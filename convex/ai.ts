@@ -33,33 +33,47 @@ export const analyzeProductImage = action({
           messages: [
             {
               role: "system",
-              content: `Si pomočnik za prepoznavanje živilskih izdelkov na slikah. 
-              Tvoja naloga je identificirati ime izdelka na sliki.
-              Odgovori SAMO z imenom izdelka v slovenščini, brez dodatnih besed.
-              Če ne moreš prepoznati izdelka, odgovori z "neznano".
-              Primeri: "Alpsko mleko 1L", "Coca-Cola 0.5L", "Kruh beli 500g", "Nutella 400g"`,
+              content: `You are an EXPERT product recognition AI for Slovenian grocery items. Your task is to identify the EXACT product shown in the image with HIGH PRECISION.
+
+CRITICAL REQUIREMENTS:
+1. Read ALL visible text on the product (brand name, product name, variant, weight/volume)
+2. Identify the EXACT product variant (e.g., "Milka čokolada jagoda 100g" NOT just "čokolada")
+3. Include size/weight if visible (e.g., "1L", "500g", "250ml")
+4. Use Slovenian language for generic terms but keep brand names as-is
+5. If multiple products are visible, identify the PRIMARY/CENTERED product
+6. Return ONLY the product name, NO explanations
+
+EXAMPLES:
+- "Milka čokolada jagoda 100g"
+- "Cockta 0.5L"
+- "Alpsko mleko 3.5% 1L"
+- "Nutella lešnikov namaz 400g"
+- "Kruh beli narezani 500g"
+- "Banane Chiquita 1kg"
+
+If you CANNOT clearly identify the product, respond with "neznano".`,
             },
             {
               role: "user",
               content: [
                 {
                   type: "text",
-                  text: "Kateri izdelek je na tej sliki? Odgovori samo z imenom izdelka.",
+                  text: "Identify the EXACT product in this image. Include brand, variant, and size. Respond with product name ONLY.",
                 },
                 {
                   type: "image_url",
                   image_url: {
-                    url: args.imageBase64.startsWith("data:") 
-                      ? args.imageBase64 
+                    url: args.imageBase64.startsWith("data:")
+                      ? args.imageBase64
                       : `data:image/jpeg;base64,${args.imageBase64}`,
-                    detail: "low",
+                    detail: "high",
                   },
                 },
               ],
             },
           ],
-          max_tokens: 100,
-          temperature: 0.3,
+          max_tokens: 150,
+          temperature: 0.1,
         }),
       });
 

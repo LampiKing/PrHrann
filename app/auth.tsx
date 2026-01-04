@@ -985,6 +985,28 @@ export default function AuthScreen() {
                       </TouchableOpacity>
                     </View>
 
+                    {/* Pozabljeno geslo - takoj pod password field */}
+                    {isLogin && (
+                      <TouchableOpacity
+                        onPress={handleForgotPassword}
+                        disabled={resetLoading}
+                        activeOpacity={0.8}
+                        style={styles.forgotPasswordLink}
+                      >
+                        <Text
+                          style={[
+                            styles.forgotPasswordText,
+                            resetLoading && styles.forgotPasswordTextDisabled,
+                          ]}
+                        >
+                          {resetLoading ? "Pošiljam povezavo..." : "Pozabljeno geslo?"}
+                        </Text>
+                        {resetLoading && (
+                          <ActivityIndicator size="small" color="#a78bfa" style={{ marginLeft: 8 }} />
+                        )}
+                      </TouchableOpacity>
+                    )}
+
                     <View style={styles.helperRow}>
                       <Ionicons name="shield-checkmark-outline" size={16} color="#6b7280" />
                       <Text style={styles.helperText}>Vsaj 8 znakov; najbolj varno je črke + številke + posebni znaki.</Text>
@@ -1107,26 +1129,6 @@ export default function AuthScreen() {
                         </View>
                         <Text style={styles.rememberText}>Ostani prijavljen</Text>
                       </TouchableOpacity>
-
-                      <View style={styles.forgotRow}>
-                        <TouchableOpacity
-                          onPress={handleForgotPassword}
-                          disabled={resetLoading}
-                          activeOpacity={0.8}
-                        >
-                          <Text
-                            style={[
-                              styles.forgotText,
-                              resetLoading && styles.forgotTextDisabled,
-                            ]}
-                          >
-                            {resetLoading ? "Pošiljam povezavo..." : "Pozabljeno geslo?"}
-                          </Text>
-                        </TouchableOpacity>
-                        {resetLoading && (
-                          <ActivityIndicator size="small" color="#a78bfa" />
-                        )}
-                      </View>
                     </View>
                   )}
 
@@ -1611,6 +1613,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   forgotTextDisabled: {
+    color: "#94a3b8",
+  },
+  forgotPasswordLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-end",
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  forgotPasswordText: {
+    color: "#a78bfa",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  forgotPasswordTextDisabled: {
     color: "#94a3b8",
   },
   strengthRow: {
