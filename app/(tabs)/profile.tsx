@@ -116,24 +116,6 @@ export default function ProfileScreen() {
     };
   }> = [];
 
-  // Scraper monitoring & User suggestions
-  const scraperStats = useQuery(
-    api.scraperMonitoring.getScraperStats,
-    isAuthenticated && profile?.isAdmin ? {} : "skip"
-  );
-  const userSuggestions = useQuery(
-    api.userSuggestions.getAllSuggestions,
-    isAuthenticated && profile?.isAdmin ? { limit: 50 } : "skip"
-  );
-  const mySuggestions = useQuery(
-    api.userSuggestions.getMySuggestions,
-    isAuthenticated && !isGuest ? {} : "skip"
-  );
-  const suggestionStats = useQuery(
-    api.userSuggestions.getSuggestionStats,
-    isAuthenticated && profile?.isAdmin ? {} : "skip"
-  );
-
   const receipts = useQuery(
     api.receipts.getReceipts,
     isAuthenticated ? { limit: 20 } : "skip"
@@ -150,16 +132,39 @@ export default function ProfileScreen() {
     api.familyPlan.getPendingInvitations,
     isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
   );
+
+  // Check if user is guest (anonymous) - MUST be before queries that use it
+  const isGuest = profile?.isAnonymous ?? false;
+  const isAdmin = profile?.isAdmin ?? false;
+
+  // Scraper monitoring & User suggestions - AFTER isGuest is defined
+  // Use "skip" if APIs don't exist yet (before schema regeneration)
+  const hasScraperAPI = !!(api as any).scraperMonitoring;
+  const hasSuggestionsAPI = !!(api as any).userSuggestions;
+
+  const scraperStats = useQuery(
+    hasScraperAPI ? (api as any).scraperMonitoring.getScraperStats : undefined,
+    hasScraperAPI && isAuthenticated && profile?.isAdmin ? {} : "skip"
+  );
+  const userSuggestions = useQuery(
+    hasSuggestionsAPI ? (api as any).userSuggestions.getAllSuggestions : undefined,
+    hasSuggestionsAPI && isAuthenticated && profile?.isAdmin ? { limit: 50 } : "skip"
+  );
+  const mySuggestions = useQuery(
+    hasSuggestionsAPI ? (api as any).userSuggestions.getMySuggestions : undefined,
+    hasSuggestionsAPI && isAuthenticated && !isGuest ? {} : "skip"
+  );
+  const suggestionStats = useQuery(
+    hasSuggestionsAPI ? (api as any).userSuggestions.getSuggestionStats : undefined,
+    hasSuggestionsAPI && isAuthenticated && profile?.isAdmin ? {} : "skip"
+  );
+
   const submitReceipt = useAction(api.receipts.submitReceipt);
   const deleteAccount = useAction(api.userProfiles.deleteAccount);
   const inviteFamilyMember = useAction(api.familyPlan.inviteFamilyMember);
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
-
-  // Check if user is guest (anonymous) - only if truly anonymous, not just missing email
-  const isGuest = profile?.isAnonymous ?? false;
-  const isAdmin = profile?.isAdmin ?? false;
 
   const isPremium = profile?.isPremium ?? false;
   const premiumType = profile?.premiumType ?? "solo";
