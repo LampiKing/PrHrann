@@ -1762,7 +1762,7 @@ export default function SearchScreen() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>45000+</Text>
+                <Text style={styles.statNumber}>30,000+</Text>
                 <Text style={styles.statLabel}>Izdelkov</Text>
               </View>
               <View style={styles.statDivider} />
