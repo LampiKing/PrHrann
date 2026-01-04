@@ -1535,7 +1535,7 @@ export default function ProfileScreen() {
 
               <ScrollView style={styles.adminUsersList} showsVerticalScrollIndicator={false}>
                 {adminUsers && adminUsers.length > 0 ? (
-                  adminUsers.map((user, index) => (
+                  adminUsers.map((user: typeof adminUsers[0], index: number) => (
                     <View key={user.userId} style={styles.adminUserCard}>
                       <View style={styles.adminUserHeader}>
                         <View style={[
@@ -2995,6 +2995,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     marginTop: 12,
+  },
+  premiumBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fbbf24",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 3,
+  },
+  premiumBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#0b0814",
   },
 });
 

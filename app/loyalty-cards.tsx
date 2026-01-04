@@ -18,7 +18,7 @@ import * as Haptics from "expo-haptics";
 import Svg, { Rect } from "react-native-svg";
 import { createShadow } from "@/lib/shadow-helper";
 import Logo from "@/lib/Logo";
-import { useQuery } from "convex/react";
+import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 // Map between card ID and store name in database
@@ -164,6 +164,7 @@ export default function LoyaltyCardsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isCompact = width < 520;
+  const { isAuthenticated } = useConvexAuth();
 
   const [cards, setCards] = useState<Record<string, { number: string; label?: string }[]>>({});
   const [editingCard, setEditingCard] = useState<string | null>(null);
@@ -173,6 +174,10 @@ export default function LoyaltyCardsScreen() {
     { cardId: string; number: string } | null
   >(null);
   const [showCouponsModal, setShowCouponsModal] = useState<string | null>(null);
+
+  // Get user profile for premium status
+  const profile = useQuery(api.userProfiles.getProfile, isAuthenticated ? {} : "skip");
+  const isPremium = profile?.isPremium ?? false;
 
   // Get stores and coupons
   const stores = useQuery(api.stores.getAll);
@@ -185,7 +190,7 @@ export default function LoyaltyCardsScreen() {
   const activeStoreId = activeStoreForCoupons ? getStoreIdByName(activeStoreForCoupons) : undefined;
   const coupons = useQuery(
     api.coupons.getByStore,
-    activeStoreId ? { storeId: activeStoreId } : "skip"
+    activeStoreId ? { storeId: activeStoreId, isPremium } : "skip"
   );
 
   // Get card data for modal
@@ -551,7 +556,7 @@ export default function LoyaltyCardsScreen() {
         <View style={styles.barcodeModalOverlay}>
           <View style={styles.barcodeModal}>
             {showCouponsModal && (() => {
-              const card = LOYALTY_CARDS.find(c => c.id === showCouponsModal);
+              const card = FREE_LOYALTY_CARDS.find((c: typeof FREE_LOYALTY_CARDS[0]) => c.id === showCouponsModal);
               if (!card) return null;
 
               return (
@@ -620,24 +625,6 @@ export default function LoyaltyCardsScreen() {
                               <Text style={styles.couponDescription}>
                                 {coupon.description}
                               </Text>
-
-                              {coupon.conditions && (
-                                <View style={styles.couponConditionsWrapper}>
-                                  <Ionicons name="information-circle-outline" size={16} color="#9ca3af" />
-                                  <Text style={styles.couponConditions}>
-                                    {coupon.conditions}
-                                  </Text>
-                                </View>
-                              )}
-
-                              {coupon.expiryDate && (
-                                <View style={styles.couponExpiryWrapper}>
-                                  <Ionicons name="time-outline" size={14} color="#6b7280" />
-                                  <Text style={styles.couponExpiry}>
-                                    Velja do: {new Date(coupon.expiryDate).toLocaleDateString('sl-SI')}
-                                  </Text>
-                                </View>
-                              )}
                             </LinearGradient>
                           </View>
                         ))}
@@ -1564,11 +1551,6 @@ const styles = StyleSheet.create({
   couponsListContainer: {
     gap: 12,
   },
-  couponCard: {
-    borderRadius: 14,
-    overflow: "hidden",
-    marginBottom: 12,
-  },
   couponGradient: {
     padding: 16,
     borderWidth: 1,
@@ -1580,16 +1562,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 12,
-  },
-  couponBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  couponBadgeText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#fff",
   },
   couponCodeWrapper: {
     flexDirection: "row",
@@ -1604,6 +1576,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+    color: "#fff",
   },
   couponDescription: {
     fontSize: 15,

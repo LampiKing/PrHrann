@@ -109,7 +109,7 @@ export const getAllUsers = authQuery({
     const sessionMap = new Map<string, typeof sessions[0]>();
     for (const session of sessions) {
       const existing = sessionMap.get(session.userId);
-      if (!existing || session.lastActivity > existing.lastActivity) {
+      if (!existing || session.lastActiveAt > existing.lastActiveAt) {
         sessionMap.set(session.userId, session);
       }
     }
@@ -151,8 +151,11 @@ export const getAllUsers = authQuery({
         dailySearches: p.dailySearches,
         totalSavings: p.totalSavings,
         _creationTime: p._creationTime,
-        lastActivity: session?.lastActivity,
-        location: session?.location,
+        lastActivity: session?.lastActiveAt,
+        location: session?.location?.country ? {
+          country: session.location.country,
+          city: session.location.city,
+        } : undefined,
       };
     });
   },
