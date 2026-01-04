@@ -436,5 +436,25 @@ export default defineSchema({
     .index("by_query", ["searchQueryLower"])
     .index("by_timestamp", ["timestamp"])
     .index("by_session", ["sessionId"]),
+
+  // Akcijske cene iz katalogov (scraped weekly)
+  salePrices: defineTable({
+    productName: v.string(), // "Mleko Alpsko 3.5% 1L"
+    productId: v.optional(v.id("products")), // Matched product ID (če najdemo)
+    storeId: v.id("stores"),
+    originalPrice: v.number(), // Redna cena pred akcijo
+    salePrice: v.number(), // Akcijska cena
+    discountPercentage: v.number(), // Koliko % popust (npr. 23)
+    validFrom: v.string(), // "2026-01-07" (ISO date)
+    validUntil: v.string(), // "2026-01-31" (ISO date)
+    catalogSource: v.string(), // "Mercator Weekly 01-2026"
+    scrapedAt: v.number(), // Timestamp ko je bilo scraped
+    isActive: v.boolean(), // true če je še veljavno (validUntil >= today)
+  })
+    .index("by_store", ["storeId"])
+    .index("by_active", ["isActive"])
+    .index("by_product", ["productId"])
+    .index("by_product_name", ["productName"])
+    .index("by_valid_until", ["validUntil"]),
 });
 
