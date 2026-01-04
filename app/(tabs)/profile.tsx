@@ -66,6 +66,15 @@ export default function ProfileScreen() {
   const [showAdminUsersModal, setShowAdminUsersModal] = useState(false);
   const [adminUserType, setAdminUserType] = useState<"registered" | "active" | "guests" | null>(null);
   const [showAISuggestionsModal, setShowAISuggestionsModal] = useState(false);
+  const [showScraperStatsModal, setShowScraperStatsModal] = useState(false);
+  const [showUserSuggestionsModal, setShowUserSuggestionsModal] = useState(false);
+  const [showFeedbackFormModal, setShowFeedbackFormModal] = useState(false);
+
+  // Feedback form state
+  const [feedbackType, setFeedbackType] = useState<"feature" | "improvement" | "bug" | "store" | "product" | "other">("feature");
+  const [feedbackTitle, setFeedbackTitle] = useState("");
+  const [feedbackDescription, setFeedbackDescription] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -106,6 +115,25 @@ export default function ProfileScreen() {
       clickRate: number;
     };
   }> = [];
+
+  // Scraper monitoring & User suggestions
+  const scraperStats = useQuery(
+    api.scraperMonitoring.getScraperStats,
+    isAuthenticated && profile?.isAdmin ? {} : "skip"
+  );
+  const userSuggestions = useQuery(
+    api.userSuggestions.getAllSuggestions,
+    isAuthenticated && profile?.isAdmin ? { limit: 50 } : "skip"
+  );
+  const mySuggestions = useQuery(
+    api.userSuggestions.getMySuggestions,
+    isAuthenticated && !isGuest ? {} : "skip"
+  );
+  const suggestionStats = useQuery(
+    api.userSuggestions.getSuggestionStats,
+    isAuthenticated && profile?.isAdmin ? {} : "skip"
+  );
+
   const receipts = useQuery(
     api.receipts.getReceipts,
     isAuthenticated ? { limit: 20 } : "skip"
