@@ -41,5 +41,5 @@ jobs:
           PRHRAN_INGEST_TOKEN: ${{ secrets.PRHRAN_INGEST_TOKEN }}
           PRHRAN_CREDENTIALS_FILE: automated_scraper/credentials.json
         run: |
-          python automated_scraper/daily_update.py --upload
+          python automated_scraper/daily_update.py
 

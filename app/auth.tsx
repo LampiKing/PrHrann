@@ -62,6 +62,7 @@ export default function AuthScreen() {
   );
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [currentFact, setCurrentFact] = useState(0);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const { mode } = useLocalSearchParams<{ mode?: string }>();
@@ -324,7 +325,7 @@ export default function AuthScreen() {
   const nicknameAvailable = isLogin ? true : nicknameAvailability?.available ?? false;
   const canSubmit = isLogin
     ? emailValid && passwordValid
-    : emailValid && passwordValid && nicknameValid && nicknameAvailable;
+    : emailValid && passwordValid && nicknameValid && nicknameAvailable && acceptedTerms;
   const isPrimaryDisabled = loading || resetLoading || !canSubmit;
 
   const passwordStrengthScore =
@@ -568,6 +569,11 @@ export default function AuthScreen() {
   const handleTermsPress = () => {
     triggerHaptic();
     router.push("/terms");
+  };
+
+  const handlePrivacyPress = () => {
+    triggerHaptic();
+    router.push("/privacy");
   };
 
   if (authLoading && showLoadingScreen) {
@@ -1004,17 +1010,33 @@ export default function AuthScreen() {
                     )}
 
                     {!isLogin && (
-                      <Text style={styles.legalText}>
-                        Z nadaljevanjem se strinjaš s{" "}
-                        <Text style={styles.termsLink} onPress={handleTermsPress}>
-                          Pogoji uporabe
-                        </Text>{" "}
-                        in{" "}
-                        <Text style={styles.termsLink} onPress={handleTermsPress}>
-                          Politiko zasebnosti
+                      <TouchableOpacity
+                        style={styles.termsRow}
+                        onPress={() => setAcceptedTerms((prev) => !prev)}
+                        activeOpacity={0.8}
+                      >
+                        <View
+                          style={[
+                            styles.checkbox,
+                            acceptedTerms && styles.checkboxChecked,
+                          ]}
+                        >
+                          {acceptedTerms && (
+                            <Ionicons name="checkmark" size={16} color="#fff" />
+                          )}
+                        </View>
+                        <Text style={styles.legalText}>
+                          Strinjam se s{" "}
+                          <Text style={styles.termsLink} onPress={(e) => { e.stopPropagation(); handleTermsPress(); }}>
+                            Pogoji uporabe
+                          </Text>{" "}
+                          in{" "}
+                          <Text style={styles.termsLink} onPress={(e) => { e.stopPropagation(); handlePrivacyPress(); }}>
+                            Politiko zasebnosti
+                          </Text>
+                          .
                         </Text>
-                        .
-                      </Text>
+                      </TouchableOpacity>
                     )}
                   </View>
 
@@ -1640,9 +1662,8 @@ const styles = StyleSheet.create({
   legalText: {
     color: "#9ca3af",
     fontSize: 13,
-    textAlign: "center",
     lineHeight: 20,
-    marginTop: 10,
+    flex: 1,
   },
   termsLink: {
     color: "#a78bfa",

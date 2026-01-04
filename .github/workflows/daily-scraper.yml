@@ -24,8 +24,7 @@ jobs:
         run: |
           cd automated_scraper
           pip install -r requirements.txt
-          playwright install chromium
-          playwright install-deps
+          playwright install --with-deps chromium
 
       - name: Setup Google Credentials
         env:
