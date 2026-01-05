@@ -135,11 +135,41 @@ function ProfileScreenInner() {
   useEffect(() => {
     console.log("Profile loading state:", {
       isAuthenticated,
-      profile: profile === undefined ? "undefined" : profile === null ? "null" : "object",
+      isAuthLoading,
+      profile: profile === undefined ? "undefined" : profile === null ? "null" : "object", 
       isProfileLoading,
       userEmail: isAuthenticated ? "email present" : "no email"
     });
-  }, [isAuthenticated, profile, isProfileLoading]);
+    
+    // Additional auth debugging
+    console.log("Auth debug:", {
+      convexAuth: { isAuthenticated, isAuthLoading },
+      session: authClient.getSession()
+    });
+  }, [isAuthenticated, isAuthLoading, profile, isProfileLoading]);
+
+  // Handle auth session issues
+  useEffect(() => {
+    const handleAuthIssues = async () => {
+      if (!isAuthLoading && !isAuthenticated) {
+        const session = authClient.getSession();
+        if (session === null) {
+          console.log("Session is null - attempting auth refresh");
+          try {
+            await authClient.signOut();
+            // Force refresh to auth page
+            setTimeout(() => {
+              router.replace({ pathname: "/auth", params: { mode: "login" } });
+            }, 100);
+          } catch (error) {
+            console.error("Auth refresh failed:", error);
+          }
+        }
+      }
+    };
+
+    handleAuthIssues();
+  }, [isAuthLoading, isAuthenticated, router]);
 
   // Add timeout fallback to prevent infinite loading
   const [loadingTimeout, setLoadingTimeout] = useState(false);
