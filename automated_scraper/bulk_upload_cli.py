@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """
-Bulk Upload Script - Naloži vse izdelke iz CSV direktno v Convex
+Bulk Upload Script - Naloži vse izdelke iz CSV direktno v Convex preko CLI
 Author: Claude
 Date: 2026-01-05
 """
 
 import csv
-import requests
+import json
+import subprocess
 import os
 from datetime import datetime
 
-# Convex deployment URL
-CONVEX_URL = os.getenv("CONVEX_DEPLOYMENT_URL", "https://fair-mole-058.convex.cloud")
-BATCH_SIZE = 100  # Upload v batch-ih po 100 izdelkov
+BATCH_SIZE = 50  # Manjši batch za CLI
 
 def parse_price(price_str):
     """Parse ceno iz stringa"""
@@ -20,14 +19,14 @@ def parse_price(price_str):
         return None
     try:
         # Odstrani € in whitespace, zamenjaj vejico z piko
-        clean = price_str.replace("€", "").replace(",", ".").strip()
+        clean = str(price_str).replace("€", "").replace(",", ".").strip()
         return float(clean)
     except:
         return None
 
 def normalize_store_name(store):
     """Normaliziraj ime trgovine"""
-    store = store.strip().lower()
+    store = str(store).strip().lower()
     if "mercator" in store:
         return "Mercator"
     elif "spar" in store:
@@ -37,24 +36,40 @@ def normalize_store_name(store):
     else:
         return store.title()
 
-def upload_batch(products_batch):
-    """Upload batch izdelkov v Convex"""
+def upload_batch(products_batch, batch_num):
+    """Upload batch izdelkov v Convex preko CLI"""
     try:
-        response = requests.post(
-            f"{CONVEX_URL}/api/mutation",
-            json={
-                "path": "products:bulkUpsert",
-                "args": {
-                    "products": products_batch
-                }
-            },
-            headers={"Content-Type": "application/json"}
+        # Ustvari JSON args
+        args_json = json.dumps({"products": products_batch})
+
+        # Poženemo npx convex run products:bulkUpsert
+        result = subprocess.run(
+            ["npx", "convex", "run", "products:bulkUpsert", args_json],
+            cwd="..",  # Go to project root
+            capture_output=True,
+            text=True,
+            timeout=60
         )
 
-        if response.status_code == 200:
-            return True, None
+        if result.returncode == 0:
+            # Parse result
+            try:
+                output = result.stdout.strip()
+                # Najdi JSON del
+                if "{" in output:
+                    json_start = output.index("{")
+                    json_str = output[json_start:]
+                    response = json.loads(json_str)
+                    return True, response
+                else:
+                    return True, {"message": "Success but no JSON response"}
+            except:
+                return True, {"message": output}
         else:
-            return False, f"HTTP {response.status_code}: {response.text}"
+            return False, f"Error: {result.stderr}"
+
+    except subprocess.TimeoutExpired:
+        return False, "Timeout (60s)"
     except Exception as e:
         return False, str(e)
 
@@ -126,32 +141,41 @@ def main():
     print(f"📦 Batch velikost: {BATCH_SIZE} izdelkov")
 
     total_batches = (len(products) + BATCH_SIZE - 1) // BATCH_SIZE
-    uploaded = 0
-    failed = 0
+    total_uploaded = 0
+    total_updated = 0
+    total_failed = 0
 
     for i in range(0, len(products), BATCH_SIZE):
         batch = products[i:i+BATCH_SIZE]
         batch_num = (i // BATCH_SIZE) + 1
 
-        print(f"\n📦 Batch {batch_num}/{total_batches} ({len(batch)} izdelkov)...", end=" ")
+        print(f"\n📦 Batch {batch_num}/{total_batches} ({len(batch)} izdelkov)...", end=" ", flush=True)
 
-        success, error = upload_batch(batch)
+        success, result = upload_batch(batch, batch_num)
 
         if success:
-            uploaded += len(batch)
-            print(f"✅ OK")
+            if isinstance(result, dict):
+                inserted = result.get('inserted', 0)
+                updated = result.get('updated', 0)
+                skipped = result.get('skipped', 0)
+                total_uploaded += inserted
+                total_updated += updated
+                total_failed += skipped
+                print(f"✅ OK (inserted: {inserted}, updated: {updated}, skipped: {skipped})")
+            else:
+                print(f"✅ OK")
         else:
-            failed += len(batch)
-            print(f"❌ FAIL")
-            print(f"   Napaka: {error}")
+            total_failed += len(batch)
+            print(f"❌ FAIL: {result}")
 
     # Summary
     print("\n" + "=" * 80)
     print("📊 KONČNI REZULTAT")
     print("=" * 80)
-    print(f"✅ Uspešno naloženo: {uploaded} izdelkov")
-    print(f"❌ Neuspešno: {failed} izdelkov")
-    print(f"📈 Uspešnost: {(uploaded/len(products)*100):.1f}%")
+    print(f"✅ Novo vstavljeno: {total_uploaded} izdelkov")
+    print(f"🔄 Posodobljeno: {total_updated} izdelkov")
+    print(f"❌ Preskočeno/Neuspešno: {total_failed} izdelkov")
+    print(f"📊 Skupaj obdelano: {total_uploaded + total_updated + total_failed}")
     print("=" * 80)
 
 if __name__ == "__main__":

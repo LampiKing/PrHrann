@@ -30,6 +30,8 @@ import type * as products from "../products.js";
 import type * as productsActions from "../productsActions.js";
 import type * as receipts from "../receipts.js";
 import type * as savings from "../savings.js";
+import type * as scraperMonitoring from "../scraperMonitoring.js";
+import type * as searchAnalytics from "../searchAnalytics.js";
 import type * as security from "../security.js";
 import type * as seedCoupons from "../seedCoupons.js";
 import type * as seedData from "../seedData.js";
@@ -38,6 +40,7 @@ import type * as shoppingLists from "../shoppingLists.js";
 import type * as stores from "../stores.js";
 import type * as time from "../time.js";
 import type * as userProfiles from "../userProfiles.js";
+import type * as userSuggestions from "../userSuggestions.js";
 
 import type {
   ApiFromModules,
@@ -68,6 +71,8 @@ declare const fullApi: ApiFromModules<{
   productsActions: typeof productsActions;
   receipts: typeof receipts;
   savings: typeof savings;
+  scraperMonitoring: typeof scraperMonitoring;
+  searchAnalytics: typeof searchAnalytics;
   security: typeof security;
   seedCoupons: typeof seedCoupons;
   seedData: typeof seedData;
@@ -76,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   stores: typeof stores;
   time: typeof time;
   userProfiles: typeof userProfiles;
+  userSuggestions: typeof userSuggestions;
 }>;
 
 /**
