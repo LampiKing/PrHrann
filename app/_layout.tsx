@@ -11,9 +11,11 @@ import { getSeasonalLogoSource } from "@/lib/Logo";
 
 const rawConvexUrl =
   process.env.EXPO_PUBLIC_CONVEX_URL || process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
-const convexUrl = rawConvexUrl
-  ? rawConvexUrl.replace(".convex.site", ".convex.cloud")
-  : undefined;
+const DEFAULT_CONVEX_URL = "https://vibrant-dolphin-871.convex.cloud";
+const convexUrl = (rawConvexUrl || DEFAULT_CONVEX_URL)?.replace(
+  ".convex.site",
+  ".convex.cloud"
+);
 
 const convexClient = convexUrl
   ? new ConvexReactClient(convexUrl, {

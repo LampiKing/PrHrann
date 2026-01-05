@@ -514,17 +514,56 @@ def normalize_sale_price(price: float, sale_price: Optional[float]) -> Optional[
     return sale_price if sale_price < price else None
 
 
+async def get_mercator_categories(page) -> List[str]:
+    """Poskusi dinamično prebrati vse Mercator kategorije; fallback na statični seznam."""
+    try:
+        await page.goto("https://mercatoronline.si/brskaj", wait_until="networkidle", timeout=60000)
+        await asyncio.sleep(2)
+        hrefs = await page.eval_on_selector_all(
+            "a[href*='/brskaj/']",
+            "els => els.map(e => e.getAttribute('href'))"
+        )
+        categories: List[str] = []
+        for href in hrefs:
+            if not href or "/brskaj/" not in href:
+                continue
+            slug = href.split("/brskaj/")[-1].split("?")[0].strip("/")
+            if not slug or slug == "#":
+                continue
+            if slug not in categories:
+                categories.append(slug)
+        if categories:
+            print(f"  Mercator kategorije: {len(categories)} najdenih (dinamicno)")
+            return categories
+    except Exception as e:
+        print(f"  Mercator kategorije (fallback na statiko): {e}")
+    return ALL_CATEGORIES.get("mercator", [])
+
+
 async def scrape_mercator_category(page, category: str) -> List[Dict]:
-    """Scrape Mercator"""
-    products = []
+    """Scrape Mercator – scroll until no new products are found."""
+    products: List[Dict] = []
+    seen_keys: set[str] = set()
     try:
         url = f"https://mercatoronline.si/brskaj/{category}"
         await page.goto(url, wait_until="networkidle", timeout=60000)
         await asyncio.sleep(2)
 
-        for _ in range(10):
-            await page.evaluate("window.scrollBy(0, 1500)")
-            await asyncio.sleep(0.5)
+        last_count = 0
+        stable_iterations = 0
+        # Scroll until the page stops loading more products
+        for _ in range(40):
+            await page.evaluate("window.scrollBy(0, 1800)")
+            await asyncio.sleep(0.7)
+            elements = await page.query_selector_all(".product")
+            current_count = len(elements)
+            if current_count <= last_count:
+                stable_iterations += 1
+            else:
+                stable_iterations = 0
+            last_count = current_count
+            if stable_iterations >= 3:
+                break
 
         elements = await page.query_selector_all(".product")
 
@@ -534,6 +573,9 @@ async def scrape_mercator_category(page, category: str) -> List[Dict]:
                 if not name_elem:
                     continue
                 name = (await name_elem.inner_text()).strip()
+                key = name.lower()
+                if key in seen_keys:
+                    continue
 
                 price_elem = await element.query_selector(".lib-product-price")
                 if not price_elem:
@@ -558,6 +600,7 @@ async def scrape_mercator_category(page, category: str) -> List[Dict]:
                 else:
                     price = base_price
 
+                seen_keys.add(key)
                 products.append({
                     "name": name,
                     "price": price,
@@ -565,46 +608,59 @@ async def scrape_mercator_category(page, category: str) -> List[Dict]:
                     "store": "Mercator",
                     "category": category,
                 })
-            except:
+            except Exception:
                 continue
-    except:
-        pass
+    except Exception as e:
+        print(f"  Mercator category '{category}' failed: {e}")
 
     return products
 
 
-async def scrape_all_products():
-    """Scrape vse izdelke"""
+async def scrape_all_products(stores_filter: Optional[set[str]] = None):
+    """Scrape vse izdelke; optional filter e.g. {'mercator'}."""
     print(f"Cas: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Scraping...\n")
 
-    all_products = []
+    all_products: List[Dict] = []
+    filter_active = bool(stores_filter)
 
-    print("SPAR")
-    spar_products = scrape_spar_products()
-    all_products.extend(spar_products)
-    print(f"  SPAR total: {len(spar_products)}")
+    if not filter_active or "spar" in (stores_filter or set()):
+        print("SPAR")
+        spar_products = scrape_spar_products()
+        all_products.extend(spar_products)
+        print(f"  SPAR total: {len(spar_products)}")
+    else:
+        print("SPAR preskocen (filter)")
 
-    print("TUS")
-    tus_products = scrape_tus_products()
-    all_products.extend(tus_products)
-    print(f"  TUS total: {len(tus_products)}")
+    if not filter_active or "tus" in (stores_filter or set()):
+        print("TUS")
+        tus_products = scrape_tus_products()
+        all_products.extend(tus_products)
+        print(f"  TUS total: {len(tus_products)}")
+    else:
+        print("TUS preskocen (filter)")
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            viewport={'width': 1920, 'height': 1080},
-            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        )
-        try:
-            print("Mercator", end=" ", flush=True)
-            page_mercator = await context.new_page()
-            for category in ALL_CATEGORIES["mercator"]:
-                products = await scrape_mercator_category(page_mercator, category)
-                all_products.extend(products)
-            await page_mercator.close()
-            print(f"{sum(1 for p in all_products if p['store'] == 'Mercator')}")
-        finally:
-            await browser.close()
+    if not filter_active or "mercator" in (stores_filter or set()):
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(
+                viewport={'width': 1920, 'height': 1080},
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            )
+            try:
+                print("Mercator", end=" ", flush=True)
+                page_mercator = await context.new_page()
+                mercator_categories = await get_mercator_categories(page_mercator)
+                mercator_products: List[Dict] = []
+                for category in mercator_categories:
+                    category_products = await scrape_mercator_category(page_mercator, category)
+                    mercator_products.extend(category_products)
+                all_products.extend(mercator_products)
+                await page_mercator.close()
+                print(f"{len(mercator_products)}")
+            finally:
+                await browser.close()
+    else:
+        print("Mercator preskocen (filter)")
 
     return all_products
 
@@ -759,17 +815,28 @@ def upload_to_convex(items: List[Dict]) -> None:
 def parse_args():
     parser = argparse.ArgumentParser(description="Dnevna posodobitev cen.")
     parser.add_argument("--no-upload", action="store_true", help="NE pošlji podatkov v Convex (samo Google Sheets).")
+    parser.add_argument(
+        "--stores",
+        type=str,
+        default="spar,tus,mercator",
+        help="Seznam trgovin (comma). Primer: --stores=mercator ali --stores=spar,tus",
+    )
+    parser.add_argument(
+        "--mercator-only",
+        action="store_true",
+        help="Bliznjica za --stores=mercator (za testiranje Mercator scraperja).",
+    )
     return parser.parse_args()
 
 
-async def main(upload: bool):
+async def main(upload: bool, stores: set[str]):
     """Glavna funkcija"""
     print("\n" + "=" * 80)
-    print("🔄 DNEVNA POSODOBITEV CEN")
+    print("DNEVNA POSODOBITEV CEN")
     print("=" * 80)
-    
+
     # Scrape
-    products = await scrape_all_products()
+    products = await scrape_all_products(stores)
     
     if products:
         # Posodobi Sheet
@@ -789,4 +856,8 @@ async def main(upload: bool):
 
 if __name__ == "__main__":
     args = parse_args()
-    asyncio.run(main(args.no_upload))
+    if args.mercator_only:
+        stores_filter = {"mercator"}
+    else:
+        stores_filter = {store.strip().lower() for store in args.stores.split(",") if store.strip()}
+    asyncio.run(main(args.no_upload, stores_filter))

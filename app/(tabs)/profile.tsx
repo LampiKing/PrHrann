@@ -547,8 +547,16 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleHardRefresh = () => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.location.reload();
+      return;
+    }
+    router.replace("/(tabs)");
+  };
+
   // Show loading state while auth is initializing
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && profile === undefined)) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -560,6 +568,19 @@ export default function ProfileScreen() {
           />
           <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
           <Text style={styles.authText}>Nalaganje profila...</Text>
+          <TouchableOpacity
+            style={[styles.authButton, { marginTop: 16 }]}
+            onPress={handleHardRefresh}
+          >
+            <LinearGradient
+              colors={["#8b5cf6", "#7c3aed"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.authButtonGradient}
+            >
+              <Text style={styles.authButtonText}>Osveži</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </View>
     );
