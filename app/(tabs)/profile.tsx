@@ -128,48 +128,44 @@ function ProfileScreenInner() {
 
   // --- Core Data Loading ---
   // 1. Load profile - undefined while loading, null if not found, object if found.
-  const profile = useQuery(api.userProfiles.getProfile, isAuthenticated ? {} : "skip");
+  // Add ref to prevent infinite re-queries
+  const queryAttemptRef = useRef(0);
+  const profile = useQuery(
+    api.userProfiles.getProfile, 
+    isAuthenticated && queryAttemptRef.current < 3 ? {} : "skip"
+  );
   const isProfileLoading = profile === undefined;
 
-  // Debug logging for troubleshooting
+  // Track query attempts
   useEffect(() => {
-    console.log("Profile loading state:", {
-      isAuthenticated,
-      isAuthLoading,
-      profile: profile === undefined ? "undefined" : profile === null ? "null" : "object", 
-      isProfileLoading,
-      userEmail: isAuthenticated ? "email present" : "no email"
-    });
-    
-    // Additional auth debugging
-    console.log("Auth debug:", {
-      convexAuth: { isAuthenticated, isAuthLoading },
-      session: authClient.getSession()
-    });
-  }, [isAuthenticated, isAuthLoading, profile, isProfileLoading]);
-
-  // Handle auth session issues
-  useEffect(() => {
-    const handleAuthIssues = async () => {
-      if (!isAuthLoading && !isAuthenticated) {
-        const session = authClient.getSession();
-        if (session === null) {
-          console.log("Session is null - attempting auth refresh");
-          try {
-            await authClient.signOut();
-            // Force refresh to auth page
-            setTimeout(() => {
-              router.replace({ pathname: "/auth", params: { mode: "login" } });
-            }, 100);
-          } catch (error) {
-            console.error("Auth refresh failed:", error);
-          }
-        }
+    if (isAuthenticated && profile === undefined) {
+      queryAttemptRef.current += 1;
+      if (queryAttemptRef.current >= 3) {
+        console.warn("Profile query failed after 3 attempts");
       }
-    };
+    } else if (profile !== undefined) {
+      queryAttemptRef.current = 0; // Reset on success
+    }
+  }, [isAuthenticated, profile]);
 
-    handleAuthIssues();
-  }, [isAuthLoading, isAuthenticated, router]);
+  // Debug logging for troubleshooting (throttled to prevent spam)
+  const debugLoggedRef = useRef(false);
+  useEffect(() => {
+    if (!debugLoggedRef.current) {
+      console.log("Profile loading state:", {
+        isAuthenticated,
+        isAuthLoading,
+        profile: profile === undefined ? "undefined" : profile === null ? "null" : "object", 
+        isProfileLoading
+      });
+      debugLoggedRef.current = true;
+      
+      // Reset debug flag after 5 seconds
+      setTimeout(() => {
+        debugLoggedRef.current = false;
+      }, 5000);
+    }
+  }, [isAuthenticated, isAuthLoading, profile, isProfileLoading]);
 
   // Add timeout fallback to prevent infinite loading
   const [loadingTimeout, setLoadingTimeout] = useState(false);
@@ -178,7 +174,7 @@ function ProfileScreenInner() {
       const timeout = setTimeout(() => {
         console.warn("Profile loading timeout - forcing fallback");
         setLoadingTimeout(true);
-      }, 10000); // 10 second timeout
+      }, 8000); // 8 second timeout
       return () => clearTimeout(timeout);
     } else {
       setLoadingTimeout(false);
