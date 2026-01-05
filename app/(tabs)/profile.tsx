@@ -110,8 +110,6 @@ function ProfileScreenInner() {
   const [familySuccess, setFamilySuccess] = useState("");
   const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
   const [profilePictureOverride, setProfilePictureOverride] = useState<string | null>(null);
-  const [showAdminUsersModal, setShowAdminUsersModal] = useState(false);
-  const [adminUserType, setAdminUserType] = useState<"registered" | "active" | "guests" | null>(null);
   const [showAISuggestionsModal, setShowAISuggestionsModal] = useState(false);
   const [showUserSuggestionsModal, setShowUserSuggestionsModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -177,16 +175,7 @@ function ProfileScreenInner() {
     }
   }, [isAuthenticated, profile]);
 
-  // 2. Load admin-specific data ONLY when profile is loaded and user is an admin.
-  // Use fallback admin detection if profile is forced
-  const isAdminUser = profile?.isAdmin === true || (forceShowProfile && isAuthenticated);
-  const shouldFetchAdminData = isAuthenticated && profile?.isAdmin === true;
-  const adminStats = useQuery(api.admin.getStats, shouldFetchAdminData ? {} : "skip");
-  const detailedAdminStats = useQuery(api.admin.getDetailedStats, shouldFetchAdminData ? {} : "skip");
-  const adminUsers = useQuery(
-    api.admin.getAllUsers,
-    shouldFetchAdminData && adminUserType ? { type: adminUserType, limit: 50 } : "skip"
-  );
+  // 2. Admin functionality temporarily removed for debugging
 
   // 3. Load other user-specific data ONLY when authenticated.
   const receipts = useQuery(api.receipts.getReceipts, isAuthenticated ? { limit: 20 } : "skip");
@@ -268,19 +257,6 @@ function ProfileScreenInner() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     router.push("/premium");
-  };
-
-  const formatCurrency = (value: number) => {
-    if (!Number.isFinite(value)) return "0.00 EUR";
-    return value.toFixed(2).replace(".", ",") + " EUR";
-  };
-
-  const handleAdminStatClick = (type: "registered" | "active" | "guests") => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setAdminUserType(type);
-    setShowAdminUsersModal(true);
   };
 
   const handleCaptureReceipt = async () => {
@@ -729,23 +705,7 @@ function ProfileScreenInner() {
             </Text>
           </View>
 
-          {/* Basic Admin Panel if admin */}
-          {isAdminUser && (
-            <View style={[styles.section, { marginTop: 20 }]}>
-              <View style={styles.sectionHeader}>
-                <View>
-                  <Text style={styles.sectionTitle}>Admin Panel</Text>
-                  <Text style={styles.sectionSubtitle}>Nalaganje podatkov...</Text>
-                </View>
-              </View>
-              <View style={[styles.adminCard, { padding: 20, opacity: 0.7 }]}>
-                <ActivityIndicator size="large" color="#8b5cf6" />
-                <Text style={[styles.authText, { marginTop: 12, textAlign: 'center' }]}>
-                  Admin podatki se nalagajo
-                </Text>
-              </View>
-            </View>
-          )}
+          {/* Admin panel temporarily removed */}
 
           {/* Sign Out Option */}
           <View style={[styles.section, { marginTop: 20 }]}>
@@ -1083,248 +1043,7 @@ function ProfileScreenInner() {
           </Animated.View>
         )}
 
-        {profile.isAdmin && (
-          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <View style={styles.adminHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Admin Panel</Text>
-                <Text style={styles.sectionSubtitle}>Pregled rasti v realnem času</Text>
-              </View>
-              <View style={styles.liveIndicator}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>LIVE</Text>
-              </View>
-            </View>
-            
-            {!adminStats ? (
-              <LinearGradient
-                colors={["rgba(139, 92, 246, 0.2)", "rgba(15, 23, 42, 0.7)"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.adminCard}
-              >
-                <View style={{ alignItems: "center", paddingVertical: 24 }}>
-                  <ActivityIndicator size="large" color="#8b5cf6" />
-                  <Text style={[styles.adminStatLabel, { marginTop: 12 }]}>
-                    Nalaganje podatkov...
-                  </Text>
-                </View>
-              </LinearGradient>
-            ) : (
-            <LinearGradient
-              colors={["rgba(139, 92, 246, 0.2)", "rgba(15, 23, 42, 0.7)"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.adminCard}
-            >
-              <View style={styles.adminRow}>
-                <TouchableOpacity
-                  style={styles.adminStat}
-                  onPress={() => handleAdminStatClick("registered")}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="people" size={20} color="#8b5cf6" />
-                  <Text style={styles.adminStatLabel}>Uporabniki</Text>
-                  <Text style={styles.adminStatValue}>
-                    {adminStats?.totalUsers ?? "--"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.adminStat}
-                  onPress={() => handleAdminStatClick("active")}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="flash" size={20} color="#10b981" />
-                  <Text style={styles.adminStatLabel}>Aktivni</Text>
-                  <Text style={styles.adminStatValue}>
-                    {adminStats?.activeUsers ?? "--"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.adminStat}
-                  onPress={() => handleAdminStatClick("guests")}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="eye-outline" size={20} color="#f59e0b" />
-                  <Text style={styles.adminStatLabel}>Gostje</Text>
-                  <Text style={styles.adminStatValue}>
-                    {adminStats?.totalGuests ?? "--"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {adminStats?.topCountries && adminStats.topCountries.length > 0 && (
-                <View style={styles.geoSection}>
-                  <View style={styles.geoHeader}>
-                    <Ionicons name="globe-outline" size={18} color="#cbd5e1" />
-                    <Text style={styles.geoTitle}>Top Države</Text>
-                  </View>
-                  <View style={styles.geoList}>
-                    {adminStats.topCountries.map((item, index) => (
-                      <View key={item.country} style={styles.geoItem}>
-                        <View style={styles.geoRank}>
-                          <Text style={styles.geoRankText}>{index + 1}</Text>
-                        </View>
-                        <Text style={styles.geoCountry}>{item.country}</Text>
-                        <Text style={styles.geoCount}>{item.count}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Additional Admin Stats */}
-              {detailedAdminStats && (
-                <View style={styles.detailedStatsSection}>
-                  <Text style={styles.detailedStatsTitle}>📊 Podrobnosti</Text>
-                  <View style={styles.detailedStatsGrid}>
-                    <View style={styles.detailedStatItem}>
-                      <Text style={styles.detailedStatValue}>{detailedAdminStats.premiumUsers}</Text>
-                      <Text style={styles.detailedStatLabel}>Premium</Text>
-                    </View>
-                    <View style={styles.detailedStatItem}>
-                      <Text style={styles.detailedStatValue}>{detailedAdminStats.freeUsers}</Text>
-                      <Text style={styles.detailedStatLabel}>Free</Text>
-                    </View>
-                    <View style={styles.detailedStatItem}>
-                      <Text style={styles.detailedStatValue}>{detailedAdminStats.totalSearchesToday}</Text>
-                      <Text style={styles.detailedStatLabel}>Iskanja danes</Text>
-                    </View>
-                    <View style={styles.detailedStatItem}>
-                      <Text style={styles.detailedStatValue}>{detailedAdminStats.recentSignups}</Text>
-                      <Text style={styles.detailedStatLabel}>Novi (7d)</Text>
-                    </View>
-                  </View>
-                  <View style={styles.savingsRow}>
-                    <Ionicons name="trending-down" size={18} color="#10b981" />
-                    <Text style={styles.savingsText}>
-                      Skupaj prihranki: {formatCurrency(detailedAdminStats.totalSavings)}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* AI Suggestions */}
-              {aiSuggestions && aiSuggestions.length > 0 && (
-                <TouchableOpacity
-                  style={styles.aiSuggestionsCard}
-                  onPress={() => setShowAISuggestionsModal(true)}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={["rgba(236, 72, 153, 0.2)", "rgba(147, 51, 234, 0.2)"]}
-                    style={styles.aiSuggestionsGradient}
-                  >
-                    <View style={styles.aiSuggestionsHeader}>
-                      <Ionicons name="bulb" size={24} color="#ec4899" />
-                      <Text style={styles.aiSuggestionsTitle}>AI Predlogi</Text>
-                    </View>
-                    <Text style={styles.aiSuggestionsCount}>
-                      {aiSuggestions.length} {aiSuggestions.length === 1 ? "predlog" : aiSuggestions.length === 2 ? "predloga" : "predlogov"}
-                    </Text>
-                    <Text style={styles.aiSuggestionsSubtitle}>
-                      Klikni za prikaz predlogov izboljšav
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              )}
-
-              {/* Scraper Monitoring */}
-              {scraperStats && hasScraperAPI && "dailyPrices" in scraperStats && "catalogSales" in scraperStats && (
-                <View style={styles.scraperMonitoringCard}>
-                  <View style={styles.scraperHeader}>
-                    <Ionicons name="sync" size={20} color="#3b82f6" />
-                    <Text style={styles.scraperTitle}>Scraper Status</Text>
-                  </View>
-                  <View style={styles.scraperRow}>
-                    <View style={styles.scraperItem}>
-                      <Text style={styles.scraperLabel}>Cene</Text>
-                      <View style={styles.scraperStatus}>
-                        <Ionicons
-                          name={(scraperStats as { dailyPrices: { lastRun?: { status: string } } }).dailyPrices.lastRun?.status === "success" ? "checkmark-circle" : "alert-circle"}
-                          size={16}
-                          color={(scraperStats as { dailyPrices: { lastRun?: { status: string } } }).dailyPrices.lastRun?.status === "success" ? "#10b981" : "#ef4444"}
-                        />
-                        <Text style={styles.scraperTime}>
-                          {(scraperStats as { dailyPrices: { lastRun?: { completedAt?: number; startedAt: number } } }).dailyPrices.lastRun
-                            ? new Date((scraperStats as { dailyPrices: { lastRun: { completedAt?: number; startedAt: number } } }).dailyPrices.lastRun.completedAt || (scraperStats as { dailyPrices: { lastRun: { completedAt?: number; startedAt: number } } }).dailyPrices.lastRun.startedAt).toLocaleString("sl-SI", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : "--"}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.scraperItem}>
-                      <Text style={styles.scraperLabel}>Katalogi</Text>
-                      <View style={styles.scraperStatus}>
-                        <Ionicons
-                          name={(scraperStats as { catalogSales: { lastRun?: { status: string } } }).catalogSales.lastRun?.status === "success" ? "checkmark-circle" : "alert-circle"}
-                          size={16}
-                          color={(scraperStats as { catalogSales: { lastRun?: { status: string } } }).catalogSales.lastRun?.status === "success" ? "#10b981" : "#ef4444"}
-                        />
-                        <Text style={styles.scraperTime}>
-                          {(scraperStats as { catalogSales: { lastRun?: { completedAt?: number; startedAt: number } } }).catalogSales.lastRun
-                            ? new Date((scraperStats as { catalogSales: { lastRun: { completedAt?: number; startedAt: number } } }).catalogSales.lastRun.completedAt || (scraperStats as { catalogSales: { lastRun: { completedAt?: number; startedAt: number } } }).catalogSales.lastRun.startedAt).toLocaleString("sl-SI", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                            : "Ni podatkov"}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              )}
-
-              {/* User Suggestions */}
-              {suggestionStats && hasSuggestionsAPI && "total" in suggestionStats && "pending" in suggestionStats && "approved" in suggestionStats && "rewardsGiven" in suggestionStats && (
-                <TouchableOpacity
-                  style={styles.suggestionsCard}
-                  onPress={() => setShowUserSuggestionsModal(true)}
-                  activeOpacity={0.8}
-                >
-                  <View style={styles.suggestionsHeader}>
-                    <Ionicons name="chatbubbles" size={20} color="#ec4899" />
-                    <Text style={styles.suggestionsTitle}>Predlogi uporabnikov</Text>
-                    {(suggestionStats as { pending: number }).pending > 0 && (
-                      <View style={styles.suggestionsBadge}>
-                        <Text style={styles.suggestionsBadgeText}>{(suggestionStats as { pending: number }).pending}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.suggestionsRow}>
-                    <View style={styles.suggestionStat}>
-                      <Text style={styles.suggestionStatValue}>{(suggestionStats as { total: number }).total}</Text>
-                      <Text style={styles.suggestionStatLabel}>Skupaj</Text>
-                    </View>
-                    <View style={styles.suggestionStat}>
-                      <Text style={[styles.suggestionStatValue, { color: "#fbbf24" }]}>{(suggestionStats as { pending: number }).pending}</Text>
-                      <Text style={styles.suggestionStatLabel}>Čaka</Text>
-                    </View>
-                    <View style={styles.suggestionStat}>
-                      <Text style={[styles.suggestionStatValue, { color: "#10b981" }]}>{(suggestionStats as { approved: number }).approved}</Text>
-                      <Text style={styles.suggestionStatLabel}>Odobreno</Text>
-                    </View>
-                    <View style={styles.suggestionStat}>
-                      <Text style={[styles.suggestionStatValue, { color: "#8b5cf6" }]}>{(suggestionStats as { rewardsGiven: number }).rewardsGiven}</Text>
-                      <Text style={styles.suggestionStatLabel}>Nagrajeno</Text>
-                    </View>
-                  </View>
-                  <View style={styles.suggestionsFooter}>
-                    <Text style={styles.suggestionsFooterText}>Klikni za seznam predlogov</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#ec4899" />
-                  </View>
-                </TouchableOpacity>
-              )}
-            </LinearGradient>
-            )}
-          </Animated.View>
-        )}
+        {/* Admin panel temporarily removed for debugging */}
 
         {/* Family Plan Management */}
         {profile.premiumType === "family" && (
@@ -1993,113 +1712,7 @@ function ProfileScreenInner() {
         </View>
       )}
 
-      {/* Admin Users Modal */}
-      {showAdminUsersModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={[styles.modalContent, { maxHeight: "85%" }]}>
-            <LinearGradient
-              colors={["rgba(139, 92, 246, 0.2)", "rgba(59, 7, 100, 0.3)"]}
-              style={[styles.modalGradient, { height: "100%" }]}
-            >
-              <View style={styles.adminModalHeader}>
-                <View>
-                  <Text style={styles.modalTitle}>
-                    {adminUserType === "registered" ? "Registrirani uporabniki" :
-                     adminUserType === "active" ? "Aktivni uporabniki" : "Gostje"}
-                  </Text>
-                  <Text style={styles.modalSubtitle}>
-                    {adminUsers?.length || 0} uporabnikov
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.modalClose}
-                  onPress={() => {
-                    setShowAdminUsersModal(false);
-                    setAdminUserType(null);
-                  }}
-                >
-                  <Ionicons name="close" size={24} color="#9ca3af" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={styles.adminUsersList} showsVerticalScrollIndicator={false}>
-                {adminUsers && adminUsers.length > 0 ? (
-                  adminUsers.map((user: typeof adminUsers[0]) => (
-                    <View key={user.userId} style={styles.adminUserCard}>
-                      <View style={styles.adminUserHeader}>
-                        <View style={[
-                          styles.adminUserAvatar,
-                          { backgroundColor: user.isPremium ? "#fbbf24" : "#8b5cf6" }
-                        ]}>
-                          <Text style={styles.adminUserAvatarText}>
-                            {(user.nickname || user.name || user.email || "?").charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                        <View style={styles.adminUserInfo}>
-                          <View style={styles.adminUserNameRow}>
-                            <Text style={styles.adminUserName}>
-                              {user.nickname || user.name || "Anonymous"}
-                            </Text>
-                            {user.isPremium && (
-                              <View style={styles.premiumBadge}>
-                                <Ionicons name="star" size={10} color="#0b0814" />
-                                <Text style={styles.premiumBadgeText}>
-                                  {user.premiumType === "family" ? "Family" : "Plus"}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                          {user.email && (
-                            <Text style={styles.adminUserEmail}>{user.email}</Text>
-                          )}
-                        </View>
-                      </View>
-
-                      <View style={styles.adminUserStats}>
-                        <View style={styles.adminUserStatItem}>
-                          <Ionicons name="search" size={14} color="#6b7280" />
-                          <Text style={styles.adminUserStatText}>{user.dailySearches} iskanj</Text>
-                        </View>
-                        {user.totalSavings !== undefined && user.totalSavings > 0 && (
-                          <View style={styles.adminUserStatItem}>
-                            <Ionicons name="trending-down" size={14} color="#10b981" />
-                            <Text style={styles.adminUserStatText}>
-                              {formatCurrency(user.totalSavings)}
-                            </Text>
-                          </View>
-                        )}
-                        {user.location && (
-                          <View style={styles.adminUserStatItem}>
-                            <Ionicons name="location" size={14} color="#6b7280" />
-                            <Text style={styles.adminUserStatText}>{user.location.country}</Text>
-                          </View>
-                        )}
-                      </View>
-
-                      <View style={styles.adminUserMeta}>
-                        <Text style={styles.adminUserMetaText}>
-                          Registriran: {new Date(user._creationTime).toLocaleDateString('sl-SI')}
-                        </Text>
-                        {user.lastActivity && (
-                          <Text style={styles.adminUserMetaText}>
-                            Aktiven: {new Date(user.lastActivity).toLocaleDateString('sl-SI')}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  ))
-                ) : (
-                  <View style={styles.emptyAdminUsers}>
-                    <Ionicons name="people-outline" size={48} color="#6b7280" />
-                    <Text style={styles.emptyAdminUsersText}>Ni uporabnikov</Text>
-                  </View>
-                )}
-              </ScrollView>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
+      {/* Admin modals temporarily removed */}
 
       {/* AI Suggestions Modal */}
       {showAISuggestionsModal && (
