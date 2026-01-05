@@ -41,10 +41,13 @@ type AwardEntry = {
   leaderboard: "standard" | "family";
 };
 
-class ProfileErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+class ProfileErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; retryCount: number }
+> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, retryCount: 0 };
   }
 
   static getDerivedStateFromError() {
@@ -53,6 +56,14 @@ class ProfileErrorBoundary extends React.Component<{ children: React.ReactNode }
 
   componentDidCatch(error: unknown) {
     console.error("Profile screen render error:", error);
+    if (this.state.retryCount < 2) {
+      setTimeout(() => {
+        this.setState((prev) => ({
+          hasError: false,
+          retryCount: prev.retryCount + 1,
+        }));
+      }, 800);
+    }
   }
 
   render() {
@@ -100,6 +111,7 @@ function ProfileScreenInner() {
   const [showAdminUsersModal, setShowAdminUsersModal] = useState(false);
   const [adminUserType, setAdminUserType] = useState<"registered" | "active" | "guests" | null>(null);
   const [showAISuggestionsModal, setShowAISuggestionsModal] = useState(false);
+  const [showUserSuggestionsModal, setShowUserSuggestionsModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackType, setFeedbackType] = useState<"feature" | "improvement" | "bug" | "store" | "product" | "other">("feature");
   const [feedbackTitle, setFeedbackTitle] = useState("");
@@ -220,6 +232,10 @@ function ProfileScreenInner() {
     apiWithOptional.userSuggestions?.getSuggestionStats ?? api.admin.getStats,
     !hasSuggestionsAPI || !isAuthenticated || !profile?.isAdmin ? "skip" : {}
   );
+  const userSuggestions = useQuery(
+    api.userSuggestions.getAllSuggestions,
+    !hasSuggestionsAPI || !isAuthenticated || !isAdmin ? "skip" : { limit: 50 }
+  );
 
   const submitReceipt = useAction(api.receipts.submitReceipt);
   const deleteAccount = useAction(api.userProfiles.deleteAccount);
@@ -239,6 +255,22 @@ function ProfileScreenInner() {
     { value: "product", label: "Izdelek" },
     { value: "other", label: "Drugo" },
   ];
+  const suggestionTypeLabels: Record<string, string> = {
+    feature: "Nova funkcija",
+    improvement: "Izboljsava",
+    bug: "Napaka",
+    store: "Trgovina",
+    product: "Izdelek",
+    other: "Drugo",
+  };
+  const suggestionStatusLabels: Record<string, string> = {
+    pending: "Caka",
+    reviewing: "V pregledu",
+    approved: "Odobreno",
+    implemented: "Vgrajeno",
+    rejected: "Zavrnjeno",
+    duplicate: "Duplikat",
+  };
   const searchesRemaining = resolvedProfile?.searchesRemaining ?? (isGuest ? 1 : 3);
   const maxSearches = isPremium ? 999 : (isGuest ? 1 : 3);
   const searchProgress = isPremium ? 1 : Math.max(0, Math.min(1, searchesRemaining / maxSearches));
@@ -278,6 +310,7 @@ function ProfileScreenInner() {
     acc[key].push(award);
     return acc;
   }, {});
+  const suggestionsList = Array.isArray(userSuggestions) ? userSuggestions : [];
   const awardYears = Object.keys(awardsByYear).sort((a, b) => Number(b) - Number(a));
   const getAwardBadge = (award: AwardEntry) => {
     const label = award.award.toLowerCase();
@@ -297,6 +330,21 @@ function ProfileScreenInner() {
       return { image: BADGE_TOP_100, title: award.award };
     }
     return { image: BADGE_TOP_100, title: award.award };
+  };
+  const getSuggestionStatusStyle = (status?: string) => {
+    switch (status) {
+      case "approved":
+      case "implemented":
+        return styles.userSuggestionStatusApproved;
+      case "rejected":
+        return styles.userSuggestionStatusRejected;
+      case "reviewing":
+        return styles.userSuggestionStatusReviewing;
+      case "duplicate":
+        return styles.userSuggestionStatusDuplicate;
+      default:
+        return styles.userSuggestionStatusPending;
+    }
   };
 
   useEffect(() => {
@@ -1230,7 +1278,11 @@ function ProfileScreenInner() {
 
               {/* User Suggestions */}
               {suggestionStats && hasSuggestionsAPI && "total" in suggestionStats && "pending" in suggestionStats && "approved" in suggestionStats && "rewardsGiven" in suggestionStats && (
-                <View style={styles.suggestionsCard}>
+                <TouchableOpacity
+                  style={styles.suggestionsCard}
+                  onPress={() => setShowUserSuggestionsModal(true)}
+                  activeOpacity={0.8}
+                >
                   <View style={styles.suggestionsHeader}>
                     <Ionicons name="chatbubbles" size={20} color="#ec4899" />
                     <Text style={styles.suggestionsTitle}>Predlogi uporabnikov</Text>
@@ -1258,7 +1310,11 @@ function ProfileScreenInner() {
                       <Text style={styles.suggestionStatLabel}>Nagrajeno</Text>
                     </View>
                   </View>
-                </View>
+                  <View style={styles.suggestionsFooter}>
+                    <Text style={styles.suggestionsFooterText}>Klikni za seznam predlogov</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#ec4899" />
+                  </View>
+                </TouchableOpacity>
               )}
             </LinearGradient>
           </Animated.View>
@@ -2141,6 +2197,78 @@ function ProfileScreenInner() {
                     <Text style={[styles.emptyAdminUsersText, { fontSize: 14, marginTop: 8 }]}>
                       AI bo analiziral iskanja v naslednjih 7 dneh
                     </Text>
+                  </View>
+                )}
+              </ScrollView>
+            </LinearGradient>
+          </View>
+        </View>
+      )}
+
+      {/* User Suggestions Modal */}
+      {showUserSuggestionsModal && (
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[styles.modalContent, { maxHeight: "85%" }]}>
+            <LinearGradient
+              colors={["rgba(236, 72, 153, 0.2)", "rgba(59, 7, 100, 0.35)"]}
+              style={[styles.modalGradient, { height: "100%" }]}
+            >
+              <View style={styles.adminModalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>Predlogi uporabnikov</Text>
+                  <Text style={styles.modalSubtitle}>
+                    {suggestionsList.length} {suggestionsList.length === 1 ? "predlog" : "predlogov"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.modalClose}
+                  onPress={() => setShowUserSuggestionsModal(false)}
+                >
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.adminUsersList} showsVerticalScrollIndicator={false}>
+                {suggestionsList.length > 0 ? (
+                  suggestionsList.map((suggestion: {
+                    _id: string;
+                    title: string;
+                    description: string;
+                    suggestionType: string;
+                    status: string;
+                    submittedAt: number;
+                    userNickname?: string;
+                  }) => (
+                    <View key={suggestion._id} style={styles.userSuggestionCard}>
+                      <View style={styles.userSuggestionHeader}>
+                        <Text style={styles.userSuggestionTitle}>{suggestion.title}</Text>
+                        <View style={[styles.userSuggestionStatus, getSuggestionStatusStyle(suggestion.status)]}>
+                          <Text style={styles.userSuggestionStatusText}>
+                            {suggestionStatusLabels[suggestion.status] ?? suggestion.status}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.userSuggestionMetaRow}>
+                        <Text style={styles.userSuggestionMeta}>
+                          {suggestion.userNickname || "Anonimen"}
+                        </Text>
+                        <Text style={styles.userSuggestionMeta}>•</Text>
+                        <Text style={styles.userSuggestionMeta}>
+                          {suggestionTypeLabels[suggestion.suggestionType] ?? suggestion.suggestionType}
+                        </Text>
+                        <Text style={styles.userSuggestionMeta}>•</Text>
+                        <Text style={styles.userSuggestionMeta}>
+                          {formatDateShort(suggestion.submittedAt) ?? "--"}
+                        </Text>
+                      </View>
+                      <Text style={styles.userSuggestionDescription}>{suggestion.description}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.emptyAdminUsers}>
+                    <Ionicons name="chatbubbles-outline" size={48} color="#6b7280" />
+                    <Text style={styles.emptyAdminUsersText}>Ni predlogov</Text>
                   </View>
                 )}
               </ScrollView>
@@ -3771,6 +3899,88 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#9ca3af",
     textAlign: "center",
+  },
+  suggestionsFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(236, 72, 153, 0.15)",
+  },
+  suggestionsFooterText: {
+    fontSize: 12,
+    color: "#fbcfe8",
+    fontWeight: "600",
+  },
+  userSuggestionCard: {
+    backgroundColor: "rgba(15, 10, 30, 0.5)",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(236, 72, 153, 0.2)",
+  },
+  userSuggestionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 6,
+  },
+  userSuggestionTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#f8fafc",
+  },
+  userSuggestionStatus: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+  },
+  userSuggestionStatusText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#f8fafc",
+  },
+  userSuggestionStatusPending: {
+    backgroundColor: "rgba(251, 191, 36, 0.18)",
+    borderColor: "rgba(251, 191, 36, 0.5)",
+  },
+  userSuggestionStatusReviewing: {
+    backgroundColor: "rgba(59, 130, 246, 0.18)",
+    borderColor: "rgba(59, 130, 246, 0.5)",
+  },
+  userSuggestionStatusApproved: {
+    backgroundColor: "rgba(16, 185, 129, 0.18)",
+    borderColor: "rgba(16, 185, 129, 0.5)",
+  },
+  userSuggestionStatusRejected: {
+    backgroundColor: "rgba(248, 113, 113, 0.2)",
+    borderColor: "rgba(248, 113, 113, 0.5)",
+  },
+  userSuggestionStatusDuplicate: {
+    backgroundColor: "rgba(148, 163, 184, 0.18)",
+    borderColor: "rgba(148, 163, 184, 0.4)",
+  },
+  userSuggestionMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 8,
+  },
+  userSuggestionMeta: {
+    fontSize: 11,
+    color: "#cbd5e1",
+  },
+  userSuggestionDescription: {
+    fontSize: 13,
+    color: "#e2e8f0",
+    lineHeight: 18,
   },
   // Feedback Button Styles
   feedbackButton: {
