@@ -39,6 +39,10 @@ interface PriceInfo {
   isOnSale: boolean;
 }
 
+interface DisplayPriceInfo extends PriceInfo {
+  missing?: boolean;
+}
+
 interface ProductResult {
   _id?: Id<"products">;
   name: string;
@@ -117,6 +121,11 @@ const normalizeResultKey = (value: string) =>
     .replace(/^-+|-+$/g, "");
 
 const ALLOWED_STORE_KEYS = new Set(["spar", "mercator", "tus"]);
+const STORE_DISPLAY_ORDER = [
+  { key: "spar", label: "Spar" },
+  { key: "mercator", label: "Mercator" },
+  { key: "tus", label: "Tuš" },
+];
 
 const isAllowedStoreName = (name?: string) => {
   if (!name) return false;
@@ -129,6 +138,38 @@ const getStoreBrand = (name?: string, fallbackColor?: string) => {
   if (brand) return brand;
   const color = fallbackColor || "#8b5cf6";
   return { bg: color, border: color, text: "#fff" };
+};
+
+const buildDisplayPrices = (prices: PriceInfo[]): DisplayPriceInfo[] => {
+  const byStore = new Map<string, PriceInfo>();
+  for (const price of prices) {
+    const key = normalizeStoreKey(price.storeName);
+    if (!ALLOWED_STORE_KEYS.has(key)) continue;
+    if (!byStore.has(key)) {
+      byStore.set(key, price);
+    }
+  }
+
+  return STORE_DISPLAY_ORDER.map(({ key, label }) => {
+    const existing = byStore.get(key);
+    if (existing) {
+      const isAvailable = Number.isFinite(existing.price) && existing.price > 0;
+      return {
+        ...existing,
+        storeName: existing.storeName || label,
+        storeColor: existing.storeColor || getStoreBrand(label).bg,
+        missing: !isAvailable,
+      };
+    }
+    const brand = getStoreBrand(label);
+    return {
+      storeName: label,
+      storeColor: brand.bg,
+      price: 0,
+      isOnSale: false,
+      missing: true,
+    };
+  });
 };
 
 const FUN_FACTS = [
@@ -1082,8 +1123,10 @@ export default function SearchScreen() {
     const resultKey = product._id ? String(product._id) : `sheet-${normalizeResultKey(product.name)}`;
     const isExpanded = expandedProduct === resultKey;
     const validPriceStores = product.prices.filter((p) => Number.isFinite(p.price) && p.price > 0);
-    const storeCount = Math.min(validPriceStores.length, ALLOWED_STORE_KEYS.size);
+    const displayPrices = buildDisplayPrices(product.prices);
+    const storeCount = displayPrices.length;
     const lowestPriceStore = validPriceStores[0];
+    const lowestStoreKey = lowestPriceStore ? normalizeStoreKey(lowestPriceStore.storeName) : null;
     const displayLowestPrice = lowestPriceStore?.price ?? product.lowestPrice;
     const lowestBrand = lowestPriceStore
       ? getStoreBrand(lowestPriceStore.storeName, lowestPriceStore.storeColor)
@@ -1153,10 +1196,16 @@ export default function SearchScreen() {
               </View>
 
               <View style={styles.productInfo}>
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productUnit}>{product.unit}</Text>
+                <Text style={styles.productName} numberOfLines={2} ellipsizeMode="tail">
+                  {product.name}
+                </Text>
+                <Text style={styles.productUnit} numberOfLines={1} ellipsizeMode="tail">
+                  {product.unit}
+                </Text>
                 <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText}>{product.category}</Text>
+                  <Text style={styles.categoryText} numberOfLines={1} ellipsizeMode="tail">
+                    {product.category}
+                  </Text>
                 </View>
               </View>
 
@@ -1199,7 +1248,9 @@ export default function SearchScreen() {
                           {lowestPriceStore.storeName.charAt(0).toUpperCase()}
                         </Text>
                       </View>
-                      <Text style={styles.storeChipName}>{lowestPriceStore.storeName}</Text>
+                      <Text style={styles.storeChipName} numberOfLines={1} ellipsizeMode="tail">
+                        {lowestPriceStore.storeName}
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -1286,14 +1337,16 @@ export default function SearchScreen() {
           {isExpanded && (
             <View style={styles.storeList}>
               <View style={styles.storeListDivider} />
-              {product.prices.map((price, priceIndex) => {
-                const isLowest = priceIndex === 0;
+              {displayPrices.map((price, priceIndex) => {
+                const isMissing = !!price.missing;
+                const storeKey = normalizeStoreKey(price.storeName);
+                const isLowest = !!lowestStoreKey && storeKey === lowestStoreKey && !isMissing;
                 const cartKey = product._id && price.storeId
                   ? `${product._id}-${price.storeId}`
                   : `sheet-${normalizeResultKey(product.name)}-${normalizeResultKey(price.storeName)}`;
                 const isAdded = addedToCart === cartKey;
                 const isAddingThis = addingToCart === cartKey;
-                const canAdd = !!product._id && !!price.storeId;
+                const canAdd = !!product._id && !!price.storeId && !isMissing;
                 const rowKey = price.storeId
                   ? String(price.storeId)
                   : `${resultKey}-${normalizeResultKey(price.storeName)}-${priceIndex}`;
@@ -1305,7 +1358,8 @@ export default function SearchScreen() {
                     style={[
                       styles.storeRow,
                       isLowest && styles.storeRowLowest,
-                      priceIndex === product.prices.length - 1 && styles.storeRowLast,
+                      priceIndex === displayPrices.length - 1 && styles.storeRowLast,
+                      isMissing && styles.storeRowMissing,
                     ]}
                   >
                     <View style={styles.storeInfo}>
@@ -1341,7 +1395,9 @@ export default function SearchScreen() {
                         </Text>
                       </View>
                       <View>
-                        <Text style={styles.storeRowName}>{price.storeName.toUpperCase()}</Text>
+                        <Text style={styles.storeRowName} numberOfLines={1} ellipsizeMode="tail">
+                          {price.storeName.toUpperCase()}
+                        </Text>
                         {isLowest && (
                           <View style={styles.lowestBadge}>
                             <Text style={styles.lowestBadgeText}>NAJCENEJŠE</Text>
@@ -1352,20 +1408,30 @@ export default function SearchScreen() {
 
                     <View style={styles.storePriceSection}>
                       <View style={styles.priceContainer}>
-                        {price.isOnSale && price.originalPrice && (
+                        {!isMissing && price.isOnSale && price.originalPrice && (
                           <Text style={styles.originalPrice}>{formatPrice(price.originalPrice)}</Text>
                         )}
-                        <Text style={[styles.storePrice, isLowest && styles.storePriceLowest]}>
-                          {formatPrice(price.price)}
+                        <Text
+                          style={[
+                            styles.storePrice,
+                            isLowest && styles.storePriceLowest,
+                            isMissing && styles.storePriceMissing,
+                          ]}
+                        >
+                          {isMissing ? "Ni na voljo" : formatPrice(price.price)}
                         </Text>
-                        {price.isOnSale && (
+                        {!isMissing && price.isOnSale && (
                           <View style={styles.saleBadge}>
                             <Text style={styles.saleText}>AKCIJA</Text>
                           </View>
                         )}
                       </View>
 
-                      {canAdd ? (
+                      {isMissing ? (
+                        <View style={styles.addButtonDisabled}>
+                          <Ionicons name="remove-circle-outline" size={20} color="#94a3b8" />
+                        </View>
+                      ) : canAdd ? (
                         <TouchableOpacity
                           style={[
                             styles.addButton,
@@ -2787,6 +2853,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(139, 92, 246, 0.08)",
   },
+  storeRowMissing: {
+    opacity: 0.65,
+  },
   storeRowLowest: {
     backgroundColor: "rgba(16, 185, 129, 0.15)",
     marginHorizontal: -12,
@@ -2902,6 +2971,10 @@ const styles = StyleSheet.create({
   storePriceLowest: {
     color: "#10b981",
   },
+  storePriceMissing: {
+    color: "#94a3b8",
+    fontWeight: "600",
+  },
   saleBadge: {
     marginTop: 2,
     paddingHorizontal: 6,
@@ -2925,6 +2998,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(139, 92, 246, 0.3)",
     borderStyle: "dashed",
+  },
+  addButtonDisabled: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(148, 163, 184, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.3)",
   },
   addButtonSuccess: {
     backgroundColor: "rgba(16, 185, 129, 0.15)",

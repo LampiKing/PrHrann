@@ -1,6 +1,7 @@
 ﻿import { useState, useRef, useEffect } from "react";
 import React from "react";
 import {
+  Alert,
   View,
   Text,
   TouchableOpacity,
@@ -98,14 +99,16 @@ function ProfileScreenInner() {
   const [showAdminUsersModal, setShowAdminUsersModal] = useState(false);
   const [adminUserType, setAdminUserType] = useState<"registered" | "active" | "guests" | null>(null);
   const [showAISuggestionsModal, setShowAISuggestionsModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<"feature" | "improvement" | "bug" | "store" | "product" | "other">("feature");
+  const [feedbackTitle, setFeedbackTitle] = useState("");
+  const [feedbackDescription, setFeedbackDescription] = useState("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
+  const [feedbackSuccess, setFeedbackSuccess] = useState("");
   // TODO: Uncomment when modals are implemented
   // const [showScraperStatsModal, setShowScraperStatsModal] = useState(false);
   // const [showUserSuggestionsModal, setShowUserSuggestionsModal] = useState(false);
-  // const [showFeedbackFormModal, setShowFeedbackFormModal] = useState(false);
-  // const [feedbackType, setFeedbackType] = useState<"feature" | "improvement" | "bug" | "store" | "product" | "other">("feature");
-  // const [feedbackTitle, setFeedbackTitle] = useState("");
-  // const [feedbackDescription, setFeedbackDescription] = useState("");
-  // const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -216,9 +219,18 @@ function ProfileScreenInner() {
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
+  const submitSuggestion = useMutation(api.userSuggestions.submitSuggestion);
 
   const isPremium = resolvedProfile?.isPremium ?? false;
   const premiumType = resolvedProfile?.premiumType ?? "solo";
+  const feedbackTypeOptions: Array<{ value: "feature" | "improvement" | "bug" | "store" | "product" | "other"; label: string }> = [
+    { value: "feature", label: "Nova funkcija" },
+    { value: "improvement", label: "Izboljsava" },
+    { value: "bug", label: "Napaka" },
+    { value: "store", label: "Trgovina" },
+    { value: "product", label: "Izdelek" },
+    { value: "other", label: "Drugo" },
+  ];
   const searchesRemaining = resolvedProfile?.searchesRemaining ?? (isGuest ? 1 : 3);
   const maxSearches = isPremium ? 999 : (isGuest ? 1 : 3);
   const searchProgress = isPremium ? 1 : Math.max(0, Math.min(1, searchesRemaining / maxSearches));
@@ -444,21 +456,22 @@ function ProfileScreenInner() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Dovoljenje potrebno", "Omogoči dostop do galerije, da lahko dodaš fotografijo.");
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      setUploadingProfilePic(true);
-      try {
+      if (!result.canceled && result.assets[0]) {
+        setUploadingProfilePic(true);
         let base64Image = "";
         if (Platform.OS === "web") {
           const response = await fetch(result.assets[0].uri);
@@ -480,11 +493,69 @@ function ProfileScreenInner() {
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-      } catch (error) {
-        console.error("Profile picture upload failed:", error);
-      } finally {
-        setUploadingProfilePic(false);
       }
+    } catch (error) {
+      console.error("Profile picture upload failed:", error);
+      Alert.alert("Napaka", "Nalaganje fotografije ni uspelo. Poskusi znova.");
+    } finally {
+      setUploadingProfilePic(false);
+    }
+  };
+
+  const openFeedbackModal = () => {
+    if (!hasSuggestionsAPI) {
+      Alert.alert("Predlogi", "Oddaja predlogov trenutno ni na voljo.");
+      return;
+    }
+    setFeedbackError("");
+    setFeedbackSuccess("");
+    setShowFeedbackModal(true);
+  };
+
+  const closeFeedbackModal = () => {
+    setShowFeedbackModal(false);
+    setFeedbackError("");
+    setFeedbackSuccess("");
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (submittingFeedback) return;
+    const title = feedbackTitle.trim();
+    const description = feedbackDescription.trim();
+
+    if (title.length < 5) {
+      setFeedbackError("Naslov mora imeti vsaj 5 znakov.");
+      return;
+    }
+    if (description.length < 20) {
+      setFeedbackError("Opis mora imeti vsaj 20 znakov.");
+      return;
+    }
+
+    setSubmittingFeedback(true);
+    setFeedbackError("");
+    setFeedbackSuccess("");
+    try {
+      const result = await submitSuggestion({
+        suggestionType: feedbackType,
+        title,
+        description,
+      });
+
+      if (!result.success) {
+        setFeedbackError(result.error ?? "Oddaja predloga ni uspela.");
+        return;
+      }
+
+      setFeedbackTitle("");
+      setFeedbackDescription("");
+      setFeedbackSuccess("Hvala! Predlog je poslan.");
+      setTimeout(() => setShowFeedbackModal(false), 1200);
+    } catch (error) {
+      console.error("Submit suggestion failed:", error);
+      setFeedbackError("Oddaja predloga ni uspela.");
+    } finally {
+      setSubmittingFeedback(false);
     }
   };
 
@@ -940,7 +1011,7 @@ function ProfileScreenInner() {
         {/* User Feedback Button - TODO: Add modal when implemented */}
         {!isGuest && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <View style={styles.feedbackButton}>
+            <TouchableOpacity style={styles.feedbackButton} onPress={openFeedbackModal} activeOpacity={0.85}>
               <LinearGradient
                 colors={["rgba(236, 72, 153, 0.2)", "rgba(147, 51, 234, 0.2)"]}
                 start={{ x: 0, y: 0 }}
@@ -958,7 +1029,7 @@ function ProfileScreenInner() {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#ec4899" />
               </LinearGradient>
-            </View>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -1435,6 +1506,96 @@ function ProfileScreenInner() {
             <Ionicons name="checkmark-circle" size={20} color="#10b981" />
             <Text style={styles.toastText}>Uspesno odjavljeno</Text>
           </LinearGradient>
+        </View>
+      )}
+
+      {showFeedbackModal && (
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.feedbackModal}>
+            <LinearGradient
+              colors={["rgba(236, 72, 153, 0.25)", "rgba(15, 23, 42, 0.9)"]}
+              style={styles.feedbackModalGradient}
+            >
+              <TouchableOpacity style={styles.modalClose} onPress={closeFeedbackModal}>
+                <Ionicons name="close" size={22} color="#9ca3af" />
+              </TouchableOpacity>
+
+              <Text style={styles.feedbackModalTitle}>Predlagaj izboljsavo</Text>
+              <Text style={styles.feedbackModalSubtitle}>
+                Pomagaj nam izboljsati aplikacijo. Za koristne predloge dobis 1 dan premium.
+              </Text>
+
+              <View style={styles.feedbackTypeRow}>
+                {feedbackTypeOptions.map((option) => {
+                  const isActive = feedbackType === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[styles.feedbackTypeChip, isActive && styles.feedbackTypeChipActive]}
+                      onPress={() => setFeedbackType(option.value)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.feedbackTypeText, isActive && styles.feedbackTypeTextActive]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={styles.feedbackInputContainer}>
+                <TextInput
+                  placeholder="Kratek naslov"
+                  placeholderTextColor="#94a3b8"
+                  style={styles.feedbackInput}
+                  value={feedbackTitle}
+                  onChangeText={setFeedbackTitle}
+                  maxLength={120}
+                />
+              </View>
+
+              <View style={styles.feedbackInputContainer}>
+                <TextInput
+                  placeholder="Opisi predlog ali napako"
+                  placeholderTextColor="#94a3b8"
+                  style={[styles.feedbackInput, styles.feedbackInputMultiline]}
+                  value={feedbackDescription}
+                  onChangeText={setFeedbackDescription}
+                  multiline
+                  maxLength={800}
+                />
+              </View>
+
+              {feedbackError ? <Text style={styles.feedbackError}>{feedbackError}</Text> : null}
+              {feedbackSuccess ? <Text style={styles.feedbackSuccess}>{feedbackSuccess}</Text> : null}
+
+              <View style={styles.feedbackActions}>
+                <TouchableOpacity style={styles.feedbackCancel} onPress={closeFeedbackModal}>
+                  <Text style={styles.feedbackCancelText}>Preklici</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.feedbackSubmit, submittingFeedback && styles.feedbackSubmitDisabled]}
+                  onPress={handleSubmitFeedback}
+                  disabled={submittingFeedback}
+                >
+                  <LinearGradient
+                    colors={["#ec4899", "#9333ea"]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.feedbackSubmitGradient}
+                  >
+                    {submittingFeedback ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.feedbackSubmitText}>Poslji</Text>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
         </View>
       )}
 
@@ -3629,6 +3790,123 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9ca3af",
     lineHeight: 18,
+  },
+  feedbackModal: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  feedbackModalGradient: {
+    padding: 20,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(236, 72, 153, 0.3)",
+  },
+  feedbackModalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 6,
+  },
+  feedbackModalSubtitle: {
+    fontSize: 12,
+    color: "#cbd5e1",
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  feedbackTypeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  feedbackTypeChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(148, 163, 184, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.3)",
+  },
+  feedbackTypeChipActive: {
+    backgroundColor: "rgba(236, 72, 153, 0.2)",
+    borderColor: "rgba(236, 72, 153, 0.4)",
+  },
+  feedbackTypeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#cbd5e1",
+  },
+  feedbackTypeTextActive: {
+    color: "#fce7f3",
+  },
+  feedbackInputContainer: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.25)",
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    marginBottom: 10,
+  },
+  feedbackInput: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    color: "#fff",
+    fontSize: 14,
+  },
+  feedbackInputMultiline: {
+    minHeight: 90,
+    textAlignVertical: "top",
+  },
+  feedbackError: {
+    fontSize: 12,
+    color: "#fca5a5",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  feedbackSuccess: {
+    fontSize: 12,
+    color: "#6ee7b7",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  feedbackActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4,
+  },
+  feedbackCancel: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(148, 163, 184, 0.2)",
+  },
+  feedbackCancelText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#e2e8f0",
+  },
+  feedbackSubmit: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  feedbackSubmitDisabled: {
+    opacity: 0.7,
+  },
+  feedbackSubmitGradient: {
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  feedbackSubmitText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.4,
   },
 });
 

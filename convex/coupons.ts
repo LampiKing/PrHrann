@@ -33,6 +33,9 @@ function getCouponType(coupon: {
   return "percentage_total"; // Default
 }
 
+const isBlockedCouponCode = (code?: string) =>
+  typeof code === "string" && code.trim().toUpperCase() === "PREMIUM15";
+
 // Helper function for calculating stacked coupons (can be called from other modules)
 export async function calculateStackedCouponsHelper(
   ctx: any,
@@ -78,6 +81,7 @@ export async function calculateStackedCouponsHelper(
 
   // Filter valid combinable coupons
   const validCoupons = coupons.filter((c: any) => {
+    if (isBlockedCouponCode(c.code)) return false;
     if (c.validUntil < now) return false;
     if (c.validFrom && c.validFrom > now) return false;
     if (c.validDays && c.validDays.length > 0 && !c.validDays.includes(currentDay)) return false;
@@ -255,6 +259,7 @@ export const getByStore = query({
 
     return coupons
       .filter((c) => {
+        if (isBlockedCouponCode(c.code)) return false;
         // Preveri veljavnost
         if (c.validUntil < now) return false;
         if (c.validFrom && c.validFrom > now) return false;
@@ -347,6 +352,7 @@ export const calculateBestCoupon = query({
 
     // Filtriraj veljavne kupone
     const validCoupons = coupons.filter((c) => {
+      if (isBlockedCouponCode(c.code)) return false;
       if (c.validUntil < now) return false;
       if (c.validFrom && c.validFrom > now) return false;
       if (c.validDays && c.validDays.length > 0 && !c.validDays.includes(currentDay)) return false;
