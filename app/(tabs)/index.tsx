@@ -996,7 +996,7 @@ export default function SearchScreen() {
   );
 
   const formatPrice = (price: number) => {
-    if (!Number.isFinite(price) || price <= 0) return "Ni cene";
+    if (!Number.isFinite(price) || price <= 0) return "--";
     return price.toFixed(2).replace(".", ",") + " EUR";
   };
 
@@ -1184,28 +1184,30 @@ export default function SearchScreen() {
           >
             {/* Product Image & Info */}
             <View style={styles.productHeader}>
-              <View style={styles.productImageContainer}>
-                <LinearGradient
-                  colors={["rgba(168, 85, 247, 0.3)", "rgba(139, 92, 246, 0.1)"]}
-                  style={styles.productImageBg}
-                >
-                  <Text style={styles.productEmoji}>
-                    {getCategoryEmoji(product.category)}
-                  </Text>
-                </LinearGradient>
-              </View>
+              <View style={styles.productInfoRow}>
+                <View style={styles.productImageContainer}>
+                  <LinearGradient
+                    colors={["rgba(168, 85, 247, 0.3)", "rgba(139, 92, 246, 0.1)"]}
+                    style={styles.productImageBg}
+                  >
+                    <Text style={styles.productEmoji}>
+                      {getCategoryEmoji(product.category)}
+                    </Text>
+                  </LinearGradient>
+                </View>
 
-              <View style={styles.productInfo}>
-                <Text style={styles.productName} numberOfLines={2} ellipsizeMode="tail">
-                  {product.name}
-                </Text>
-                <Text style={styles.productUnit} numberOfLines={1} ellipsizeMode="tail">
-                  {product.unit}
-                </Text>
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryText} numberOfLines={1} ellipsizeMode="tail">
-                    {product.category}
+                <View style={styles.productInfo}>
+                  <Text style={styles.productName} numberOfLines={3} ellipsizeMode="tail" minimumFontScale={0.9}>
+                    {product.name}
                   </Text>
+                  <Text style={styles.productUnit} numberOfLines={1} ellipsizeMode="tail">
+                    {product.unit}
+                  </Text>
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryText} numberOfLines={1} ellipsizeMode="tail">
+                      {product.category}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -1313,7 +1315,7 @@ export default function SearchScreen() {
                       ? isQuickAdded
                         ? "Dodano!"
                         : "Dodaj najcenejše"
-                      : "Ni cene"}
+                      : "--"}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
@@ -1418,7 +1420,7 @@ export default function SearchScreen() {
                             isMissing && styles.storePriceMissing,
                           ]}
                         >
-                          {isMissing ? "Ni na voljo" : formatPrice(price.price)}
+                          {isMissing ? "--" : formatPrice(price.price)}
                         </Text>
                         {!isMissing && price.isOnSale && (
                           <View style={styles.saleBadge}>
@@ -2673,8 +2675,15 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   productHeader: {
+    flexDirection: "column",
+    alignItems: "stretch",
+  },
+  productInfoRow: {
     flexDirection: "row",
     alignItems: "flex-start",
+    flex: 1,
+    minWidth: 0,
+    marginBottom: 12,
   },
   productImageContainer: {
     marginRight: 14,
@@ -2691,12 +2700,15 @@ const styles = StyleSheet.create({
   },
   productInfo: {
     flex: 1,
+    minWidth: 0,
   },
   productName: {
     fontSize: 17,
     fontWeight: "700",
     color: "#fff",
     marginBottom: 2,
+    lineHeight: 20,
+    flexShrink: 1,
   },
   productUnit: {
     fontSize: 13,
@@ -2716,6 +2728,7 @@ const styles = StyleSheet.create({
   },
   priceSection: {
     alignItems: "flex-end",
+    alignSelf: "flex-end",
   },
   lowestPriceContainer: {
     alignItems: "flex-end",

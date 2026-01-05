@@ -96,6 +96,7 @@ function ProfileScreenInner() {
   const [familyError, setFamilyError] = useState("");
   const [familySuccess, setFamilySuccess] = useState("");
   const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
+  const [profilePictureOverride, setProfilePictureOverride] = useState<string | null>(null);
   const [showAdminUsersModal, setShowAdminUsersModal] = useState(false);
   const [adminUserType, setAdminUserType] = useState<"registered" | "active" | "guests" | null>(null);
   const [showAISuggestionsModal, setShowAISuggestionsModal] = useState(false);
@@ -175,6 +176,13 @@ function ProfileScreenInner() {
   }, [profile]);
   const resolvedProfile = profile ?? profileRef.current ?? null;
   const hasResolvedProfile = resolvedProfile !== null;
+  const profilePictureUrl = profilePictureOverride ?? resolvedProfile?.profilePictureUrl;
+
+  useEffect(() => {
+    if (resolvedProfile?.profilePictureUrl) {
+      setProfilePictureOverride(null);
+    }
+  }, [resolvedProfile?.profilePictureUrl]);
 
   // Check if user is guest (anonymous) - MUST be before queries that use it
   const isGuest = resolvedProfile?.isAnonymous ?? false;
@@ -488,7 +496,12 @@ function ProfileScreenInner() {
           base64Image = `data:image/jpeg;base64,${base64}`;
         }
 
-        await updateProfilePicture({ profilePictureUrl: base64Image });
+        const updateResult = await updateProfilePicture({ profilePictureUrl: base64Image });
+        if (!updateResult.success) {
+          Alert.alert("Napaka", updateResult.error ?? "Nalaganje fotografije ni uspelo.");
+          return;
+        }
+        setProfilePictureOverride(base64Image);
 
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -748,9 +761,9 @@ function ProfileScreenInner() {
             disabled={uploadingProfilePic}
             activeOpacity={0.7}
           >
-            {resolvedProfile?.profilePictureUrl ? (
+            {profilePictureUrl ? (
               <Image
-                source={{ uri: resolvedProfile.profilePictureUrl }}
+                source={{ uri: profilePictureUrl }}
                 style={styles.profilePicture}
                 resizeMode="cover"
               />

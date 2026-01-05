@@ -252,7 +252,7 @@ def spar_fetch_products_for_category(category_ref: str, fallback_name: str) -> L
         category_name = category.get("name") or fallback_name
         items = category.get("products") or []
         for item in items:
-            name = str(item.get("name") or "").strip()
+            name = normalize_product_name(str(item.get("name") or ""))
             price = parse_price(item.get("price"))
             if not name or price <= 0:
                 continue
@@ -358,37 +358,53 @@ def tus_fetch_categories(headers: Dict[str, str]) -> List[Dict]:
 
 
 def tus_fetch_products_for_category(category_name: str, headers: Dict[str, str], store_date: str) -> List[Dict]:
-    variables = {
-        "categoriesLimit": TUS_CATEGORIES_LIMIT,
-        "categoryName": category_name,
-        "cypherQuery": TUS_CYPHER_SUBCATEGORIES,
-        "date": store_date,
-        "limit": TUS_ITEMS_LIMIT,
-        "skip": 0,
-        "storeId": TUS_STORE_ID,
-    }
-    data = tus_graphql("getSubcategoriesWithItems", TUS_SUBCATEGORIES_ITEMS_QUERY, variables, headers)
-    subcategories = data.get("getSubcategoriesWithItems") or []
-    products = []
-    for subcategory in subcategories:
-        subcategory_name = subcategory.get("name") or category_name
-        for item in subcategory.get("items") or []:
-            name = item.get("displayName") or item.get("name")
-            name = str(name or "").strip()
-            price = parse_price(item.get("price"))
-            sale_price = item.get("discountedPrice")
-            sale_price = parse_price(sale_price) if sale_price is not None else None
-            if not name or price <= 0:
-                continue
-            if sale_price is not None and sale_price >= price:
-                sale_price = None
-            products.append({
-                "name": name,
-                "price": price,
-                "sale_price": sale_price,
-                "store": "Tus",
-                "category": subcategory_name,
-            })
+    products: List[Dict] = []
+    seen_item_ids: set[str] = set()
+    skip = 0
+
+    while True:
+        variables = {
+            "categoriesLimit": TUS_CATEGORIES_LIMIT,
+            "categoryName": category_name,
+            "cypherQuery": TUS_CYPHER_SUBCATEGORIES,
+            "date": store_date,
+            "limit": TUS_ITEMS_LIMIT,
+            "skip": skip,
+            "storeId": TUS_STORE_ID,
+        }
+        data = tus_graphql("getSubcategoriesWithItems", TUS_SUBCATEGORIES_ITEMS_QUERY, variables, headers)
+        subcategories = data.get("getSubcategoriesWithItems") or []
+        batch_added = 0
+
+        for subcategory in subcategories:
+            subcategory_name = subcategory.get("name") or category_name
+            for item in subcategory.get("items") or []:
+                item_id = str(item.get("itemId") or "").strip()
+                if item_id and item_id in seen_item_ids:
+                    continue
+                name = normalize_product_name(item.get("displayName") or item.get("name") or "")
+                price = parse_price(item.get("price"))
+                sale_price = item.get("discountedPrice")
+                sale_price = parse_price(sale_price) if sale_price is not None else None
+                if not name or price <= 0:
+                    continue
+                if sale_price is not None and sale_price >= price:
+                    sale_price = None
+                if item_id:
+                    seen_item_ids.add(item_id)
+                products.append({
+                    "name": name,
+                    "price": price,
+                    "sale_price": sale_price,
+                    "store": "Tus",
+                    "category": subcategory_name,
+                })
+                batch_added += 1
+
+        if batch_added == 0:
+            break
+        skip += TUS_ITEMS_LIMIT
+
     return products
 
 
@@ -438,6 +454,11 @@ def normalize_store(value: str) -> str:
     if "tus" in normalized or "hitri" in normalized or normalized.startswith("tu"):
         return "Tus"
     return value.strip()
+
+def normalize_product_name(value: str) -> str:
+    if not value:
+        return ""
+    return re.sub(r"\s+", " ", value.replace("\u00a0", " ")).strip()
 
 
 def format_category(value: str, product_name: str = "") -> str:
@@ -572,7 +593,9 @@ async def scrape_mercator_category(page, category: str) -> List[Dict]:
                 name_elem = await element.query_selector(".lib-product-name, .product-name")
                 if not name_elem:
                     continue
-                name = (await name_elem.inner_text()).strip()
+                name = normalize_product_name(await name_elem.inner_text())
+                if not name:
+                    continue
                 key = name.lower()
                 if key in seen_keys:
                     continue
@@ -687,7 +710,7 @@ def update_google_sheet(new_products: List[Dict]):
         # Ustvari lookup dict (ime+trgovina -> row index)
         lookup = {}
         for idx, row in enumerate(existing_data, start=2):  # start=2 ker je row 1 header
-            row_name = str(row.get("Ime izdelka", "")).strip()
+            row_name = normalize_product_name(str(row.get("Ime izdelka", "")))
             row_store = normalize_store(str(row.get("Trgovina", "")))
             key = f"{row_name}_{row_store}"
             lookup[key] = {
@@ -759,10 +782,35 @@ def update_google_sheet(new_products: List[Dict]):
         print(f"❌ Napaka: {e}")
 
 
+def dedupe_items(items: List[Dict]) -> List[Dict]:
+    deduped: Dict[str, Dict] = {}
+    for item in items:
+        name = normalize_product_name(str(item.get("name") or ""))
+        store = normalize_store(str(item.get("store") or ""))
+        if not name or not store:
+            continue
+        key = f"{name.lower()}::{store.lower()}"
+        existing = deduped.get(key)
+        if not existing:
+            item["name"] = name
+            item["store"] = store
+            deduped[key] = item
+            continue
+
+        if not existing.get("sale_price") and item.get("sale_price"):
+            existing["sale_price"] = item.get("sale_price")
+        if (existing.get("category") in ("", "Unknown", "Neznana kategorija")) and item.get("category"):
+            existing["category"] = item.get("category")
+        if item.get("price") and item.get("price") > 0 and existing.get("price") != item.get("price"):
+            existing["price"] = item.get("price")
+
+    return list(deduped.values())
+
+
 def build_convex_items(products: List[Dict]) -> List[Dict]:
     items = []
     for product in products:
-        name = str(product.get("name", "")).strip()
+        name = normalize_product_name(str(product.get("name", "")))
         if not name:
             continue
         store_name = normalize_store(product.get("store", ""))
@@ -837,6 +885,10 @@ async def main(upload: bool, stores: set[str]):
 
     # Scrape
     products = await scrape_all_products(stores)
+    deduped_products = dedupe_items(products)
+    if len(deduped_products) != len(products):
+        print(f"Deduped products: {len(products)} -> {len(deduped_products)}")
+    products = deduped_products
     
     if products:
         # Posodobi Sheet

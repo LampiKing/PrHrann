@@ -195,6 +195,11 @@ def normalize_store(value: str) -> str:
         return "Tus"
     return value.strip()
 
+def normalize_product_name(value: str) -> str:
+    if not value:
+        return ""
+    return re.sub(r"\s+", " ", value.replace("\u00a0", " ")).strip()
+
 
 def format_category(value: str, product_name: str = "") -> str:
     """
@@ -273,7 +278,7 @@ def normalize_sale_price(price: float, sale_price: Optional[float]) -> Optional[
 class Product:
     def __init__(self, name: str, price: float, sale_price: Optional[float], 
                  store: str, category: str, date: str):
-        self.name = name.strip()
+        self.name = normalize_product_name(name)
         self.price = price
         self.sale_price = sale_price
         self.store = store
@@ -372,7 +377,7 @@ def spar_fetch_products_for_category(category_ref: str, fallback_name: str, date
         category_name = category.get("name") or fallback_name
         items = category.get("products") or []
         for item in items:
-            name = str(item.get("name") or "").strip()
+            name = normalize_product_name(str(item.get("name") or ""))
             price = parse_price(item.get("price"))
             if not name or price <= 0:
                 continue
@@ -478,31 +483,47 @@ def tus_fetch_products_for_category(
     store_date: str,
     date_str: str,
 ) -> List[Product]:
-    variables = {
-        "categoriesLimit": TUS_CATEGORIES_LIMIT,
-        "categoryName": category_name,
-        "cypherQuery": TUS_CYPHER_SUBCATEGORIES,
-        "date": store_date,
-        "limit": TUS_ITEMS_LIMIT,
-        "skip": 0,
-        "storeId": TUS_STORE_ID,
-    }
-    data = tus_graphql("getSubcategoriesWithItems", TUS_SUBCATEGORIES_ITEMS_QUERY, variables, headers)
-    subcategories = data.get("getSubcategoriesWithItems") or []
-    products = []
-    for subcategory in subcategories:
-        subcategory_name = subcategory.get("name") or category_name
-        for item in subcategory.get("items") or []:
-            name = item.get("displayName") or item.get("name")
-            name = str(name or "").strip()
-            price = parse_price(item.get("price"))
-            sale_price = item.get("discountedPrice")
-            sale_price = parse_price(sale_price) if sale_price is not None else None
-            if not name or price <= 0:
-                continue
-            if sale_price is not None and sale_price >= price:
-                sale_price = None
-            products.append(Product(name, price, sale_price, "Tus", subcategory_name, date_str))
+    products: List[Product] = []
+    seen_item_ids: set[str] = set()
+    skip = 0
+
+    while True:
+        variables = {
+            "categoriesLimit": TUS_CATEGORIES_LIMIT,
+            "categoryName": category_name,
+            "cypherQuery": TUS_CYPHER_SUBCATEGORIES,
+            "date": store_date,
+            "limit": TUS_ITEMS_LIMIT,
+            "skip": skip,
+            "storeId": TUS_STORE_ID,
+        }
+        data = tus_graphql("getSubcategoriesWithItems", TUS_SUBCATEGORIES_ITEMS_QUERY, variables, headers)
+        subcategories = data.get("getSubcategoriesWithItems") or []
+        batch_added = 0
+
+        for subcategory in subcategories:
+            subcategory_name = subcategory.get("name") or category_name
+            for item in subcategory.get("items") or []:
+                item_id = str(item.get("itemId") or "").strip()
+                if item_id and item_id in seen_item_ids:
+                    continue
+                name = normalize_product_name(item.get("displayName") or item.get("name") or "")
+                price = parse_price(item.get("price"))
+                sale_price = item.get("discountedPrice")
+                sale_price = parse_price(sale_price) if sale_price is not None else None
+                if not name or price <= 0:
+                    continue
+                if sale_price is not None and sale_price >= price:
+                    sale_price = None
+                if item_id:
+                    seen_item_ids.add(item_id)
+                products.append(Product(name, price, sale_price, "Tus", subcategory_name, date_str))
+                batch_added += 1
+
+        if batch_added == 0:
+            break
+        skip += TUS_ITEMS_LIMIT
+
     return products
 
 
@@ -540,21 +561,57 @@ def scrape_tus_products(date_str: str) -> List[Product]:
     return products
 
 
+async def get_mercator_categories(page) -> List[str]:
+    """Try to read all Mercator categories dynamically; fallback to static list."""
+    try:
+        await page.goto("https://mercatoronline.si/brskaj", wait_until="networkidle", timeout=60000)
+        await asyncio.sleep(2)
+        hrefs = await page.eval_on_selector_all(
+            "a[href*='/brskaj/']",
+            "els => els.map(e => e.getAttribute('href'))"
+        )
+        categories: List[str] = []
+        for href in hrefs:
+            if not href or "/brskaj/" not in href:
+                continue
+            slug = href.split("/brskaj/")[-1].split("?")[0].strip("/")
+            if not slug or slug == "#":
+                continue
+            if slug not in categories:
+                categories.append(slug)
+        if categories:
+            print(f"  Mercator categories: {len(categories)} (dynamic)")
+            return categories
+    except Exception as e:
+        print(f"  Mercator categories fallback: {e}")
+    return ALL_CATEGORIES.get("mercator", [])
+
+
 async def scrape_mercator_category(page, category: str) -> List[Product]:
-    """Scrape Mercator kategorijo"""
-    products = []
+    """Scrape Mercator category and scroll until no new products appear."""
+    products: List[Product] = []
+    seen_keys: set[str] = set()
     date_str = datetime.now().strftime("%Y-%m-%d")
 
     try:
         url = f"https://mercatoronline.si/brskaj/{category}"
-        print(f"  📂 Mercator/{category}...", end=" ", flush=True)
-
         await page.goto(url, wait_until="networkidle", timeout=60000)
         await asyncio.sleep(2)
 
-        for _ in range(10):
-            await page.evaluate("window.scrollBy(0, 1500)")
-            await asyncio.sleep(0.5)
+        last_count = 0
+        stable_iterations = 0
+        for _ in range(40):
+            await page.evaluate("window.scrollBy(0, 1800)")
+            await asyncio.sleep(0.7)
+            elements = await page.query_selector_all(".product")
+            current_count = len(elements)
+            if current_count <= last_count:
+                stable_iterations += 1
+            else:
+                stable_iterations = 0
+            last_count = current_count
+            if stable_iterations >= 3:
+                break
 
         elements = await page.query_selector_all(".product")
 
@@ -563,7 +620,12 @@ async def scrape_mercator_category(page, category: str) -> List[Product]:
                 name_elem = await element.query_selector(".lib-product-name, .product-name")
                 if not name_elem:
                     continue
-                name = (await name_elem.inner_text()).strip()
+                name = normalize_product_name(await name_elem.inner_text())
+                if not name:
+                    continue
+                key = name.lower()
+                if key in seen_keys:
+                    continue
 
                 price_elem = await element.query_selector(".lib-product-price")
                 if not price_elem:
@@ -588,13 +650,12 @@ async def scrape_mercator_category(page, category: str) -> List[Product]:
                 else:
                     price = base_price
 
+                seen_keys.add(key)
                 products.append(Product(name, price, sale_price, "Mercator", category, date_str))
-            except:
+            except Exception:
                 continue
-
-        print(f"✅ {len(products)}")
     except Exception as e:
-        print(f"❌ {e}")
+        print(f"  Mercator category '{category}' failed: {e}")
 
     return products
 
@@ -632,7 +693,8 @@ async def scrape_all_products():
             print("MERCATOR")
             print("-" * 80)
             page_mercator = await context.new_page()
-            for category in ALL_CATEGORIES["mercator"]:
+            mercator_categories = await get_mercator_categories(page_mercator)
+            for category in mercator_categories:
                 products = await scrape_mercator_category(page_mercator, category)
                 all_products.extend(products)
                 await asyncio.sleep(2)
@@ -720,6 +782,31 @@ def build_convex_items(products: List[Product]) -> List[Dict]:
     return items
 
 
+def dedupe_products(products: List[Product]) -> List[Product]:
+    deduped: Dict[str, Product] = {}
+    for product in products:
+        name = normalize_product_name(product.name)
+        store = normalize_store(product.store)
+        if not name or not store:
+            continue
+        key = f"{name.lower()}::{store.lower()}"
+        existing = deduped.get(key)
+        if not existing:
+            product.name = name
+            product.store = store
+            deduped[key] = product
+            continue
+
+        if existing.sale_price is None and product.sale_price is not None:
+            existing.sale_price = product.sale_price
+        if (existing.category in ("", "Unknown", "Neznana kategorija")) and product.category:
+            existing.category = product.category
+        if product.price and product.price > 0 and existing.price != product.price:
+            existing.price = product.price
+
+    return list(deduped.values())
+
+
 def upload_to_convex(items: List[Dict]) -> None:
     if not INGEST_URL or not INGEST_TOKEN:
         print("Upload preskocen: manjka PRHRAN_INGEST_URL ali PRHRAN_INGEST_TOKEN.")
@@ -763,6 +850,10 @@ async def main(upload: bool):
     
     # Scrape vse izdelke
     products = await scrape_all_products()
+    deduped_products = dedupe_products(products)
+    if len(deduped_products) != len(products):
+        print(f"Deduped products: {len(products)} -> {len(deduped_products)}")
+    products = deduped_products
     
     # Izpiši statistiko
     print("\n" + "=" * 80)
