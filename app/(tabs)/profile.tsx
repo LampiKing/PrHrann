@@ -131,6 +131,30 @@ function ProfileScreenInner() {
   const profile = useQuery(api.userProfiles.getProfile, isAuthenticated ? {} : "skip");
   const isProfileLoading = profile === undefined;
 
+  // Debug logging for troubleshooting
+  useEffect(() => {
+    console.log("Profile loading state:", {
+      isAuthenticated,
+      profile: profile === undefined ? "undefined" : profile === null ? "null" : "object",
+      isProfileLoading,
+      userEmail: isAuthenticated ? "email present" : "no email"
+    });
+  }, [isAuthenticated, profile, isProfileLoading]);
+
+  // Add timeout fallback to prevent infinite loading
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  useEffect(() => {
+    if (isAuthenticated && profile === undefined) {
+      const timeout = setTimeout(() => {
+        console.warn("Profile loading timeout - forcing fallback");
+        setLoadingTimeout(true);
+      }, 10000); // 10 second timeout
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [isAuthenticated, profile]);
+
   // 2. Load admin-specific data ONLY when profile is loaded and user is an admin.
   const shouldFetchAdminData = isAuthenticated && profile?.isAdmin === true;
   const adminStats = useQuery(api.admin.getStats, shouldFetchAdminData ? {} : "skip");
@@ -615,8 +639,8 @@ function ProfileScreenInner() {
     );
   }
 
-  // 3. If authenticated, but profile is still loading, show profile loader
-  if (isProfileLoading) {
+  // 3. If authenticated, but profile is still loading, show profile loader with timeout fallback
+  if (isAuthenticated && isProfileLoading && !loadingTimeout) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -628,34 +652,40 @@ function ProfileScreenInner() {
           />
           <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
           <Text style={styles.authText}>Nalaganje profila...</Text>
+          <Text style={[styles.authText, { fontSize: 12, marginTop: 8, opacity: 0.7 }]}>
+            Če se nalaganje ne konča v 10s, se bo prikazal osnovni profil
+          </Text>
         </View>
       </View>
     );
   }
 
-  // 4. If we have a null profile (user exists in auth but not in our DB), show error/prompt
-  // This is a fallback, should ideally be handled by ensureProfile in _layout
-  if (!profile) {
+  // If loading timed out or profile is null, show basic fallback interface
+  if (isAuthenticated && (loadingTimeout || profile === null)) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
-        <View style={[styles.authPrompt, { paddingTop: insets.top + 40 }]}>
-          <Ionicons name="alert-circle-outline" size={60} color="#ef4444" />
-          <Text style={styles.authTitle}>Napaka pri nalaganju profila</Text>
-          <Text style={styles.authText}>
-            Vašega profila ni bilo mogoče naložiti. Poskusite znova kasneje ali kontaktirajte podporo.
-          </Text>
-          <TouchableOpacity style={styles.authButton} onPress={() => authClient.signOut()}>
-            <LinearGradient
-              colors={["#8b5cf6", "#7c3aed"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.authButtonGradient}
-            >
-              <Text style={styles.authButtonText}>Odjava</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+        <ScrollView style={styles.scrollView} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}>
+          <View style={[styles.authPrompt, { paddingTop: 20 }]}>
+            <Ionicons name="person-circle-outline" size={80} color="#8b5cf6" />
+            <Text style={styles.authTitle}>Profil (brez podatkov)</Text>
+            <Text style={styles.authText}>
+              {loadingTimeout 
+                ? "Nalaganje profila je preseglo časovni limit. Prikazan je osnovni vmesnik."
+                : "Vaš profil še ni bil ustvarjen. Poskusite se odjaviti in ponovno prijaviti."}
+            </Text>
+            <TouchableOpacity style={styles.authButton} onPress={() => authClient.signOut()}>
+              <LinearGradient
+                colors={["#8b5cf6", "#7c3aed"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.authButtonGradient}
+              >
+                <Text style={styles.authButtonText}>Odjava</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     );
   }
