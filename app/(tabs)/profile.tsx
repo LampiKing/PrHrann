@@ -130,7 +130,7 @@ function ProfileScreenInner() {
   const profile = useQuery(
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
-  ) ?? null;
+  );
   
   // Keep track of the last resolved profile, including explicit null (no profile)
   // so that we do not stay in a loading state forever when backend returns null.
