@@ -1,4 +1,5 @@
 ﻿import { useState, useRef, useEffect } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -39,7 +40,38 @@ type AwardEntry = {
   leaderboard: "standard" | "family";
 };
 
-export default function ProfileScreen() {
+class ProfileErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error("Profile screen render error:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.container}>
+          <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
+          <View style={[styles.authPrompt, { paddingTop: 60 }]}>
+            <Text style={styles.authTitle}>Prišlo je do napake</Text>
+            <Text style={styles.authText}>Poskušamo ponovno naložiti profil...</Text>
+            <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 16 }} />
+          </View>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function ProfileScreenInner() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -549,17 +581,19 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     // Auto-retry refresh if profile stays undefined while authenticated
+    let retry: ReturnType<typeof setTimeout> | null = null;
     if (isAuthenticated && profile === undefined) {
-      const retry = setTimeout(() => {
+      retry = setTimeout(() => {
         if (Platform.OS === "web" && typeof window !== "undefined") {
           window.location.reload();
         } else {
           router.replace("/(tabs)/profile");
         }
-      }, 6000);
-      return () => clearTimeout(retry);
+      }, 8000);
     }
-    return undefined;
+    return () => {
+      if (retry) clearTimeout(retry);
+    };
   }, [isAuthenticated, profile, router]);
 
   // Show loading state while auth is initializing
@@ -574,7 +608,7 @@ export default function ProfileScreen() {
             resizeMode="contain"
           />
           <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
-          <Text style={styles.authText}>Nalaganje profila...</Text>
+          <Text style={styles.authText}>Nalaganje profila... samodejno osvežujem.</Text>
         </View>
       </View>
     );
@@ -3589,5 +3623,11 @@ const styles = StyleSheet.create({
   },
 });
 
-
+export default function ProfileScreen() {
+  return (
+    <ProfileErrorBoundary>
+      <ProfileScreenInner />
+    </ProfileErrorBoundary>
+  );
+}
 
