@@ -24,6 +24,10 @@ if hasattr(sys.stdout, "reconfigure"):
 # KONFIGURACIJA
 SHEET_ID = os.getenv("PRHRAN_SHEET_ID", "1Wj5nqFcd6isnTA_FTgyA7aTRU6tHfTJG3fGGEN15B6Y")
 CREDENTIALS_FILE = os.getenv("PRHRAN_CREDENTIALS_FILE", "credentials.json")
+if not os.path.exists(CREDENTIALS_FILE):
+    fallback_credentials = os.path.join(os.path.dirname(__file__), "credentials.json")
+    if os.path.exists(fallback_credentials):
+        CREDENTIALS_FILE = fallback_credentials
 INGEST_URL = os.getenv("PRHRAN_INGEST_URL")
 INGEST_TOKEN = os.getenv("PRHRAN_INGEST_TOKEN")
 SITE_URL = os.getenv("SITE_URL")
@@ -553,9 +557,17 @@ async def get_mercator_categories(page) -> List[str]:
                 continue
             if slug not in categories:
                 categories.append(slug)
+        page_html = await page.content()
+        for slug in re.findall(r"/brskaj/([a-z0-9-]+)", page_html, flags=re.IGNORECASE):
+            slug = slug.strip().lower()
+            if not slug or slug == "#":
+                continue
+            if slug not in categories:
+                categories.append(slug)
         if categories:
             print(f"  Mercator kategorije: {len(categories)} najdenih (dinamicno)")
-            return categories
+            merged = categories + [c for c in ALL_CATEGORIES.get("mercator", []) if c not in categories]
+            return merged
     except Exception as e:
         print(f"  Mercator kategorije (fallback na statiko): {e}")
     return ALL_CATEGORIES.get("mercator", [])
@@ -570,59 +582,47 @@ async def scrape_mercator_category(page, category: str) -> List[Dict]:
         await page.goto(url, wait_until="networkidle", timeout=60000)
         await asyncio.sleep(2)
 
-        last_count = 0
-        stable_iterations = 0
-        # Scroll until the page stops loading more products
-        for _ in range(40):
-            await page.evaluate("window.scrollBy(0, 1800)")
-            await asyncio.sleep(0.7)
-            elements = await page.query_selector_all(".product")
-            current_count = len(elements)
-            if current_count <= last_count:
-                stable_iterations += 1
-            else:
-                stable_iterations = 0
-            last_count = current_count
-            if stable_iterations >= 3:
-                break
-
-        elements = await page.query_selector_all(".product")
-
-        for element in elements:
-            try:
-                name_elem = await element.query_selector(".lib-product-name, .product-name")
-                if not name_elem:
-                    continue
-                name = normalize_product_name(await name_elem.inner_text())
+        async def collect_products():
+            elements = await page.eval_on_selector_all(
+                ".product",
+                """
+                els => els.map(el => {
+                  const getText = (selector) => {
+                    const node = el.querySelector(selector);
+                    return node ? node.textContent : "";
+                  };
+                  const getAttr = (selector, attr) => {
+                    const node = el.querySelector(selector);
+                    return node ? node.getAttribute(attr) : "";
+                  };
+                  return {
+                    name: getText(".lib-product-name, .product-name, .product__name, .product-card__name, .product-title"),
+                    price: getText(".lib-product-price, .product-price-holder .price, .price, .product__price, .price__value, .product-price"),
+                    oldPrice: getText(".price-old, .lib-product-normal-price, .price--old, .product__old-price"),
+                    href: getAttr("a[href]", "href"),
+                    sku: el.getAttribute("data-product-id") || el.getAttribute("data-id") || el.getAttribute("data-sku"),
+                  };
+                })
+                """
+            )
+            added = 0
+            for item in elements:
+                name = normalize_product_name(str(item.get("name") or ""))
                 if not name:
                     continue
-                key = name.lower()
-                if key in seen_keys:
+                key = str(item.get("sku") or item.get("href") or name.lower()).strip()
+                if not key or key in seen_keys:
                     continue
-
-                price_elem = await element.query_selector(".lib-product-price")
-                if not price_elem:
-                    price_elem = await element.query_selector(".product-price-holder .price")
-                if not price_elem:
-                    price_elem = await element.query_selector(".price")
-                if not price_elem:
-                    continue
-                base_price = parse_price(await price_elem.inner_text())
-
+                base_price = parse_price(str(item.get("price") or ""))
                 if base_price <= 0:
                     continue
-
-                sale_price = None
-                old_price = None
-                sale_elem = await element.query_selector(".price-old, .lib-product-normal-price")
-                if sale_elem:
-                    old_price = parse_price(await sale_elem.inner_text())
+                old_price = parse_price(str(item.get("oldPrice") or ""))
                 if old_price and old_price > base_price:
                     price = old_price
                     sale_price = base_price
                 else:
                     price = base_price
-
+                    sale_price = None
                 seen_keys.add(key)
                 products.append({
                     "name": name,
@@ -631,8 +631,23 @@ async def scrape_mercator_category(page, category: str) -> List[Dict]:
                     "store": "Mercator",
                     "category": category,
                 })
-            except Exception:
-                continue
+                added += 1
+            return added
+
+        await collect_products()
+        stable_iterations = 0
+        last_unique = len(seen_keys)
+        for _ in range(60):
+            await page.evaluate("window.scrollBy(0, 1800)")
+            await asyncio.sleep(0.7)
+            await collect_products()
+            if len(seen_keys) <= last_unique:
+                stable_iterations += 1
+            else:
+                stable_iterations = 0
+            last_unique = len(seen_keys)
+            if stable_iterations >= 4:
+                break
     except Exception as e:
         print(f"  Mercator category '{category}' failed: {e}")
 

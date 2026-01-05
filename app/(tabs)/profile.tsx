@@ -130,7 +130,7 @@ function ProfileScreenInner() {
   const profile = useQuery(
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
-  );
+  ) ?? null;
   const adminStats = useQuery(
     api.admin.getStats,
     isAuthenticated && profile?.isAdmin ? {} : "skip"
@@ -513,7 +513,10 @@ function ProfileScreenInner() {
     }
 
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        Platform.OS === "web"
+          ? { status: "granted" as const }
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("Dovoljenje potrebno", "Omogoči dostop do galerije, da lahko dodaš fotografijo.");
         return;
@@ -723,22 +726,22 @@ function ProfileScreenInner() {
   useEffect(() => {
     // Auto-retry refresh if profile stays undefined while authenticated
     let retry: ReturnType<typeof setTimeout> | null = null;
-    if (isAuthenticated && profile === undefined) {
+    if (isAuthenticated && profile === undefined && !hasResolvedProfile) {
       retry = setTimeout(() => {
         if (Platform.OS === "web" && typeof window !== "undefined") {
           window.location.reload();
         } else {
           router.replace("/(tabs)/profile");
         }
-      }, 8000);
+      }, 5000);
     }
     return () => {
       if (retry) clearTimeout(retry);
     };
-  }, [isAuthenticated, profile, router]);
+  }, [isAuthenticated, profile, hasResolvedProfile, router]);
 
   // Show loading state while auth is initializing
-  if (isLoading || (isAuthenticated && profile === undefined && !hasResolvedProfile)) {
+  if (isLoading) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -755,8 +758,8 @@ function ProfileScreenInner() {
     );
   }
 
-  // Only show auth prompt if truly not authenticated or no profile exists
-  if (!isAuthenticated || !hasResolvedProfile) {
+  // Only show auth prompt if truly not authenticated
+  if (!isAuthenticated) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -783,6 +786,24 @@ function ProfileScreenInner() {
               <Text style={styles.authButtonText}>Prijava / Registracija</Text>
             </LinearGradient>
           </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Show loading if profile is still loading
+  if (!hasResolvedProfile) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
+        <View style={[styles.authPrompt, { paddingTop: insets.top + 40 }]}>
+          <Image
+            source={getSeasonalLogoSource()}
+            style={styles.authLogo}
+            resizeMode="contain"
+          />
+          <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
+          <Text style={styles.authText}>Nalaganje profila...</Text>
         </View>
       </View>
     );

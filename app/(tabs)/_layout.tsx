@@ -2,9 +2,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { View, StyleSheet, Platform } from "react-native";
 import Logo from "@/lib/Logo";
-import { useQuery, useConvexAuth, useAction } from "convex/react";
+import { useQuery, useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function TabsLayout() {
@@ -24,22 +24,42 @@ export default function TabsLayout() {
     api.stores.getAll,
     isAuthenticated ? {} : "skip"
   );
-  const initializeAllData = useAction(api.stores.initializeAllData);
+  const ensureProfile = useMutation(api.userProfiles.ensureProfile);
+  const seedStores = useMutation(api.stores.seedStores);
+  const ensureProfileAttemptedRef = useRef(false);
+  const seedStoresAttemptedRef = useRef(false);
 
   useEffect(() => {
-    const initializeData = async () => {
-      if (isAuthenticated && stores && stores.length === 0) {
-        try {
-          console.log("Inicializacija podatkov...");
-          const result = await initializeAllData({});
-          console.log("Podatki inicializirani:", result);
-        } catch (error) {
-          console.error("Napaka pri inicializaciji:", error);
-        }
-      }
-    };
-    initializeData();
-  }, [isAuthenticated, stores, initializeAllData]);
+    if (!isAuthenticated || ensureProfileAttemptedRef.current) {
+      return;
+    }
+    if (profile === null) {
+      ensureProfileAttemptedRef.current = true;
+      ensureProfile({})
+        .then(() => {
+          ensureProfileAttemptedRef.current = false;
+        })
+        .catch((error) => {
+          console.error("Napaka pri ustvarjanju profila:", error);
+          ensureProfileAttemptedRef.current = false;
+        });
+    }
+  }, [isAuthenticated, profile, ensureProfile]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !stores || stores.length > 0 || seedStoresAttemptedRef.current) {
+      return;
+    }
+    seedStoresAttemptedRef.current = true;
+    seedStores({})
+      .then(() => {
+        seedStoresAttemptedRef.current = false;
+      })
+      .catch((error) => {
+        console.error("Napaka pri inicializaciji trgovin:", error);
+        seedStoresAttemptedRef.current = false;
+      });
+  }, [isAuthenticated, stores, seedStores]);
 
   // Show loading while checking auth
   if (isLoading) {

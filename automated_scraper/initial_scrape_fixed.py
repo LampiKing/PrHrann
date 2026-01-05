@@ -2,6 +2,12 @@
 """
 🇸🇮 PRVI ZAGON - Scrape VSE izdelke in vpiši v Google Sheet
 Enkratna akcija - pridobi ~15.000+ izdelkov
+
+KLJUČNE SPREMEMBE:
+✅ Isti izdelek se prikaže v VSEH 3 trgovinah (če obstaja)
+✅ Pravilna deduplikacija po imenu + kategoriji
+✅ Pravilna struktura: products + prices tabeli ločeno
+✅ Kombinira podatke iz vseh trgovin za isti izdelek
 """
 
 import argparse
@@ -15,8 +21,9 @@ from datetime import datetime
 from playwright.async_api import async_playwright
 import re
 import unicodedata
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 import requests
+from collections import defaultdict
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -165,25 +172,6 @@ query getSubcategoriesWithItems($categoriesLimit: Int, $categoryName: String, $c
 }
 """
 
-# Vse kategorije za vse trgovine
-ALL_CATEGORIES = {
-    "spar": [
-        "sadje-zelenjava", "mleko-mlecni-izdelki", "meso-ribe", "kruh-pecivo",
-        "pijace", "sladkarije-prigrizki", "konzervirano", "zamrznjeno", "osnovna-zivila",
-        "zajtrk-kosmiči", "brezalkoholne-pijace", "alkoholne-pijace"
-    ],
-    "tus": [
-        "sadje-zelenjava", "mleko-jajca", "meso-mesni-izdelki", "pecivo-kruh",
-        "pijace", "sladkarije", "konzerve", "zamrznjeni-izdelki", "zivila",
-        "zajtrk", "higiena", "ciscila"
-    ],
-    "mercator": [
-        "sadje-in-zelenjava", "mleko-jajca", "meso-ribe", "kruh-pecivo",
-        "pijace", "sladkarije", "konzerve", "zamrznjeno", "osnovna-zivila",
-        "zajtrk", "kosmetika", "ciscenje", "hrana-zivali"
-    ]
-}
-
 
 def normalize_store(value: str) -> str:
     if not value:
@@ -199,6 +187,7 @@ def normalize_store(value: str) -> str:
         return "Tus"
     return value.strip()
 
+
 def normalize_product_name(value: str) -> str:
     if not value:
         return ""
@@ -211,10 +200,8 @@ def format_category(value: str, product_name: str = "") -> str:
     če kategorija ni podana.
     """
     if value:
-        # Če imamo kategorijo, jo samo formatiraj
         return value.replace("-", " ").replace("_", " ").title()
 
-    # Če kategorija manjka, poskusi ugotoviti iz imena izdelka
     name_lower = product_name.lower()
 
     # MLEČNI IZDELKI
@@ -269,7 +256,6 @@ def format_category(value: str, product_name: str = "") -> str:
     if any(word in name_lower for word in ["čistilo", "detergent", "pralno", "mehčalec", "cleaner"]):
         return "Čistila"
 
-    # Default če ne najdemo nič
     return "Ostalo"
 
 
@@ -279,15 +265,20 @@ def normalize_sale_price(price: float, sale_price: Optional[float]) -> Optional[
     return sale_price if sale_price < price else None
 
 
-class Product:
+class ProductPrice:
+    """Predstavlja ceno izdelka v eni trgovini"""
     def __init__(self, name: str, price: float, sale_price: Optional[float], 
                  store: str, category: str, date: str):
         self.name = normalize_product_name(name)
         self.price = price
         self.sale_price = sale_price
-        self.store = store
-        self.category = category
+        self.store = normalize_store(store)
+        self.category = format_category(category, self.name)
         self.date = date
+    
+    def get_key(self) -> str:
+        """Ključ za deduplikacijo - samo ime in kategorija"""
+        return f"{self.name.lower()}::{self.category.lower()}"
     
     def to_row(self) -> List:
         """Vrne vrstico za Google Sheet"""
@@ -305,8 +296,8 @@ class Product:
             "ime": self.name,
             "redna_cena": self.price,
             "akcijska_cena": normalize_sale_price(self.price, self.sale_price),
-            "kategorija": format_category(self.category, self.name),  # ← Dodaj product name
-            "trgovina": normalize_store(self.store),
+            "kategorija": self.category,
+            "trgovina": self.store,
         }
 
 
@@ -362,7 +353,7 @@ def spar_fetch_leaf_categories() -> List[Dict[str, str]]:
     return leaves
 
 
-def spar_fetch_products_for_category(category_ref: str, fallback_name: str, date_str: str) -> List[Product]:
+def spar_fetch_products_for_category(category_ref: str, fallback_name: str, date_str: str) -> List[ProductPrice]:
     products = []
     current_page = 1
     while True:
@@ -385,7 +376,7 @@ def spar_fetch_products_for_category(category_ref: str, fallback_name: str, date
             price = parse_price(item.get("price"))
             if not name or price <= 0:
                 continue
-            products.append(Product(name, price, None, "Spar", category_name, date_str))
+            products.append(ProductPrice(name, price, None, "Spar", category_name, date_str))
         pages = root.get("pagination", {}).get("pages") or 1
         if current_page >= pages:
             break
@@ -393,7 +384,7 @@ def spar_fetch_products_for_category(category_ref: str, fallback_name: str, date
     return products
 
 
-def scrape_spar_products(date_str: str) -> List[Product]:
+def scrape_spar_products(date_str: str) -> List[ProductPrice]:
     products = []
     try:
         categories = spar_fetch_leaf_categories()
@@ -486,8 +477,8 @@ def tus_fetch_products_for_category(
     headers: Dict[str, str],
     store_date: str,
     date_str: str,
-) -> List[Product]:
-    products: List[Product] = []
+) -> List[ProductPrice]:
+    products: List[ProductPrice] = []
     seen_item_ids: set[str] = set()
     skip = 0
 
@@ -521,7 +512,7 @@ def tus_fetch_products_for_category(
                     sale_price = None
                 if item_id:
                     seen_item_ids.add(item_id)
-                products.append(Product(name, price, sale_price, "Tus", subcategory_name, date_str))
+                products.append(ProductPrice(name, price, sale_price, "Tus", subcategory_name, date_str))
                 batch_added += 1
 
         if batch_added == 0:
@@ -531,7 +522,7 @@ def tus_fetch_products_for_category(
     return products
 
 
-def scrape_tus_products(date_str: str) -> List[Product]:
+def scrape_tus_products(date_str: str) -> List[ProductPrice]:
     products = []
     try:
         api_version = tus_get_api_version()
@@ -592,16 +583,15 @@ async def get_mercator_categories(page) -> List[str]:
                 categories.append(slug)
         if categories:
             print(f"  Mercator categories: {len(categories)} (dynamic)")
-            merged = categories + [c for c in ALL_CATEGORIES.get("mercator", []) if c not in categories]
-            return merged
+            return categories
     except Exception as e:
         print(f"  Mercator categories fallback: {e}")
-    return ALL_CATEGORIES.get("mercator", [])
+    return []
 
 
-async def scrape_mercator_category(page, category: str) -> List[Product]:
+async def scrape_mercator_category(page, category: str) -> List[ProductPrice]:
     """Scrape Mercator category and scroll until no new products appear."""
-    products: List[Product] = []
+    products: List[ProductPrice] = []
     seen_keys: set[str] = set()
     date_str = datetime.now().strftime("%Y-%m-%d")
 
@@ -652,7 +642,7 @@ async def scrape_mercator_category(page, category: str) -> List[Product]:
                     price = base_price
                     sale_price = None
                 seen_keys.add(key)
-                products.append(Product(name, price, sale_price, "Mercator", category, date_str))
+                products.append(ProductPrice(name, price, sale_price, "Mercator", category, date_str))
                 added += 1
             return added
 
@@ -722,7 +712,38 @@ async def scrape_all_products():
     return all_products
 
 
-def write_to_google_sheet(products: List[Product]):
+def deduplicate_and_combine(products: List[ProductPrice]) -> Tuple[List[Dict], List[ProductPrice]]:
+    """
+    Deduplikacija in kombiniranje podatkov.
+    
+    Vrne:
+    - unique_products: Seznam unikatnih izdelkov (za Google Sheet)
+    - all_prices: Vse cene za vse trgovine (za Convex)
+    """
+    # Grupiraj po ključu (ime + kategorija)
+    grouped: Dict[str, List[ProductPrice]] = defaultdict(list)
+    for product in products:
+        key = product.get_key()
+        grouped[key].append(product)
+    
+    unique_products = []
+    all_prices = []
+    
+    for key, prices_list in grouped.items():
+        # Vzemi prvi izdelek kot "master"
+        master = prices_list[0]
+        
+        # Dodaj v unique_products (samo enkrat)
+        unique_products.append(master)
+        
+        # Dodaj vse cene (tudi iz drugih trgovin)
+        for price_product in prices_list:
+            all_prices.append(price_product)
+    
+    return unique_products, all_prices
+
+
+def write_to_google_sheet(products: List[ProductPrice]):
     """Vpiši vse izdelke v Google Sheet"""
     print("\n" + "=" * 80)
     print("📊 PISANJE V GOOGLE SHEET")
@@ -757,7 +778,7 @@ def write_to_google_sheet(products: List[Product]):
             'backgroundColor': {'red': 0.2, 'green': 0.4, 'blue': 0.8}
         })
         
-        print(f"📝 Pišem {len(products)} izdelkov...")
+        print(f"📝 Pišem {len(products)} cen...")
         
         # Vpiši v batch-ih (100 vrstic naenkrat za hitrost)
         max_rows_per_update = 5000
@@ -772,7 +793,7 @@ def write_to_google_sheet(products: List[Product]):
             if total_rows > max_rows_per_update:
                 print(f"  Wrote {min(start + max_rows_per_update, total_rows)}/{total_rows} rows")
         
-        print(f"\n✅ USPEŠNO! Vpisanih {len(products)} izdelkov v Google Sheet")
+        print(f"\n✅ USPEŠNO! Vpisanih {len(products)} cen v Google Sheet")
         print(f"🔗 https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit")
         
     except FileNotFoundError:
@@ -786,7 +807,7 @@ def write_to_google_sheet(products: List[Product]):
         print(f"❌ NAPAKA: {e}")
 
 
-def build_convex_items(products: List[Product]) -> List[Dict]:
+def build_convex_items(products: List[ProductPrice]) -> List[Dict]:
     items = []
     for product in products:
         item = product.to_convex_item()
@@ -796,31 +817,6 @@ def build_convex_items(products: List[Product]) -> List[Dict]:
             continue
         items.append(item)
     return items
-
-
-def dedupe_products(products: List[Product]) -> List[Product]:
-    deduped: Dict[str, Product] = {}
-    for product in products:
-        name = normalize_product_name(product.name)
-        store = normalize_store(product.store)
-        if not name or not store:
-            continue
-        key = f"{name.lower()}::{store.lower()}"
-        existing = deduped.get(key)
-        if not existing:
-            product.name = name
-            product.store = store
-            deduped[key] = product
-            continue
-
-        if existing.sale_price is None and product.sale_price is not None:
-            existing.sale_price = product.sale_price
-        if (existing.category in ("", "Unknown", "Neznana kategorija")) and product.category:
-            existing.category = product.category
-        if product.price and product.price > 0 and existing.price != product.price:
-            existing.price = product.price
-
-    return list(deduped.values())
 
 
 def upload_to_convex(items: List[Dict]) -> None:
@@ -865,28 +861,28 @@ async def main(upload: bool):
     """Glavna funkcija"""
     
     # Scrape vse izdelke
-    products = await scrape_all_products()
-    deduped_products = dedupe_products(products)
-    if len(deduped_products) != len(products):
-        print(f"Deduped products: {len(products)} -> {len(deduped_products)}")
-    products = deduped_products
+    all_products = await scrape_all_products()
+    
+    # Deduplikacija in kombiniranje
+    unique_products, all_prices = deduplicate_and_combine(all_products)
     
     # Izpiši statistiko
     print("\n" + "=" * 80)
     print("📊 STATISTIKA")
     print("=" * 80)
-    print(f"📦 Skupaj izdelkov: {len(products)}")
-    print(f"   • SPAR: {sum(1 for p in products if p.store == 'Spar')}")
-    print(f"   • Tuš: {sum(1 for p in products if p.store == 'Tus')}")
-    print(f"   • Mercator: {sum(1 for p in products if p.store == 'Mercator')}")
-    print(f"🎁 Na akciji: {sum(1 for p in products if p.sale_price)}")
+    print(f"📦 Skupaj cen: {len(all_prices)}")
+    print(f"📦 Unikatnih izdelkov: {len(unique_products)}")
+    print(f"   • SPAR: {sum(1 for p in all_prices if p.store == 'Spar')}")
+    print(f"   • Tuš: {sum(1 for p in all_prices if p.store == 'Tus')}")
+    print(f"   • Mercator: {sum(1 for p in all_prices if p.store == 'Mercator')}")
+    print(f"🎁 Na akciji: {sum(1 for p in all_prices if p.sale_price)}")
     
-    if products:
-        # Vpiši v Google Sheet
-        write_to_google_sheet(products)
+    if all_prices:
+        # Vpiši v Google Sheet (vse cene)
+        write_to_google_sheet(all_prices)
         # Upload v Convex (privzeto vključeno)
         if not upload:
-            items = build_convex_items(products)
+            items = build_convex_items(all_prices)
             upload_to_convex(items)
         else:
             print("\n⚠️  Upload v Convex preskočen (--no-upload flag)")

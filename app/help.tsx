@@ -14,7 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useAction } from "convex/react";
+import { useAction, useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 const FAQ_ITEMS = [
@@ -54,6 +54,12 @@ export default function HelpScreen() {
   const router = useRouter();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [isResetting, setIsResetting] = useState(false);
+  const { isAuthenticated } = useConvexAuth();
+  const profile = useQuery(
+    api.userProfiles.getProfile,
+    isAuthenticated ? {} : "skip"
+  );
+  const canReset = Boolean(__DEV__ && profile?.isAdmin);
   const resetData = useAction(api.stores.resetAndSeedData);
 
   const handleToggle = (index: number) => {
@@ -189,22 +195,23 @@ export default function HelpScreen() {
             <Text style={styles.appCopyright}>(c) 2024 Pr'Hran. Vse pravice pridržane.</Text>
           </View>
 
-          {/* Debug Reset Button */}
-          <TouchableOpacity
-            style={styles.debugButton}
-            onPress={handleResetData}
-            disabled={isResetting}
-          >
-            <LinearGradient
-              colors={["rgba(239, 68, 68, 0.2)", "rgba(220, 38, 38, 0.3)"]}
-              style={styles.debugButtonGradient}
+          {canReset && (
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={handleResetData}
+              disabled={isResetting}
             >
-              <Ionicons name="refresh" size={20} color="#ef4444" />
-              <Text style={styles.debugButtonText}>
-                {isResetting ? "Resetiranje..." : "Resetiraj podatke (debug)"}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={["rgba(239, 68, 68, 0.2)", "rgba(220, 38, 38, 0.3)"]}
+                style={styles.debugButtonGradient}
+              >
+                <Ionicons name="refresh" size={20} color="#ef4444" />
+                <Text style={styles.debugButtonText}>
+                  {isResetting ? "Resetiranje..." : "Resetiraj podatke (debug)"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
 
           <View style={{ height: 40 }} />
         </ScrollView>

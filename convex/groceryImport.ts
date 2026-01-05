@@ -2,6 +2,11 @@ import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
+const STORE_COLORS: Record<string, string> = {
+  Spar: "#c8102e",
+  Mercator: "#d3003c",
+  Tus: "#0d8a3c",
+};
 
 const STORE_NAME_MAP: Record<string, string> = {
   "spar online": "Spar",
@@ -18,7 +23,56 @@ const normalize = (value: string) =>
     .trim();
 
 const normalizeName = (value: string) =>
-  value.replace(/\s+/g, " ").trim();
+  value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+
+const normalizeProductToken = (token: string) => {
+  if (!token) return "";
+  let cleaned = token.replace(/×/g, "x");
+  if (/^[a-z.]+$/.test(cleaned)) {
+    cleaned = cleaned.replace(/\./g, "");
+  }
+  const match = cleaned.match(/^(\d+(?:\.\d+)?)(kg|g|l|ml|cl|dl)$/i);
+  if (!match) return cleaned;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return cleaned;
+  const unit = match[2].toLowerCase();
+  const formatNumber = (num: number) => {
+    const rounded = Math.round(num * 1000) / 1000;
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+  };
+  if (unit === "g") return `${formatNumber(value / 1000)}kg`;
+  if (unit === "ml") return `${formatNumber(value / 1000)}l`;
+  if (unit === "cl") return `${formatNumber(value / 100)}l`;
+  if (unit === "dl") return `${formatNumber(value / 10)}l`;
+  return `${formatNumber(value)}${unit}`;
+};
+
+const normalizeProductKey = (value: string) => {
+  const normalized = value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/,/g, ".")
+    .replace(/[^a-z0-9.%]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return "";
+  const tokens = normalized
+    .split(" ")
+    .map((token) => normalizeProductToken(token))
+    .filter(Boolean);
+  if (!tokens.length) return "";
+  const tokenSet = new Set(tokens);
+  return Array.from(tokenSet).sort().join(" ");
+};
+
+const scoreDisplayName = (value: string) => {
+  let score = 0;
+  if (/\s/.test(value)) score += 2;
+  if (/\d/.test(value)) score += 1;
+  if (value.length >= 12) score += 1;
+  return score;
+};
 
 const inferUnit = (name: string) => {
   const match = name.match(
@@ -64,9 +118,12 @@ export const importFromScanner = internalMutation({
     );
 
     const existingProducts = await ctx.db.query("products").collect();
-    const productMap = new Map(
-      existingProducts.map((product) => [normalize(product.name), product])
-    );
+    const productMap = new Map<string, typeof existingProducts[0]>();
+    for (const product of existingProducts) {
+      const key = normalizeProductKey(product.name);
+      if (!key || productMap.has(key)) continue;
+      productMap.set(key, product);
+    }
 
     let createdProducts = 0;
     let updatedProducts = 0;
@@ -77,15 +134,33 @@ export const importFromScanner = internalMutation({
 
     for (const item of args.items) {
       const rawName = normalizeName(item.ime || "");
-      if (!rawName) {
+      const nameKey = normalizeProductKey(rawName);
+      if (!rawName || !nameKey) {
         skipped += 1;
         continue;
       }
 
       const rawStore = normalize(item.trgovina || "");
       const mappedStoreName = STORE_NAME_MAP[rawStore] || item.trgovina;
-      const store = storeMap.get(normalize(mappedStoreName));
-      if (!store || !ALLOWED_STORE_NAMES.has(store.name)) {
+      let store = storeMap.get(normalize(mappedStoreName));
+      if (!store) {
+        if (!ALLOWED_STORE_NAMES.has(mappedStoreName)) {
+          unknownStores += 1;
+          continue;
+        }
+        const storeId = await ctx.db.insert("stores", {
+          name: mappedStoreName,
+          color: STORE_COLORS[mappedStoreName] ?? "#8b5cf6",
+          isPremium: false,
+        });
+        store = await ctx.db.get(storeId);
+        if (!store) {
+          skipped += 1;
+          continue;
+        }
+        storeMap.set(normalize(store.name), store);
+      }
+      if (!ALLOWED_STORE_NAMES.has(store.name)) {
         unknownStores += 1;
         continue;
       }
@@ -93,7 +168,7 @@ export const importFromScanner = internalMutation({
       const category = item.kategorija?.trim() || "Neznana kategorija";
       const unit = inferUnit(rawName);
 
-      let product = productMap.get(normalize(rawName));
+      let product = productMap.get(nameKey);
       if (!product) {
         const productId = await ctx.db.insert("products", {
           name: rawName,
@@ -109,11 +184,27 @@ export const importFromScanner = internalMutation({
           unit,
           imageUrl: undefined,
         };
-        productMap.set(normalize(rawName), product);
+        productMap.set(nameKey, product);
         createdProducts += 1;
-      } else if (!product.category || product.category === "Neznana kategorija") {
-        await ctx.db.patch(product._id, { category });
-        updatedProducts += 1;
+      } else {
+        const updates: Partial<typeof product> = {};
+        if (!product.category || product.category === "Neznana kategorija") {
+          updates.category = category;
+        }
+        const inferredUnit = inferUnit(rawName);
+        if (product.unit === "1 kos" && inferredUnit !== "1 kos") {
+          updates.unit = inferredUnit;
+        }
+        const incomingScore = scoreDisplayName(rawName);
+        const existingScore = scoreDisplayName(product.name);
+        if (incomingScore > existingScore && rawName.length > product.name.length) {
+          updates.name = rawName;
+        }
+        if (Object.keys(updates).length > 0) {
+          await ctx.db.patch(product._id, updates);
+          product = { ...product, ...updates };
+          updatedProducts += 1;
+        }
       }
 
       const price =

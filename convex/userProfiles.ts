@@ -416,9 +416,21 @@ export const updateProfilePicture = authMutation({
       return { success: false, error: "Profile not found." };
     }
 
+    // Ensure the image URL is properly stored
+    const imageUrl = args.profilePictureUrl.trim();
+    if (!imageUrl) {
+      return { success: false, error: "Image URL cannot be empty." };
+    }
+
     await ctx.db.patch(profile._id, {
-      profilePictureUrl: args.profilePictureUrl,
+      profilePictureUrl: imageUrl,
     });
+
+    // Verify the update was successful
+    const updatedProfile = await ctx.db.get(profile._id);
+    if (!updatedProfile?.profilePictureUrl) {
+      return { success: false, error: "Failed to save profile picture." };
+    }
 
     return { success: true };
   },

@@ -88,7 +88,10 @@ const scoreDisplayName = (value: string) => {
   let score = 0;
   if (/\s/.test(value)) score += 2;
   if (/-/.test(value)) score -= 2;
+  if (/\d/.test(value)) score += 1;
   if (value.length > 12) score += 1;
+  if (value.length > 18) score += 1;
+  if (value.length < 6) score -= 1;
   return score;
 };
 
