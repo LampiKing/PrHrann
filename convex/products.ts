@@ -89,15 +89,42 @@ export const search = query({
       allProducts = await ctx.db.query("products").take(5000);
     }
 
-    // 3. Score each product with fuzzy matching
+    // 3. Score each product with fuzzy matching + brand/category boosts
+    const qNorm = searchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const BRAND_KEYWORDS = [
+      "milka", "alpsko", "barilla", "nutella", "kinder", "oreo",
+      "argeta", "zdenka", "fructal", "radenska", "coca", "pepsi", "fanta",
+      "spar", "mercator", "tus", "tuš"
+    ];
+    const CATEGORY_HINTS: Array<{ key: string; words: string[] }> = [
+      { key: "sladkarije", words: ["čoko", "coko", "čokolad", "cokolad", "kinder", "milka", "oreo", "bonbon", "sladk"] },
+      { key: "mlečni", words: ["mleko", "jogurt", "sir", "maslo", "skuta", "smetana", "alpsko"] },
+      { key: "pijače", words: ["cola", "pepsi", "fanta", "voda", "sok", "juice"] },
+      { key: "prigrizki", words: ["čips", "chips", "snack", "smoki", "flips"] },
+    ];
+    const hasBrand = BRAND_KEYWORDS.some((b) => qNorm.includes(b));
+    const brandMatched = (name: string) => BRAND_KEYWORDS.some((b) => name.toLowerCase().includes(b));
+    const categoryBoostFor = (name: string) => {
+      const n = name.toLowerCase();
+      let boost = 0;
+      for (const hint of CATEGORY_HINTS) {
+        if (hint.words.some((w) => qNorm.includes(w)) && (n.includes(hint.key) || n.includes("čokolad") || n.includes("cokolad"))) {
+          boost += 120; // category hint boost
+        }
+      }
+      return boost;
+    };
+
     const scoredProducts = allProducts
-      .map(product => ({
-        product,
-        score: fuzzyMatch(product.name, searchQuery)
-      }))
-      .filter(item => item.score > 0) // Only keep matches
-      .sort((a, b) => b.score - a.score) // Best matches first
-      .slice(0, 50) // Top 50 results
+      .map(product => {
+        let score = fuzzyMatch(product.name, searchQuery);
+        if (hasBrand && brandMatched(product.name)) score += 400; // brand boost
+        score += categoryBoostFor(`${product.category} ${product.name}`);
+        return { product, score };
+      })
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 50)
       .map(item => item.product);
 
     const stores = await ctx.db.query("stores").collect();
@@ -120,8 +147,8 @@ export const search = query({
             if (!store) return null;
             // Če ni premium, skrij premium trgovine
             if (!args.isPremium && store.isPremium) return null;
-            // Filtriraj neveljavne cene
-            if (!Number.isFinite(price.price) || price.price <= 0) return null;
+            // Filtriraj neveljavne cene (odstrani 0.01 ipd.)
+            if (!Number.isFinite(price.price) || price.price < 0.05) return null;
             return {
               storeId: price.storeId,
               storeName: store.name,

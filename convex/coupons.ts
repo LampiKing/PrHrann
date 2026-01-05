@@ -33,8 +33,14 @@ function getCouponType(coupon: {
   return "percentage_total"; // Default
 }
 
-const isBlockedCouponCode = (code?: string) =>
-  typeof code === "string" && code.trim().toUpperCase() === "PREMIUM15";
+const isBlockedCouponCode = (code?: string) => {
+  if (typeof code !== "string") return false;
+  const upper = code.trim().toUpperCase();
+  // Blokiraj znane izmišljene/promo kode, ki niso od trgovin
+  if (upper === "PREMIUM15") return true;
+  if (/^PREMIUM/.test(upper)) return true;
+  return false;
+};
 
 // Helper function for calculating stacked coupons (can be called from other modules)
 export async function calculateStackedCouponsHelper(

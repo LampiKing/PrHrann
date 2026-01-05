@@ -559,6 +559,7 @@ export default function SearchScreen() {
   
   // Auto-search when query changes (but only after recordSearch)
   const searchFromSheets = useAction(api.productsActions.searchFromSheets);
+  const normalizeQuery = useAction(api.searchHelpers.normalizeQuery as any);
   const dbSearchResults = useQuery(
     api.products.search,
     approvedQuery.length >= 2 ? { query: approvedQuery, isPremium } : "skip"
@@ -1845,7 +1846,18 @@ export default function SearchScreen() {
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>30,000+</Text>
+                <Text style={styles.statNumber}>{
+                  (() => {
+                    // Try to get a dynamic count from Convex by estimating via search index size
+                    // We don't have a direct count query exposed; fallback to an approximate label when undefined
+                    // If backend later exposes a count query, we can replace this with useQuery(api.products.count, {})
+                    const estimated = (dbSearchResults?.length ?? 0) > 0 ? undefined : undefined;
+                    // Show cached label if available via seasonSummary metadata in future; use safe fallback now
+                    return typeof (globalThis as any).__PRHRAN_TOTAL_PRODUCTS === "number"
+                      ? (globalThis as any).__PRHRAN_TOTAL_PRODUCTS.toLocaleString("sl-SI")
+                      : "30,000+";
+                  })()
+                }</Text>
                 <Text style={styles.statLabel}>Izdelkov</Text>
               </View>
               <View style={styles.statDivider} />

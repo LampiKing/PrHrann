@@ -11,12 +11,13 @@
     "platforms": ["ios", "android", "web"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.prhran.app"
+      "bundleIdentifier": "com.prhran.app",
+      "icon": "./assets/images/optimized/Logo Default.png"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/optimized/Logo Default.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0f0a1e"
       },
       "package": "com.prhran.app",
       "permissions": [
