@@ -475,22 +475,27 @@ export default function SearchScreen() {
         // Check error type to show correct modal
         const isGuestLimit = recordResult.error?.includes("guest limit");
         const isPremiumLimit = recordResult.error?.includes("Daily search limit reached");
+        const needsEmailVerification = recordResult.error?.includes("Email verification required");
 
         if (isGuestLimit) {
           openGuestModal("search");
         } else if (isPremiumLimit) {
           // TODO: Show premium upgrade modal
           alert(recordResult.error || "Daily search limit reached. Upgrade to PrHran Plus for unlimited search.");
-        } else if (recordResult.error?.includes("Email verification required")) {
+        } else if (needsEmailVerification) {
           setEmailVerificationPrompt(
-            "Za nadaljevanje moraš potrditi svoj e-naslov. Preveri pošto ali potrdi z novim emailom."
+            "Za nadaljevanje mora? potrditi svoj e-naslov. Preveri po?to ali potrdi z novim emailom."
           );
           setEmailVerificationMessage("");
           setEmailVerificationError("");
           setShowEmailVerificationModal(true);
         } else {
-          // Other error
-          alert(recordResult.error || "Unable to perform search. Please try again.");
+          // Other error - allow search to continue to avoid empty results
+          console.warn("Search tracking failed, continuing search:", recordResult.error);
+          setAutoSearchBlockedQuery(null);
+          setApprovedQuery(trimmedQuery);
+          setSearching(false);
+          return;
         }
 
         if (isPremium) {
@@ -513,6 +518,10 @@ export default function SearchScreen() {
   
   // Auto-search when query changes (but only after recordSearch)
   const searchFromSheets = useAction(api.productsActions.searchFromSheets);
+  const dbSearchResults = useQuery(
+    api.products.search,
+    approvedQuery.length >= 2 ? { query: approvedQuery, isPremium } : "skip"
+  );
   const [rawSearchResults, setRawSearchResults] = useState<ProductResult[]>([]);
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
@@ -541,7 +550,10 @@ export default function SearchScreen() {
   }, [approvedQuery, isPremium, searchFromSheets]);
 
   // Use searchResults directly
-  const rawResults = rawSearchResults;
+  const rawResults =
+    rawSearchResults.length > 0
+      ? rawSearchResults
+      : (dbSearchResults ?? []);
   const searchResults = rawResults
     .map((product) => {
       const prices = product.prices
@@ -560,7 +572,10 @@ export default function SearchScreen() {
     })
     .filter((product): product is ProductResult => product !== null);
   const isSearchResultsLoading =
-    searching || (approvedQuery.length >= 2 && rawSearchResults.length === 0);
+    searching ||
+    (approvedQuery.length >= 2 &&
+      rawSearchResults.length === 0 &&
+      dbSearchResults === undefined);
 
   // Sort results based on swipe direction
   const sortedResults = searchResults

@@ -60,8 +60,8 @@ class ProfileErrorBoundary extends React.Component<{ children: React.ReactNode }
         <View style={styles.container}>
           <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
           <View style={[styles.authPrompt, { paddingTop: 60 }]}>
-            <Text style={styles.authTitle}>Prišlo je do napake</Text>
-            <Text style={styles.authText}>Poskušamo ponovno naložiti profil...</Text>
+            <Text style={styles.authTitle}>Nalaganje profila</Text>
+            <Text style={styles.authText}>Samo trenutek...</Text>
             <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 16 }} />
           </View>
         </View>
@@ -164,9 +164,18 @@ function ProfileScreenInner() {
     isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
   );
 
+  const profileRef = useRef<typeof profile | null>(null);
+  useEffect(() => {
+    if (profile) {
+      profileRef.current = profile;
+    }
+  }, [profile]);
+  const resolvedProfile = profile ?? profileRef.current ?? null;
+  const hasResolvedProfile = resolvedProfile !== null;
+
   // Check if user is guest (anonymous) - MUST be before queries that use it
-  const isGuest = profile?.isAnonymous ?? false;
-  const isAdmin = profile?.isAdmin ?? false;
+  const isGuest = resolvedProfile?.isAnonymous ?? false;
+  const isAdmin = resolvedProfile?.isAdmin ?? false;
 
   // Scraper monitoring & User suggestions - AFTER isGuest is defined
   // Use "skip" if APIs don't exist yet (before schema regeneration)
@@ -208,12 +217,12 @@ function ProfileScreenInner() {
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
 
-  const isPremium = profile?.isPremium ?? false;
-  const premiumType = profile?.premiumType ?? "solo";
-  const searchesRemaining = profile?.searchesRemaining ?? (isGuest ? 1 : 3);
+  const isPremium = resolvedProfile?.isPremium ?? false;
+  const premiumType = resolvedProfile?.premiumType ?? "solo";
+  const searchesRemaining = resolvedProfile?.searchesRemaining ?? (isGuest ? 1 : 3);
   const maxSearches = isPremium ? 999 : (isGuest ? 1 : 3);
   const searchProgress = isPremium ? 1 : Math.max(0, Math.min(1, searchesRemaining / maxSearches));
-  const searchResetTime = profile?.searchResetTime;
+  const searchResetTime = resolvedProfile?.searchResetTime;
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
   const getLocalDateKey = () => {
     const now = new Date();
@@ -232,14 +241,14 @@ function ProfileScreenInner() {
     return `${day}.${month}.${year}`;
   };
   const displayNickname =
-    profile?.nickname ??
-    profile?.name ??
-    (profile?.email ? profile.email.split("@")[0] : "Uporabnik");
+    resolvedProfile?.nickname ??
+    resolvedProfile?.name ??
+    (resolvedProfile?.email ? resolvedProfile.email.split("@")[0] : "Uporabnik");
   const receiptLimit = premiumType === "family" ? 4 : 2;
   const todayKey = getLocalDateKey();
   const receiptsToday = receipts?.filter((receipt) => receipt.purchaseDateKey === todayKey) ?? [];
   const receiptsRemaining = Math.max(0, receiptLimit - receiptsToday.length);
-  const premiumUntilLabel = formatDateShort(profile?.premiumUntil);
+  const premiumUntilLabel = formatDateShort(resolvedProfile?.premiumUntil);
   const premiumUntilMessage = premiumUntilLabel
     ? `Premium velja do ${premiumUntilLabel}.`
     : "Premium velja do konca trenutnega obdobja.";
@@ -309,10 +318,10 @@ function ProfileScreenInner() {
   }, [searchProgress]);
 
   useEffect(() => {
-    if (profile?.nickname && !nicknameInput) {
-      setNicknameInput(profile.nickname);
+    if (resolvedProfile?.nickname && !nicknameInput) {
+      setNicknameInput(resolvedProfile.nickname);
     }
-  }, [profile?.nickname, nicknameInput]);
+  }, [resolvedProfile?.nickname, nicknameInput]);
 
   const handleUpgrade = async () => {
     if (Platform.OS !== "web") {
@@ -597,7 +606,7 @@ function ProfileScreenInner() {
   }, [isAuthenticated, profile, router]);
 
   // Show loading state while auth is initializing
-  if (isLoading || (isAuthenticated && profile === undefined)) {
+  if (isLoading || (isAuthenticated && profile === undefined && !hasResolvedProfile)) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -608,14 +617,14 @@ function ProfileScreenInner() {
             resizeMode="contain"
           />
           <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
-          <Text style={styles.authText}>Nalaganje profila... samodejno osvežujem.</Text>
+          <Text style={styles.authText}>Nalaganje profila...</Text>
         </View>
       </View>
     );
   }
 
   // Only show auth prompt if truly not authenticated or no profile exists
-  if (!isAuthenticated || !profile) {
+  if (!isAuthenticated || !hasResolvedProfile) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -668,9 +677,9 @@ function ProfileScreenInner() {
             disabled={uploadingProfilePic}
             activeOpacity={0.7}
           >
-            {profile?.profilePictureUrl ? (
+            {resolvedProfile?.profilePictureUrl ? (
               <Image
-                source={{ uri: profile.profilePictureUrl }}
+                source={{ uri: resolvedProfile.profilePictureUrl }}
                 style={styles.profilePicture}
                 resizeMode="cover"
               />
