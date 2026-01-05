@@ -68,7 +68,7 @@ export const getProfile = authQuery({
       .query("userProfiles")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
       .first();
-    console.log("Profile found:", !!profile);
+    console.log("Profile found:", !!profile, "Profile data:", profile ? { id: profile._id, email: profile.email, isAdmin: profile.isAdmin } : null);
 
     if (!profile) {
       return null;
@@ -152,18 +152,22 @@ export const ensureProfile = authMutation({
     const today = getDateKey(Date.now());
     const nickname = ctx.user.name ? ctx.user.name.trim() : undefined;
     const nicknameLower = nickname ? nickname.toLowerCase() : undefined;
+    console.log("ensureProfile called for userId:", userId, "name:", ctx.user.name, "email:", ctx.user.email);
 
     const existing = await ctx.db
       .query("userProfiles")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
       .first();
+    console.log("Existing profile:", !!existing);
 
     if (existing) {
+      console.log("Returning existing profile:", existing._id);
       return existing._id;
     }
 
     const now = Date.now();
-    return await ctx.db.insert("userProfiles", {
+    console.log("Creating new profile for userId:", userId);
+    const newProfileId = await ctx.db.insert("userProfiles", {
       userId,
       name: ctx.user.name || undefined,
       nickname,
@@ -178,6 +182,8 @@ export const ensureProfile = authMutation({
       dailySearches: 0,
       lastSearchDate: today,
     });
+    console.log("New profile created with ID:", newProfileId);
+    return newProfileId;
   },
 });
 

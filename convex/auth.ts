@@ -16,6 +16,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
     triggers: {
         user: {
             onCreate: async (ctx, user) => {
+                console.log("Auth trigger: Creating profile for user:", user._id, "email:", user.email, "name:", user.name);
                 const now = Date.now();
                 const nickname = user.name ? user.name.trim() : undefined;
                 const nicknameLower = nickname ? nickname.toLowerCase() : undefined;
@@ -30,6 +31,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
                     .map((email) => email.trim().toLowerCase())
                     .filter(Boolean);
                 const isAdmin = Boolean(normalizedEmail && adminEmails.includes(normalizedEmail));
+                console.log("User is admin:", isAdmin, "for email:", normalizedEmail);
                 await ctx.db.insert("userProfiles", {
                     userId: user._id,
                     name: user.name || undefined,
@@ -47,6 +49,7 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
                     dailySearches: 0,
                     lastSearchDate: new Date().toISOString().split("T")[0],
                 });
+                console.log("Profile created successfully for user:", user._id);
 
                 if (normalizedEmail && !user.isAnonymous) {
                     const adminNotify = (process.env.ADMIN_NOTIFY_EMAIL || "prrhran@gmail.com")
