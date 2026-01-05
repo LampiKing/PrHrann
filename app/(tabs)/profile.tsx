@@ -192,13 +192,20 @@ function ProfileScreenInner() {
   }, [profile]);
   const resolvedProfile = profile ?? profileRef.current ?? null;
   const hasResolvedProfile = resolvedProfile !== null;
-  const profilePictureUrl = profilePictureOverride ?? resolvedProfile?.profilePictureUrl;
+  
+  // Determine which profile picture to show
+  // If we have an override (newly uploaded, pending confirmation), use that
+  // Otherwise use the one from the server
+  const profilePictureUrl = profilePictureOverride || resolvedProfile?.profilePictureUrl;
 
+  // Only clear the override when profile picture actually changes from server
   useEffect(() => {
-    if (resolvedProfile?.profilePictureUrl) {
+    if (profilePictureOverride && resolvedProfile?.profilePictureUrl && resolvedProfile.profilePictureUrl !== profilePictureOverride) {
+      // Server has a different picture, which means upload succeeded
+      // Keep showing the new one from server
       setProfilePictureOverride(null);
     }
-  }, [resolvedProfile?.profilePictureUrl]);
+  }, [resolvedProfile?.profilePictureUrl, profilePictureOverride]);
 
   // Check if user is guest (anonymous) - MUST be before queries that use it
   const isGuest = resolvedProfile?.isAnonymous ?? false;
