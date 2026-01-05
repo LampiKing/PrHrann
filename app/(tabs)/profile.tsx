@@ -132,8 +132,24 @@ function ProfileScreenInner() {
     isAuthenticated ? {} : "skip"
   ) ?? null;
   
+  // Track if profile is actually loaded (not undefined during first fetch)
+  const isProfileLoaded = profile !== undefined && profile !== null;
+  
   // Only fetch admin data when profile is loaded and user is admin
-  const shouldFetchAdminData = isAuthenticated && profile !== null && profile !== undefined && profile?.isAdmin;
+  const shouldFetchAdminData = isAuthenticated && isProfileLoaded && profile?.isAdmin === true;
+
+  // Debug logging
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[AdminPanel Debug]", {
+        isAuthenticated,
+        isProfileLoaded,
+        isAdmin: profile?.isAdmin,
+        shouldFetchAdminData,
+        profileData: profile ? { email: profile.email, isAdmin: profile.isAdmin } : null,
+      });
+    }
+  }, [isAuthenticated, isProfileLoaded, shouldFetchAdminData, profile?.isAdmin, profile?.email]);
   
   const adminStats = useQuery(
     api.admin.getStats,
@@ -1126,7 +1142,7 @@ function ProfileScreenInner() {
           </Animated.View>
         )}
 
-        {isAdmin && (
+        {isAdmin && adminStats && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.adminHeader}>
               <View>
