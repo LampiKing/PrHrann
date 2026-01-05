@@ -131,17 +131,21 @@ function ProfileScreenInner() {
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
   ) ?? null;
+  
+  // Only fetch admin data when profile is loaded and user is admin
+  const shouldFetchAdminData = isAuthenticated && profile !== null && profile !== undefined && profile?.isAdmin;
+  
   const adminStats = useQuery(
     api.admin.getStats,
-    isAuthenticated && profile?.isAdmin ? {} : "skip"
+    shouldFetchAdminData ? {} : "skip"
   );
   const detailedAdminStats = useQuery(
     api.admin.getDetailedStats,
-    isAuthenticated && profile?.isAdmin ? {} : "skip"
+    shouldFetchAdminData ? {} : "skip"
   );
   const adminUsers = useQuery(
     api.admin.getAllUsers,
-    isAuthenticated && profile?.isAdmin && adminUserType
+    shouldFetchAdminData && adminUserType
       ? { type: adminUserType, limit: 50 }
       : "skip"
   );
@@ -217,12 +221,12 @@ function ProfileScreenInner() {
 
   const scraperStats = useQuery(
     apiWithOptional.scraperMonitoring?.getScraperStats ?? api.admin.getStats,
-    !hasScraperAPI || !isAuthenticated || !profile?.isAdmin ? "skip" : {}
+    !hasScraperAPI || !shouldFetchAdminData ? "skip" : {}
   );
   // TODO: Uncomment when modals are implemented
   // const userSuggestions = useQuery(
   //   apiWithOptional.userSuggestions?.getAllSuggestions ?? api.admin.getStats,
-  //   !hasSuggestionsAPI || !isAuthenticated || !profile?.isAdmin ? "skip" : { limit: 50 }
+  //   !hasSuggestionsAPI || !isAuthenticated || !shouldFetchAdminData ? "skip" : { limit: 50 }
   // );
   // const mySuggestions = useQuery(
   //   apiWithOptional.userSuggestions?.getMySuggestions ?? api.admin.getStats,
@@ -230,7 +234,7 @@ function ProfileScreenInner() {
   // );
   const suggestionStats = useQuery(
     apiWithOptional.userSuggestions?.getSuggestionStats ?? api.admin.getStats,
-    !hasSuggestionsAPI || !isAuthenticated || !profile?.isAdmin ? "skip" : {}
+    !hasSuggestionsAPI || !shouldFetchAdminData ? "skip" : {}
   );
   const userSuggestions = useQuery(
     api.userSuggestions.getAllSuggestions,
