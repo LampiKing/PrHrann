@@ -142,7 +142,7 @@ export const importFromScanner = internalMutation({
 
       const rawStore = normalize(item.trgovina || "");
       const mappedStoreName = STORE_NAME_MAP[rawStore] || item.trgovina;
-      let store = storeMap.get(normalize(mappedStoreName));
+      let store: typeof stores[0] | null | undefined = storeMap.get(normalize(mappedStoreName));
       if (!store) {
         if (!ALLOWED_STORE_NAMES.has(mappedStoreName)) {
           unknownStores += 1;
@@ -154,6 +154,10 @@ export const importFromScanner = internalMutation({
           isPremium: false,
         });
         store = await ctx.db.get(storeId);
+        if (!store) {
+          skipped += 1;
+          continue;
+        }
         if (!store) {
           skipped += 1;
           continue;

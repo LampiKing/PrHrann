@@ -32,6 +32,7 @@ import type * as receipts from "../receipts.js";
 import type * as savings from "../savings.js";
 import type * as scraperMonitoring from "../scraperMonitoring.js";
 import type * as searchAnalytics from "../searchAnalytics.js";
+import type * as searchHelpers from "../searchHelpers.js";
 import type * as security from "../security.js";
 import type * as seedCoupons from "../seedCoupons.js";
 import type * as seedData from "../seedData.js";
@@ -73,6 +74,7 @@ declare const fullApi: ApiFromModules<{
   savings: typeof savings;
   scraperMonitoring: typeof scraperMonitoring;
   searchAnalytics: typeof searchAnalytics;
+  searchHelpers: typeof searchHelpers;
   security: typeof security;
   seedCoupons: typeof seedCoupons;
   seedData: typeof seedData;

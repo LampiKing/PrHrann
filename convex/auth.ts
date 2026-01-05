@@ -155,7 +155,7 @@ export const createAuth = (
         logger: {
             disabled: optionsOnly,
         },
-        secret: process.env.BETTER_AUTH_SECRET!,
+        secret: process.env.BETTER_AUTH_SECRET || "test-secret-for-dev-only-replace-with-real-secret",
         trustedOrigins: Array.from(
             new Set([
                 siteUrl,
@@ -171,7 +171,7 @@ export const createAuth = (
             requireEmailVerification: false,
             sendVerificationOnSignUp: true,
             autoSignInAfterVerification: true,
-            sendVerificationEmail: async ({ user, url, token }: any) => {
+            sendVerificationEmail: async ({ user, url }: { user: { email: string }, url: string, token: string }) => {
                 const subject = "Potrdi svoj e-naslov";
                 const html = `
                     <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
@@ -189,7 +189,7 @@ export const createAuth = (
                     console.log(`Email verification link for ${user.email}: ${url}`);
                 }
             },
-            sendResetPassword: async ({ user, url, token }: any) => {
+            sendResetPassword: async ({ user, url }: { user: { email: string }, url: string, token: string }) => {
                 const subject = "Ponastavi geslo";
                 const html = `
                     <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">

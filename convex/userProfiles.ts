@@ -62,11 +62,13 @@ export const getProfile = authQuery({
   handler: async (ctx) => {
     const userId = ctx.user._id;
     const today = getDateKey(Date.now());
+    console.log("getProfile called for userId:", userId);
 
     const profile = await ctx.db
       .query("userProfiles")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
       .first();
+    console.log("Profile found:", !!profile);
 
     if (!profile) {
       return null;
