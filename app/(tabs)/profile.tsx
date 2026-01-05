@@ -132,9 +132,21 @@ function ProfileScreenInner() {
     isAuthenticated ? {} : "skip"
   ) ?? null;
   
+  // Keep track of the last resolved profile, including explicit null (no profile)
+  // so that we do not stay in a loading state forever when backend returns null.
+  const profileRef = useRef<typeof profile | null | undefined>(undefined);
+  useEffect(() => {
+    if (profile !== undefined) {
+      profileRef.current = profile ?? null;
+    }
+  }, [profile]);
+
+  // If Convex still loading => profile === undefined; once resolved we keep latest value
+  const resolvedProfile = profile !== undefined ? (profile ?? null) : (profileRef.current ?? null);
+  const hasResolvedProfile = profile !== undefined || profileRef.current !== undefined;
+
   // Check if profile is loaded and user is admin
-  // Use profile directly (not a ref) to ensure queries update when admin status changes
-  const isAdminUser = profile !== null && profile !== undefined && profile?.isAdmin === true;
+  const isAdminUser = resolvedProfile?.isAdmin === true;
   const shouldFetchAdminData = isAuthenticated && isAdminUser;
   
   const adminStats = useQuery(
@@ -179,21 +191,14 @@ function ProfileScreenInner() {
   );
   const familyMembers = useQuery(
     api.familyPlan.getFamilyMembers,
-    isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
+    isAuthenticated && resolvedProfile?.premiumType === "family" ? {} : "skip"
   );
   const pendingInvites = useQuery(
     api.familyPlan.getPendingInvitations,
-    isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
+    isAuthenticated && resolvedProfile?.premiumType === "family" ? {} : "skip"
   );
 
-  const profileRef = useRef<typeof profile | null>(null);
-  useEffect(() => {
-    if (profile) {
-      profileRef.current = profile;
-    }
-  }, [profile]);
-  const resolvedProfile = profile ?? profileRef.current ?? null;
-  const hasResolvedProfile = resolvedProfile !== null;
+  
   
   // Determine which profile picture to show
   // If we have an override (newly uploaded, pending confirmation), use that
