@@ -57,3 +57,6 @@ automated_scraper/credentials.json
 
 # Windows reserved filename artifact
 nul
+
+# Local Netlify folder
+.netlify

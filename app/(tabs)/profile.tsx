@@ -86,7 +86,9 @@ class ProfileErrorBoundary extends React.Component<
 function ProfileScreenInner() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+
+  // --- State for UI (Modals, Inputs, etc.) ---
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -119,142 +121,40 @@ function ProfileScreenInner() {
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
   const [feedbackSuccess, setFeedbackSuccess] = useState("");
-  // TODO: Uncomment when modals are implemented
-  // const [showScraperStatsModal, setShowScraperStatsModal] = useState(false);
-  // const [showUserSuggestionsModal, setShowUserSuggestionsModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  const profile = useQuery(
-    api.userProfiles.getProfile,
-    isAuthenticated ? {} : "skip"
-  );
-  
-  // Keep track of the last resolved profile, including explicit null (no profile)
-  // so that we do not stay in a loading state forever when backend returns null.
-  const profileRef = useRef<typeof profile | null | undefined>(undefined);
-  useEffect(() => {
-    if (profile !== undefined) {
-      profileRef.current = profile ?? null;
-    }
-  }, [profile]);
+  // --- Core Data Loading ---
+  // 1. Load profile - undefined while loading, null if not found, object if found.
+  const profile = useQuery(api.userProfiles.getProfile, isAuthenticated ? {} : "skip");
+  const isProfileLoading = profile === undefined;
 
-  // If Convex still loading => profile === undefined; once resolved we keep latest value
-  const resolvedProfile = profile !== undefined ? (profile ?? null) : (profileRef.current ?? null);
-  const hasResolvedProfile = profile !== undefined || profileRef.current !== undefined;
-
-  // Check if profile is loaded and user is admin
-  const isAdminUser = resolvedProfile?.isAdmin === true;
-  const shouldFetchAdminData = isAuthenticated && isAdminUser;
-  
-  const adminStats = useQuery(
-    api.admin.getStats,
-    shouldFetchAdminData ? {} : "skip"
-  );
-  const detailedAdminStats = useQuery(
-    api.admin.getDetailedStats,
-    shouldFetchAdminData ? {} : "skip"
-  );
+  // 2. Load admin-specific data ONLY when profile is loaded and user is an admin.
+  const shouldFetchAdminData = isAuthenticated && profile?.isAdmin === true;
+  const adminStats = useQuery(api.admin.getStats, shouldFetchAdminData ? {} : "skip");
+  const detailedAdminStats = useQuery(api.admin.getDetailedStats, shouldFetchAdminData ? {} : "skip");
   const adminUsers = useQuery(
     api.admin.getAllUsers,
-    shouldFetchAdminData && adminUserType
-      ? { type: adminUserType, limit: 50 }
-      : "skip"
+    shouldFetchAdminData && adminUserType ? { type: adminUserType, limit: 50 } : "skip"
   );
-  // TODO: Uncomment when convex schema is regenerated
-  // const aiSuggestions = useQuery(
-  //   api.searchAnalytics.generateAISuggestions,
-  //   isAuthenticated && profile?.isAdmin ? {} : "skip"
-  // );
-  // Placeholder until schema regenerated - will be empty array for now
-  const aiSuggestions: Array<{
-    type: string;
-    priority: string;
-    searchQuery: string;
-    suggestion: string;
-    metrics: {
-      searchCount: number;
-      averageResults: number;
-      clickRate: number;
-    };
-  }> = [];
 
-  const receipts = useQuery(
-    api.receipts.getReceipts,
-    isAuthenticated ? { limit: 20 } : "skip"
-  );
-  const awards = useQuery(
-    api.awards.getMyAwards,
-    isAuthenticated ? {} : "skip"
-  );
+  // 3. Load other user-specific data ONLY when authenticated.
+  const receipts = useQuery(api.receipts.getReceipts, isAuthenticated ? { limit: 20 } : "skip");
+  const awards = useQuery(api.awards.getMyAwards, isAuthenticated ? {} : "skip");
+
+  // 4. Load family-plan data ONLY when profile is loaded and user has a family plan.
   const familyMembers = useQuery(
     api.familyPlan.getFamilyMembers,
-    isAuthenticated && resolvedProfile?.premiumType === "family" ? {} : "skip"
+    isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
   );
   const pendingInvites = useQuery(
     api.familyPlan.getPendingInvitations,
-    isAuthenticated && resolvedProfile?.premiumType === "family" ? {} : "skip"
+    isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
   );
 
-  
-  
-  // Determine which profile picture to show
-  // If we have an override (newly uploaded, pending confirmation), use that
-  // Otherwise use the one from the server
-  const profilePictureUrl = profilePictureOverride || resolvedProfile?.profilePictureUrl;
-
-  // Only clear the override when profile picture actually changes from server
-  useEffect(() => {
-    if (profilePictureOverride && resolvedProfile?.profilePictureUrl && resolvedProfile.profilePictureUrl !== profilePictureOverride) {
-      // Server has a different picture, which means upload succeeded
-      // Keep showing the new one from server
-      setProfilePictureOverride(null);
-    }
-  }, [resolvedProfile?.profilePictureUrl, profilePictureOverride]);
-
-  // Check if user is guest (anonymous) - MUST be before queries that use it
-  const isGuest = resolvedProfile?.isAnonymous ?? false;
-  const isAdmin = resolvedProfile?.isAdmin ?? false;
-
-  // Scraper monitoring & User suggestions - AFTER isGuest is defined
-  // Use "skip" if APIs don't exist yet (before schema regeneration)
-  const apiWithOptional = api as typeof api & {
-    scraperMonitoring?: {
-      getScraperStats: typeof api.admin.getStats;
-    };
-    userSuggestions?: {
-      getAllSuggestions: typeof api.admin.getStats;
-      getMySuggestions: typeof api.admin.getStats;
-      getSuggestionStats: typeof api.admin.getStats;
-    };
-  };
-  const hasScraperAPI = !!apiWithOptional.scraperMonitoring;
-  const hasSuggestionsAPI = !!apiWithOptional.userSuggestions;
-
-  const scraperStats = useQuery(
-    apiWithOptional.scraperMonitoring?.getScraperStats ?? api.admin.getStats,
-    !hasScraperAPI || !shouldFetchAdminData ? "skip" : {}
-  );
-  // TODO: Uncomment when modals are implemented
-  // const userSuggestions = useQuery(
-  //   apiWithOptional.userSuggestions?.getAllSuggestions ?? api.admin.getStats,
-  //   !hasSuggestionsAPI || !isAuthenticated || !shouldFetchAdminData ? "skip" : { limit: 50 }
-  // );
-  // const mySuggestions = useQuery(
-  //   apiWithOptional.userSuggestions?.getMySuggestions ?? api.admin.getStats,
-  //   !hasSuggestionsAPI || !isAuthenticated || isGuest ? "skip" : {}
-  // );
-  const suggestionStats = useQuery(
-    apiWithOptional.userSuggestions?.getSuggestionStats ?? api.admin.getStats,
-    !hasSuggestionsAPI || !shouldFetchAdminData ? "skip" : {}
-  );
-  const userSuggestions = useQuery(
-    api.userSuggestions.getAllSuggestions,
-    !hasSuggestionsAPI || !isAuthenticated || !isAdmin ? "skip" : { limit: 50 }
-  );
-
+  // --- Mutations and Actions ---
   const submitReceipt = useAction(api.receipts.submitReceipt);
   const deleteAccount = useAction(api.userProfiles.deleteAccount);
   const inviteFamilyMember = useAction(api.familyPlan.inviteFamilyMember);
@@ -263,108 +163,14 @@ function ProfileScreenInner() {
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
   const submitSuggestion = useMutation(api.userSuggestions.submitSuggestion);
 
-  const isPremium = resolvedProfile?.isPremium ?? false;
-  const premiumType = resolvedProfile?.premiumType ?? "solo";
-  const feedbackTypeOptions: Array<{ value: "feature" | "improvement" | "bug" | "store" | "product" | "other"; label: string }> = [
-    { value: "feature", label: "Nova funkcija" },
-    { value: "improvement", label: "Izboljsava" },
-    { value: "bug", label: "Napaka" },
-    { value: "store", label: "Trgovina" },
-    { value: "product", label: "Izdelek" },
-    { value: "other", label: "Drugo" },
-  ];
-  const suggestionTypeLabels: Record<string, string> = {
-    feature: "Nova funkcija",
-    improvement: "Izboljsava",
-    bug: "Napaka",
-    store: "Trgovina",
-    product: "Izdelek",
-    other: "Drugo",
-  };
-  const suggestionStatusLabels: Record<string, string> = {
-    pending: "Caka",
-    reviewing: "V pregledu",
-    approved: "Odobreno",
-    implemented: "Vgrajeno",
-    rejected: "Zavrnjeno",
-    duplicate: "Duplikat",
-  };
-  const searchesRemaining = resolvedProfile?.searchesRemaining ?? (isGuest ? 1 : 3);
-  const maxSearches = isPremium ? 999 : (isGuest ? 1 : 3);
-  const searchProgress = isPremium ? 1 : Math.max(0, Math.min(1, searchesRemaining / maxSearches));
-  const searchResetTime = resolvedProfile?.searchResetTime;
-  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
-  const getLocalDateKey = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = `${now.getMonth() + 1}`.padStart(2, "0");
-    const day = `${now.getDate()}`.padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-  const formatDateShort = (timestamp?: number) => {
-    if (!timestamp) return null;
-    const date = new Date(timestamp);
-    if (Number.isNaN(date.getTime())) return null;
-    const day = `${date.getDate()}`.padStart(2, "0");
-    const month = `${date.getMonth() + 1}`.padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}.${month}.${year}`;
-  };
-  const displayNickname =
-    resolvedProfile?.nickname ??
-    resolvedProfile?.name ??
-    (resolvedProfile?.email ? resolvedProfile.email.split("@")[0] : "Uporabnik");
-  const receiptLimit = premiumType === "family" ? 4 : 2;
-  const todayKey = getLocalDateKey();
-  const receiptsToday = receipts?.filter((receipt) => receipt.purchaseDateKey === todayKey) ?? [];
-  const receiptsRemaining = Math.max(0, receiptLimit - receiptsToday.length);
-  const premiumUntilLabel = formatDateShort(resolvedProfile?.premiumUntil);
-  const premiumUntilMessage = premiumUntilLabel
-    ? `Premium velja do ${premiumUntilLabel}.`
-    : "Premium velja do konca trenutnega obdobja.";
-  const awardsByYear = (awards ?? []).reduce<Record<string, AwardEntry[]>>((acc, award) => {
-    const key = `${award.year}`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(award);
-    return acc;
-  }, {});
-  const suggestionsList = Array.isArray(userSuggestions) ? userSuggestions : [];
-  const awardYears = Object.keys(awardsByYear).sort((a, b) => Number(b) - Number(a));
-  const getAwardBadge = (award: AwardEntry) => {
-    const label = award.award.toLowerCase();
-    if (label.includes("zlati")) {
-      return { image: BADGE_GOLD, title: award.award };
-    }
-    if (label.includes("srebrni")) {
-      return { image: BADGE_SILVER, title: award.award };
-    }
-    if (label.includes("bronasti")) {
-      return { image: BADGE_BRONZE, title: award.award };
-    }
-    if (label.includes("top 10")) {
-      return { image: BADGE_TOP_10, title: award.award };
-    }
-    if (label.includes("top 100")) {
-      return { image: BADGE_TOP_100, title: award.award };
-    }
-    return { image: BADGE_TOP_100, title: award.award };
-  };
-  const getSuggestionStatusStyle = (status?: string) => {
-    switch (status) {
-      case "approved":
-      case "implemented":
-        return styles.userSuggestionStatusApproved;
-      case "rejected":
-        return styles.userSuggestionStatusRejected;
-      case "reviewing":
-        return styles.userSuggestionStatusReviewing;
-      case "duplicate":
-        return styles.userSuggestionStatusDuplicate;
-      default:
-        return styles.userSuggestionStatusPending;
-    }
-  };
+  // --- Derived State & Memoized Values (Calculated only when profile is loaded) ---
+  const profilePictureUrl = profilePictureOverride || profile?.profilePictureUrl;
+  const searchesRemaining = profile?.searchesRemaining ?? (profile?.isAnonymous ? 1 : 3);
+  const maxSearches = profile?.isPremium ? 999 : (profile?.isAnonymous ? 1 : 3);
+  const searchProgress = profile?.isPremium ? 1 : Math.max(0, Math.min(1, searchesRemaining / maxSearches));
+  const searchResetTime = profile?.searchResetTime;
 
+  // --- Effects ---
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -381,7 +187,7 @@ function ProfileScreenInner() {
 
   useEffect(() => {
     const update = () => {
-      if (!isPremium && searchResetTime && searchesRemaining <= 0) {
+      if (!profile?.isPremium && searchResetTime && searchesRemaining <= 0) {
         const diff = Math.max(0, searchResetTime - Date.now());
         const minutes = Math.floor(diff / 60000);
         const seconds = Math.floor((diff % 60000) / 1000);
@@ -393,7 +199,7 @@ function ProfileScreenInner() {
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [searchResetTime, isPremium, searchesRemaining, maxSearches]);
+  }, [searchResetTime, profile?.isPremium, searchesRemaining, maxSearches]);
 
   useEffect(() => {
     Animated.timing(progressAnim, {
@@ -404,10 +210,10 @@ function ProfileScreenInner() {
   }, [searchProgress]);
 
   useEffect(() => {
-    if (resolvedProfile?.nickname && !nicknameInput) {
-      setNicknameInput(resolvedProfile.nickname);
+    if (profile?.nickname && !nicknameInput) {
+      setNicknameInput(profile.nickname);
     }
-  }, [resolvedProfile?.nickname, nicknameInput]);
+  }, [profile?.nickname, nicknameInput]);
 
   const handleUpgrade = async () => {
     if (Platform.OS !== "web") {
@@ -708,7 +514,7 @@ function ProfileScreenInner() {
 
   const handleRemoveMember = async (memberUserId: string) => {
     if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Haptics.notificationAsync(Haptics.ImpactFeedbackStyle.Warning);
     }
     try {
       await removeFamilyMember({ memberUserId });
@@ -728,7 +534,7 @@ function ProfileScreenInner() {
 
   const handleCancelSubscription = async () => {
     if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Haptics.notificationAsync(Haptics.ImpactFeedbackStyle.Warning);
     }
     try {
       // Note: Subscription cancellation would require payment provider integration
@@ -759,7 +565,7 @@ function ProfileScreenInner() {
   }, [isAuthenticated, profile, hasResolvedProfile, router]);
 
   // Show loading state while auth is initializing
-  if (isLoading) {
+  if (isAuthLoading) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -770,13 +576,13 @@ function ProfileScreenInner() {
             resizeMode="contain"
           />
           <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
-          <Text style={styles.authText}>Nalaganje profila...</Text>
+          <Text style={styles.authText}>Preverjanje prijave...</Text>
         </View>
       </View>
     );
   }
 
-  // Only show auth prompt if truly not authenticated
+  // 2. If not authenticated, show login prompt
   if (!isAuthenticated) {
     return (
       <View style={styles.container}>
@@ -809,8 +615,8 @@ function ProfileScreenInner() {
     );
   }
 
-  // Show loading if profile is still loading
-  if (!hasResolvedProfile) {
+  // 3. If authenticated, but profile is still loading, show profile loader
+  if (isProfileLoading) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -826,6 +632,45 @@ function ProfileScreenInner() {
       </View>
     );
   }
+
+  // 4. If we have a null profile (user exists in auth but not in our DB), show error/prompt
+  // This is a fallback, should ideally be handled by ensureProfile in _layout
+  if (!profile) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
+        <View style={[styles.authPrompt, { paddingTop: insets.top + 40 }]}>
+          <Ionicons name="alert-circle-outline" size={60} color="#ef4444" />
+          <Text style={styles.authTitle}>Napaka pri nalaganju profila</Text>
+          <Text style={styles.authText}>
+            Vašega profila ni bilo mogoče naložiti. Poskusite znova kasneje ali kontaktirajte podporo.
+          </Text>
+          <TouchableOpacity style={styles.authButton} onPress={() => authClient.signOut()}>
+            <LinearGradient
+              colors={["#8b5cf6", "#7c3aed"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.authButtonGradient}
+            >
+              <Text style={styles.authButtonText}>Odjava</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // --- From this point on, we can safely assume `profile` is a valid object ---
+
+  const displayNickname =
+    profile.nickname ??
+    profile.name ??
+    (profile.email ? profile.email.split("@")[0] : "Uporabnik");
+  const receiptLimit = profile.premiumType === "family" ? 4 : 2;
+  const premiumUntilLabel = formatDateShort(profile.premiumUntil);
+  const premiumUntilMessage = premiumUntilLabel
+    ? `Premium velja do ${premiumUntilLabel}.`
+    : "Premium velja do konca trenutnega obdobja.";
 
   return (
     <View style={styles.container}>
@@ -872,7 +717,7 @@ function ProfileScreenInner() {
             </View>
           </TouchableOpacity>
           <Text style={styles.title}>
-            {premiumType === "family" ? `${displayNickname} Family profil` : `${displayNickname} profil`}
+            {profile.premiumType === "family" ? `${displayNickname} Family profil` : `${displayNickname} profil`}
           </Text>
         </Animated.View>
 
@@ -880,7 +725,7 @@ function ProfileScreenInner() {
         <Animated.View style={[styles.planCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <LinearGradient
             colors={
-              isPremium
+              profile.isPremium
                 ? ["rgba(251, 191, 36, 0.26)", "rgba(245, 158, 11, 0.2)"]
                 : ["rgba(139, 92, 246, 0.15)", "rgba(59, 7, 100, 0.3)"]
             }
@@ -888,32 +733,32 @@ function ProfileScreenInner() {
             end={{ x: 1, y: 1 }}
             style={[
               styles.planGradient,
-              isPremium && styles.planGradientPremium,
-              isPremium && styles.planPremiumShadow,
+              profile.isPremium && styles.planGradientPremium,
+              profile.isPremium && styles.planPremiumShadow,
             ]}
           >
             <View style={styles.planHeader}>
               <View style={styles.planInfo}>
                 <View style={styles.planBadge}>
-                  {isPremium ? (
+                  {profile.isPremium ? (
                     <Ionicons name="star" size={16} color="#fbbf24" />
                   ) : (
                     <Ionicons name="person" size={16} color="#a78bfa" />
                   )}
-                  <Text style={[styles.planBadgeText, isPremium && styles.planBadgeTextPremium]}>
-                    {isPremium ? (premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS) : PLAN_FREE}
+                  <Text style={[styles.planBadgeText, profile.isPremium && styles.planBadgeTextPremium]}>
+                    {profile.isPremium ? (profile.premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS) : PLAN_FREE}
                   </Text>
                 </View>
                 <Text style={styles.planPrice}>
-                  {isPremium ? (premiumType === "family" ? "2,99  EUR/mesec" : "1,99  EUR/mesec") : "Brezplačno"}
+                  {profile.isPremium ? (profile.premiumType === "family" ? "2,99  EUR/mesec" : "1,99  EUR/mesec") : "Brezplačno"}
                 </Text>
-                {isPremium && (
+                {profile.isPremium && (
                   <Text style={styles.planExpiry}>
                     {premiumUntilLabel ? `Velja do ${premiumUntilLabel}` : "Velja do konca obdobja"}
                   </Text>
                 )}
               </View>
-              {(!isPremium || (isPremium && premiumType === "solo")) && (
+              {(!profile.isPremium || (profile.isPremium && profile.premiumType === "solo")) && (
                 <TouchableOpacity
                   style={styles.upgradeButton}
                   onPress={handleUpgrade}
@@ -926,7 +771,7 @@ function ProfileScreenInner() {
                   >
                     <Ionicons name="star" size={14} color="#0b0814" />
                     <Text style={styles.upgradeText}>
-                      {isPremium ? "Nadgradi na Family" : "Nadgradi"}
+                      {profile.isPremium ? "Nadgradi na Family" : "Nadgradi"}
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -938,14 +783,14 @@ function ProfileScreenInner() {
               <View style={styles.searchProgressHeader}>
                 <Text style={styles.searchProgressLabel}>Brezplačna iskanja</Text>
                 <Text style={styles.searchProgressValue}>
-                  {isPremium ? "neomejeno" : `${Math.max(0, searchesRemaining)}/${maxSearches}`}
+                  {profile.isPremium ? "neomejeno" : `${Math.max(0, searchesRemaining)}/${maxSearches}`}
                 </Text>
               </View>
               <View style={styles.progressBar}>
                 <Animated.View
                   style={[
                     styles.progressFill,
-                    isPremium && styles.progressFillPremium,
+                    profile.isPremium && styles.progressFillPremium,
                     {
                       width: progressAnim.interpolate({
                         inputRange: [0, 1],
@@ -955,12 +800,12 @@ function ProfileScreenInner() {
                   ]}
                 />
               </View>
-              {!isPremium && searchesRemaining <= 0 && timeRemaining ? (
+              {!profile.isPremium && searchesRemaining <= 0 && timeRemaining ? (
                 <View style={styles.searchTimer}>
                   <Ionicons name="time-outline" size={14} color="#fbbf24" />
                   <Text style={styles.searchTimerText}>Novo iskanje čez {timeRemaining}</Text>
                 </View>
-              ) : !isPremium && searchesRemaining === 1 ? (
+              ) : !profile.isPremium && searchesRemaining === 1 ? (
                 <Text style={styles.searchWarning}>
                   Še samo 1 brezplačno iskanje.
                 </Text>
@@ -971,34 +816,34 @@ function ProfileScreenInner() {
             <View style={styles.planFeatures}>
               <View style={styles.planFeature}>
                 <Ionicons
-                  name={isPremium ? "checkmark-circle" : "checkmark-circle-outline"}
+                  name={profile.isPremium ? "checkmark-circle" : "checkmark-circle-outline"}
                   size={18}
-                  color={isPremium ? "#10b981" : "#6b7280"}
+                  color={profile.isPremium ? "#10b981" : "#6b7280"}
                 />
-                <Text style={[styles.planFeatureText, !isPremium && styles.planFeatureTextDisabled]}>
-                  {isPremium
+                <Text style={[styles.planFeatureText, !profile.isPremium && styles.planFeatureTextDisabled]}>
+                  {profile.isPremium
                     ? "Neomejeno iskanje"
                     : (maxSearches === 1 ? "1 iskanje na dan" : `${maxSearches} iskanja na dan`)}
                 </Text>
               </View>
               <View style={styles.planFeature}>
                 <Ionicons
-                  name={isPremium ? "checkmark-circle" : "close-circle-outline"}
+                  name={profile.isPremium ? "checkmark-circle" : "close-circle-outline"}
                   size={18}
-                  color={isPremium ? "#10b981" : "#6b7280"}
+                  color={profile.isPremium ? "#10b981" : "#6b7280"}
                 />
-                <Text style={[styles.planFeatureText, !isPremium && styles.planFeatureTextDisabled]}>
-                  {isPremium ? "Vse razpoložljive trgovine" : "Samo osnovne trgovine"}
+                <Text style={[styles.planFeatureText, !profile.isPremium && styles.planFeatureTextDisabled]}>
+                  {profile.isPremium ? "Vse razpoložljive trgovine" : "Samo osnovne trgovine"}
                 </Text>
               </View>
               <View style={styles.planFeature}>
                 <Ionicons
-                  name={isPremium ? "checkmark-circle" : "close-circle-outline"}
+                  name={profile.isPremium ? "checkmark-circle" : "close-circle-outline"}
                   size={18}
-                  color={isPremium ? "#10b981" : "#6b7280"}
+                  color={profile.isPremium ? "#10b981" : "#6b7280"}
                 />
-                <Text style={[styles.planFeatureText, !isPremium && styles.planFeatureTextDisabled]}>
-                  {isPremium ? "Ekskluzivni kuponi" : "Osnovni kuponi"}
+                <Text style={[styles.planFeatureText, !profile.isPremium && styles.planFeatureTextDisabled]}>
+                  {profile.isPremium ? "Ekskluzivni kuponi" : "Osnovni kuponi"}
                 </Text>
               </View>
             </View>
@@ -1109,7 +954,7 @@ function ProfileScreenInner() {
         </Animated.View>
 
         {/* User Feedback Button - TODO: Add modal when implemented */}
-        {!isGuest && (
+        {!profile.isAnonymous && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <TouchableOpacity style={styles.feedbackButton} onPress={openFeedbackModal} activeOpacity={0.85}>
               <LinearGradient
@@ -1133,7 +978,7 @@ function ProfileScreenInner() {
           </Animated.View>
         )}
 
-        {isAdmin && (
+        {profile.isAdmin && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.adminHeader}>
               <View>
@@ -1377,7 +1222,7 @@ function ProfileScreenInner() {
         )}
 
         {/* Family Plan Management */}
-        {premiumType === "family" && (
+        {profile.premiumType === "family" && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.familyHeader}>
               <Text style={styles.sectionTitle}>Family Plan</Text>
@@ -1491,7 +1336,7 @@ function ProfileScreenInner() {
               <Ionicons name="chevron-forward" size={20} color="#6b7280" />
             </TouchableOpacity>
 
-            {isPremium && (
+            {profile.isPremium && (
               <TouchableOpacity 
                 style={styles.settingItem}
                 onPress={() => setShowCancelModal(true)}
@@ -1916,7 +1761,7 @@ function ProfileScreenInner() {
                   onPress={handleCancelSubscription}
                 >
                   <Text style={styles.confirmCancelText}>Prekliči naročnino</Text>
-                </TouchableOpacity>
+                               </TouchableOpacity>
               </View>
             </LinearGradient>
           </View>
@@ -2571,7 +2416,7 @@ const styles = StyleSheet.create({
   },
   searchProgressLabel: {
     fontSize: 13,
-    color: "#9ca3af",
+    color: "#9ca3b8",
   },
   searchProgressValue: {
     fontSize: 13,
@@ -2634,7 +2479,7 @@ const styles = StyleSheet.create({
   },
   sectionSubtitle: {
     fontSize: 13,
-    color: "#9ca3af",
+    color: "#9ca3b8",
     marginBottom: 16,
   },
   adminHeader: {
@@ -2909,7 +2754,7 @@ const styles = StyleSheet.create({
   },
   receiptEmpty: {
     fontSize: 12,
-    color: "#9ca3af",
+    color: "#9ca3b8",
     textAlign: "center",
     paddingVertical: 8,
   },
@@ -2941,7 +2786,7 @@ const styles = StyleSheet.create({
   storeName: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#9ca3af",
+    color: "#9ca3b8",
   },
   lockBadge: {
     position: "absolute",
@@ -3375,7 +3220,7 @@ const styles = StyleSheet.create({
   modalFeatureLabel: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#9ca3af",
+    color: "#9ca3b8",
     marginBottom: 12,
     letterSpacing: 0.5,
   },
@@ -3524,7 +3369,7 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: 14,
-    color: "#9ca3af",
+    color: "#9ca3b8",
     textAlign: "center",
     marginBottom: 24,
     lineHeight: 20,
@@ -3604,7 +3449,7 @@ const styles = StyleSheet.create({
   },
   detailedStatLabel: {
     fontSize: 11,
-    color: "#9ca3af",
+    color: "#9ca3b8",
     textAlign: "center",
   },
   savingsRow: {
@@ -3678,7 +3523,7 @@ const styles = StyleSheet.create({
   },
   adminUserEmail: {
     fontSize: 13,
-    color: "#9ca3af",
+    color: "#9ca3b8",
   },
   adminUserStats: {
     flexDirection: "row",
@@ -3760,12 +3605,12 @@ const styles = StyleSheet.create({
   },
   aiSuggestionsSubtitle: {
     fontSize: 13,
-    color: "#9ca3af",
+    color: "#9ca3b8",
   },
   aiSuggestionCard: {
-    backgroundColor: "rgba(15, 10, 30, 0.6)",
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: "rgba(15, 10, 30, 0.5)",
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "rgba(236, 72, 153, 0.2)",
@@ -3847,7 +3692,7 @@ const styles = StyleSheet.create({
   },
   aiMetricText: {
     fontSize: 12,
-    color: "#9ca3af",
+    color: "#9ca3b8",
   },
   // Scraper Monitoring Styles
   scraperMonitoringCard: {
@@ -3883,7 +3728,7 @@ const styles = StyleSheet.create({
   },
   scraperLabel: {
     fontSize: 12,
-    color: "#9ca3af",
+    color: "#9ca3b8",
     marginBottom: 6,
   },
   scraperStatus: {
@@ -3953,7 +3798,7 @@ const styles = StyleSheet.create({
   },
   suggestionStatLabel: {
     fontSize: 11,
-    color: "#9ca3af",
+    color: "#9ca3b8",
     textAlign: "center",
   },
   suggestionsFooter: {
@@ -4067,7 +3912,7 @@ const styles = StyleSheet.create({
   },
   feedbackButtonSubtitle: {
     fontSize: 13,
-    color: "#9ca3af",
+    color: "#9ca3b8",
     lineHeight: 18,
   },
   feedbackModal: {
