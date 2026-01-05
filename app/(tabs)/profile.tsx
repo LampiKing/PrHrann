@@ -132,24 +132,10 @@ function ProfileScreenInner() {
     isAuthenticated ? {} : "skip"
   ) ?? null;
   
-  // Track if profile is actually loaded (not undefined during first fetch)
-  const isProfileLoaded = profile !== undefined && profile !== null;
-  
-  // Only fetch admin data when profile is loaded and user is admin
-  const shouldFetchAdminData = isAuthenticated && isProfileLoaded && profile?.isAdmin === true;
-
-  // Debug logging
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.log("[AdminPanel Debug]", {
-        isAuthenticated,
-        isProfileLoaded,
-        isAdmin: profile?.isAdmin,
-        shouldFetchAdminData,
-        profileData: profile ? { email: profile.email, isAdmin: profile.isAdmin } : null,
-      });
-    }
-  }, [isAuthenticated, isProfileLoaded, shouldFetchAdminData, profile?.isAdmin, profile?.email]);
+  // Check if profile is loaded and user is admin
+  // Use profile directly (not a ref) to ensure queries update when admin status changes
+  const isAdminUser = profile !== null && profile !== undefined && profile?.isAdmin === true;
+  const shouldFetchAdminData = isAuthenticated && isAdminUser;
   
   const adminStats = useQuery(
     api.admin.getStats,
@@ -1142,7 +1128,7 @@ function ProfileScreenInner() {
           </Animated.View>
         )}
 
-        {isAdmin && adminStats && (
+        {isAdmin && (
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.adminHeader}>
               <View>
@@ -1154,6 +1140,22 @@ function ProfileScreenInner() {
                 <Text style={styles.liveText}>LIVE</Text>
               </View>
             </View>
+            
+            {!adminStats ? (
+              <LinearGradient
+                colors={["rgba(139, 92, 246, 0.2)", "rgba(15, 23, 42, 0.7)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.adminCard}
+              >
+                <View style={{ alignItems: "center", paddingVertical: 24 }}>
+                  <ActivityIndicator size="large" color="#8b5cf6" />
+                  <Text style={[styles.adminStatLabel, { marginTop: 12 }]}>
+                    Nalaganje podatkov...
+                  </Text>
+                </View>
+              </LinearGradient>
+            ) : (
             <LinearGradient
               colors={["rgba(139, 92, 246, 0.2)", "rgba(15, 23, 42, 0.7)"]}
               start={{ x: 0, y: 0 }}
@@ -1365,6 +1367,7 @@ function ProfileScreenInner() {
                 </TouchableOpacity>
               )}
             </LinearGradient>
+            )}
           </Animated.View>
         )}
 
