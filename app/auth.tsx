@@ -258,7 +258,7 @@ export default function AuthScreen() {
     if (Platform.OS === "web" && typeof window !== "undefined") {
       const rawEnvUrl = process.env.EXPO_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
       const envUrl = rawEnvUrl && /^https?:\/\//i.test(rawEnvUrl) ? rawEnvUrl : undefined;
-      const baseUrl = envUrl || window.location.origin;
+      const baseUrl = envUrl || "https://www.prhran.com";
       return `${baseUrl}/reset`;
     }
     return "myapp://reset";

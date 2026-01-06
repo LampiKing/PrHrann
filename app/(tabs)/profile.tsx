@@ -127,6 +127,7 @@ export default function ProfileScreen() {
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
   const sendFeedback = useAction(api.feedback.sendFeedback);
+  const submitFeedback = useMutation(api.feedback.submitFeedback);
 
   // Feedback categories
   const FEEDBACK_CATEGORIES = [
@@ -430,42 +431,57 @@ export default function ProfileScreen() {
 
     setFeedbackError("");
     setSendingFeedback(true);
+
+    const payload = {
+      category: feedbackCategory,
+      message: feedbackMessage.trim(),
+      userEmail: profile?.email || undefined,
+      userName: profile?.nickname || profile?.name || undefined,
+    };
+
+    const finalizeSuccess = () => {
+      setShowFeedbackModal(false);
+      setFeedbackMessage("");
+      setFeedbackCategory("improvement");
+      setShowFeedbackSuccessModal(true);
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    };
     
     try {
-      console.log("Sending feedback:", {
-        category: feedbackCategory,
-        userEmail: profile?.email,
-        userName: profile?.nickname || profile?.name,
-      });
-      
-      const result = await sendFeedback({
-        category: feedbackCategory,
-        message: feedbackMessage.trim(),
-        userEmail: profile?.email || undefined,
-        userName: profile?.nickname || profile?.name || undefined,
-      });
-      
-      console.log("Feedback result:", result);
-      
+      const result = await sendFeedback(payload);
       if (result.success) {
-        setShowFeedbackModal(false);
-        setFeedbackMessage("");
-        setFeedbackCategory("improvement");
-        setShowFeedbackSuccessModal(true);
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
+        finalizeSuccess();
       } else {
         console.error("Feedback error:", result.error);
-        setFeedbackError(result.error || "Sporočila ni bilo mogoče poslati.");
+        const fallback = await submitFeedback(payload);
+        if (fallback.success) {
+          finalizeSuccess();
+        } else {
+          setFeedbackError(fallback.error || result.error || "Sporočila ni bilo mogoče poslati.");
+        }
       }
     } catch (error) {
       console.error("Feedback error:", error);
-      setFeedbackError("Sporočila ni bilo mogoče poslati. Preverite internetno povezavo.");
+      try {
+        const fallback = await submitFeedback(payload);
+        if (fallback.success) {
+          finalizeSuccess();
+        } else {
+          setFeedbackError(fallback.error || "Sporočila ni bilo mogoče poslati.");
+        }
+      } catch (fallbackError) {
+        const message =
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : "Sporočila ni bilo mogoče poslati. Preverite internetno povezavo.";
+        setFeedbackError(message);
+      }
     } finally {
       setSendingFeedback(false);
     }
-  }, [feedbackMessage, feedbackCategory, profile?.email, profile?.nickname, profile?.name, sendFeedback]);
+  }, [feedbackMessage, feedbackCategory, profile?.email, profile?.nickname, profile?.name, sendFeedback, submitFeedback]);
 
   // ============================================================================
   // RENDER HELPERS

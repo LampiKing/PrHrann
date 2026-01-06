@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { authMutation } from "./functions";
 
 // Feedback categories
 export const FEEDBACK_CATEGORIES = [
@@ -61,6 +62,51 @@ export const storeFeedbackInternal = internalMutation({
       rewardGiven: false,
       submittedAt: Date.now(),
     });
+  },
+});
+
+export const submitFeedback = authMutation({
+  args: {
+    category: v.string(),
+    message: v.string(),
+    userEmail: v.optional(v.string()),
+    userName: v.optional(v.string()),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const trimmedMessage = args.message.trim();
+    if (!trimmedMessage) {
+      return { success: false, error: "Sporočilo je prazno." };
+    }
+
+    const categoryLabel = getCategoryLabel(args.category);
+    const suggestionType = FEEDBACK_TO_SUGGESTION[args.category] || "other";
+    const title = buildSuggestionTitle(trimmedMessage, categoryLabel);
+    const description = args.userEmail
+      ? `${trimmedMessage}\n\nKontakt: ${args.userEmail}`
+      : trimmedMessage;
+    const userName = args.userName || (ctx.user as { name?: string } | null)?.name || "Anonimen";
+
+    try {
+      await ctx.db.insert("userSuggestions", {
+        userId: ctx.user._id,
+        userNickname: userName,
+        suggestionType,
+        title,
+        description,
+        status: "pending",
+        rewardGiven: false,
+        submittedAt: Date.now(),
+      });
+    } catch (error) {
+      console.error("Feedback store error:", error);
+      return { success: false, error: "Feedback ni bilo mogoče shraniti." };
+    }
+
+    return { success: true };
   },
 });
 
