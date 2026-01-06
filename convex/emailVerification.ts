@@ -298,9 +298,6 @@ Izdelano z ❤️ v Sloveniji 🇸🇮
       html,
     };
 
-    console.log("[EMAIL DEBUG] Sending email with HTML length:", html.length, "chars");
-    console.log("[EMAIL DEBUG] Text length:", text.length, "chars");
-
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {

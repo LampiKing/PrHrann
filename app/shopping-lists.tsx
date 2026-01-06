@@ -157,7 +157,7 @@ export default function ShoppingListsScreen() {
                   key={list._id}
                   style={styles.listCard}
                   onPress={() => {
-                    console.log("Navigate to list:", list._id);
+                    // TODO: Implement navigation to list detail
                   }}
                   activeOpacity={0.8}
                 >

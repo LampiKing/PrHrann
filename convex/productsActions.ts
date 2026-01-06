@@ -154,11 +154,9 @@ export const searchFromSheets = action({
 
       // Use cache if available and fresh
       if (cachedSheetData && (now - cacheTimestamp) < CACHE_TTL_MS) {
-        console.log(`[searchFromSheets] Using cached data (age: ${Math.floor((now - cacheTimestamp) / 1000)}s)`);
         rows = cachedSheetData;
       } else {
         // Fetch fresh data
-        console.log("[searchFromSheets] Fetching fresh data from Google Sheets...");
         const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS!);
         const auth = new google.auth.GoogleAuth({
           credentials,
@@ -175,17 +173,13 @@ export const searchFromSheets = action({
 
         rows = response.data.values || [];
         if (rows.length === 0) {
-          console.log("[searchFromSheets] ERROR: No rows found in Google Sheets");
           return [];
         }
 
         // Update cache
         cachedSheetData = rows;
         cacheTimestamp = now;
-        console.log(`[searchFromSheets] Cached ${rows.length} rows`);
       }
-
-      console.log(`[searchFromSheets] Total rows: ${rows.length}`);
 
       // Parse rows (name, price, sale_price, store)
       const productsByKey = new Map<string, ProductAccumulator>();
@@ -334,12 +328,6 @@ export const searchFromSheets = action({
         .slice(0, MAX_RESULTS)
         .map(({ nameNormalized, ...rest }) => rest);
 
-      console.log(
-        `[searchFromSheets] Query: "${args.query}" | ` +
-        `Processed: ${filtered.length}/${productsByKey.size} | ` +
-        `Results: ${sorted.length} | ` +
-        `Early termination: ${filtered.length >= MAX_MATCHES_TO_PROCESS ? 'YES' : 'NO'}`
-      );
       return sorted;
     } catch (error) {
       console.error("Error in searchFromSheets:", error);

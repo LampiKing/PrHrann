@@ -48,11 +48,9 @@ export default function TabsLayout() {
     
     // Immediate creation if profile is null (doesn't exist)
     if (profile === null) {
-      console.log("Profile is null, creating new profile...");
       ensureProfileAttemptedRef.current = true;
       ensureProfile({})
         .then(() => {
-          console.log("Profile created successfully");
           ensureProfileAttemptedRef.current = false;
         })
         .catch((error) => {
@@ -66,11 +64,9 @@ export default function TabsLayout() {
     if (profile === undefined && profileLoadStartRef.current) {
       const timeout = setTimeout(() => {
         if (profile === undefined && !ensureProfileAttemptedRef.current) {
-          console.log("Profile loading timeout, attempting to create profile...");
           ensureProfileAttemptedRef.current = true;
           ensureProfile({})
             .then(() => {
-              console.log("Profile created after timeout");
               ensureProfileAttemptedRef.current = false;
             })
             .catch((error) => {
@@ -119,7 +115,6 @@ export default function TabsLayout() {
 
   // CRITICAL: Block users without verified email (except anonymous/guest)
   if (profile && !profile.isAnonymous && !profile.emailVerified) {
-    console.log("Email not verified in TabsLayout, redirecting to /verify");
     return <Redirect href="/verify" />;
   }
 

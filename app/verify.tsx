@@ -22,7 +22,6 @@ export default function VerifyEmailScreen() {
   // Auto-redirect if already verified
   useEffect(() => {
     if (profile && profile.emailVerified) {
-      console.log("Email already verified, redirecting to tabs");
       router.replace("/(tabs)");
     }
   }, [profile]);

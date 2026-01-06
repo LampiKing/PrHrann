@@ -62,13 +62,11 @@ export const getProfile = authQuery({
   handler: async (ctx) => {
     const userId = ctx.user._id;
     const today = getDateKey(Date.now());
-    console.log("getProfile called for userId:", userId);
 
     const profile = await ctx.db
       .query("userProfiles")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
       .first();
-    console.log("Profile found:", !!profile, "Profile data:", profile ? { id: profile._id, email: profile.email, isAdmin: profile.isAdmin } : null);
 
     if (!profile) {
       return null;
@@ -152,21 +150,17 @@ export const ensureProfile = authMutation({
     const today = getDateKey(Date.now());
     const nickname = ctx.user.name ? ctx.user.name.trim() : undefined;
     const nicknameLower = nickname ? nickname.toLowerCase() : undefined;
-    console.log("ensureProfile called for userId:", userId, "name:", ctx.user.name, "email:", ctx.user.email);
 
     const existing = await ctx.db
       .query("userProfiles")
       .withIndex("by_user_id", (q) => q.eq("userId", userId))
       .first();
-    console.log("Existing profile:", !!existing);
 
     if (existing) {
-      console.log("Returning existing profile:", existing._id);
       return existing._id;
     }
 
     const now = Date.now();
-    console.log("Creating new profile for userId:", userId);
     const newProfileId = await ctx.db.insert("userProfiles", {
       userId,
       name: ctx.user.name || undefined,
@@ -182,7 +176,6 @@ export const ensureProfile = authMutation({
       dailySearches: 0,
       lastSearchDate: today,
     });
-    console.log("New profile created with ID:", newProfileId);
     return newProfileId;
   },
 });
@@ -535,7 +528,6 @@ export const resendVerificationEmail = authMutation({
         };
       }
 
-      console.log(`Verification email sent to ${userEmail}`);
       return {
         success: true,
         message: `Potrditveni email je bil poslan na ${userEmail}. Preverite svojo pošto.`,

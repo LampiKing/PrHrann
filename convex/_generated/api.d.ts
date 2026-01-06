@@ -29,6 +29,7 @@ import type * as priceAlerts from "../priceAlerts.js";
 import type * as products from "../products.js";
 import type * as productsActions from "../productsActions.js";
 import type * as receipts from "../receipts.js";
+import type * as resetData from "../resetData.js";
 import type * as savings from "../savings.js";
 import type * as scraperMonitoring from "../scraperMonitoring.js";
 import type * as searchAnalytics from "../searchAnalytics.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   products: typeof products;
   productsActions: typeof productsActions;
   receipts: typeof receipts;
+  resetData: typeof resetData;
   savings: typeof savings;
   scraperMonitoring: typeof scraperMonitoring;
   searchAnalytics: typeof searchAnalytics;

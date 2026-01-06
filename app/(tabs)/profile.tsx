@@ -16,6 +16,7 @@ import {
   Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -27,6 +28,7 @@ import { useConvexAuth } from "convex/react";
 import { getSeasonalLogoSource } from "@/lib/Logo";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 88 : 72;
 
 // ============================================================================
 // TYPES
@@ -175,7 +177,7 @@ export default function ProfileScreen() {
     if (!selectedMember) return;
     
     try {
-      await removeFamilyMember({ memberId: selectedMember.userId });
+      await removeFamilyMember({ memberUserId: selectedMember.userId });
       setShowMemberModal(false);
       setSelectedMember(null);
       if (Platform.OS !== "web") {
@@ -199,7 +201,7 @@ export default function ProfileScreen() {
     try {
       const result = await inviteFamilyMember({ email: inviteEmail.trim().toLowerCase() });
       if (!result.success) {
-        setInviteError(result.error || "Vabilo ni uspelo");
+        setInviteError(result.message || "Vabilo ni uspelo");
         return;
       }
       
@@ -248,9 +250,9 @@ export default function ProfileScreen() {
   if (isAuthLoading) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={["#0a0a0f", "#1a1025", "#0a0a0f"]} style={StyleSheet.absoluteFill} />
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#8b5cf6" />
+          <ActivityIndicator size="large" color="#a855f7" />
         </View>
       </View>
     );
@@ -260,13 +262,13 @@ export default function ProfileScreen() {
   if (!isAuthenticated) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={["#0a0a0f", "#1a1025", "#0a0a0f"]} style={StyleSheet.absoluteFill} />
         <View style={[styles.centerContent, { paddingTop: insets.top + 40 }]}>
           <Image source={getSeasonalLogoSource()} style={styles.logo} resizeMode="contain" />
           <Text style={styles.authTitle}>Prijava potrebna</Text>
           <Text style={styles.authSubtitle}>Prijavi se za dostop do profila</Text>
           <TouchableOpacity style={styles.primaryButton} onPress={() => router.push("/auth")}>
-            <LinearGradient colors={["#8b5cf6", "#7c3aed"]} style={styles.buttonGradient}>
+            <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.buttonGradient}>
               <Text style={styles.buttonText}>Prijava</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -279,10 +281,10 @@ export default function ProfileScreen() {
   if (isProfileLoading) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={["#0a0a0f", "#1a1025", "#0a0a0f"]} style={StyleSheet.absoluteFill} />
         <View style={[styles.centerContent, { paddingTop: insets.top + 40 }]}>
           <Image source={getSeasonalLogoSource()} style={styles.logo} resizeMode="contain" />
-          <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
+          <ActivityIndicator size="large" color="#a855f7" style={{ marginTop: 24 }} />
           <Text style={styles.loadingText}>Nalaganje profila...</Text>
           <TouchableOpacity
             style={[styles.secondaryButton, { marginTop: 20 }]}
@@ -302,7 +304,7 @@ export default function ProfileScreen() {
   if (profileLoadingTimedOut || profile === null) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={["#0a0a0f", "#1a1025", "#0a0a0f"]} style={StyleSheet.absoluteFill} />
         <View style={[styles.centerContent, { paddingTop: insets.top + 40 }]}>
           <Image source={getSeasonalLogoSource()} style={styles.logo} resizeMode="contain" />
           <Text style={styles.authTitle}>Profil ni najden</Text>
@@ -312,7 +314,7 @@ export default function ProfileScreen() {
             onPress={handleRetryProfile}
             disabled={retryingProfile}
           >
-            <LinearGradient colors={["#8b5cf6", "#7c3aed"]} style={styles.buttonGradient}>
+            <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.buttonGradient}>
               <Ionicons name="add-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>
                 {retryingProfile ? "Ustvarjam..." : "Ustvari profil"}
@@ -327,6 +329,11 @@ export default function ProfileScreen() {
     );
   }
 
+  // Safety check - should never reach here but TypeScript needs it
+  if (!profile) {
+    return null;
+  }
+
   // ============================================================================
   // MAIN PROFILE UI
   // ============================================================================
@@ -335,24 +342,26 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={["#0a0a0f", "#1a1025", "#0a0a0f"]} style={StyleSheet.absoluteFill} />
       
       <Animated.ScrollView
         style={[styles.scrollView, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
+        contentContainerStyle={[
+          styles.scrollContent, 
+          { 
+            paddingTop: insets.top + 16,
+            paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 20 
+          }
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={24} color="#1e293b" />
-          </TouchableOpacity>
           <Text style={styles.headerTitle}>Profil</Text>
-          <View style={{ width: 40 }} />
         </View>
 
         {/* ================================================================== */}
-        {/* FAMILY MEMBERS SECTION (or single profile) */}
+        {/* FAMILY MEMBERS SECTION */}
         {/* ================================================================== */}
         
         <View style={styles.profilesSection}>
@@ -373,7 +382,7 @@ export default function ProfileScreen() {
                 {profile.profilePictureUrl ? (
                   <Image source={{ uri: profile.profilePictureUrl }} style={styles.profileAvatar} />
                 ) : (
-                  <LinearGradient colors={["#8b5cf6", "#7c3aed"]} style={styles.profileAvatarPlaceholder}>
+                  <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.profileAvatarPlaceholder}>
                     <Text style={styles.profileAvatarInitial}>
                       {(profile.nickname || profile.name || "U").charAt(0).toUpperCase()}
                     </Text>
@@ -402,7 +411,7 @@ export default function ProfileScreen() {
                   {member.profilePictureUrl ? (
                     <Image source={{ uri: member.profilePictureUrl }} style={styles.profileAvatar} />
                   ) : (
-                    <LinearGradient colors={["#94a3b8", "#64748b"]} style={styles.profileAvatarPlaceholder}>
+                    <LinearGradient colors={["#6366f1", "#4f46e5"]} style={styles.profileAvatarPlaceholder}>
                       <Text style={styles.profileAvatarInitial}>
                         {(member.nickname || "?").charAt(0).toUpperCase()}
                       </Text>
@@ -431,9 +440,9 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.profileAvatarContainer, styles.pendingAvatar]}>
-                  <Ionicons name="hourglass-outline" size={28} color="#94a3b8" />
+                  <Ionicons name="hourglass-outline" size={28} color="#6b7280" />
                 </View>
-                <Text style={[styles.profileName, { color: "#94a3b8" }]} numberOfLines={1}>
+                <Text style={[styles.profileName, { color: "#6b7280" }]} numberOfLines={1}>
                   Čaka...
                 </Text>
               </TouchableOpacity>
@@ -450,9 +459,9 @@ export default function ProfileScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.profileAvatarContainer, styles.addProfileAvatar]}>
-                  <Ionicons name="add" size={32} color="#94a3b8" />
+                  <Ionicons name="add" size={32} color="#6b7280" />
                 </View>
-                <Text style={[styles.profileName, { color: "#94a3b8" }]}>Dodaj</Text>
+                <Text style={[styles.profileName, { color: "#6b7280" }]}>Dodaj</Text>
               </TouchableOpacity>
             )}
           </ScrollView>
@@ -468,7 +477,7 @@ export default function ProfileScreen() {
             onPress={() => router.push("/shopping-lists")}
           >
             <View style={styles.quickActionIcon}>
-              <Ionicons name="list" size={24} color="#8b5cf6" />
+              <Ionicons name="list" size={24} color="#a855f7" />
             </View>
             <Text style={styles.quickActionText}>Seznami</Text>
           </TouchableOpacity>
@@ -478,7 +487,7 @@ export default function ProfileScreen() {
             onPress={() => router.push("/receipts")}
           >
             <View style={styles.quickActionIcon}>
-              <Ionicons name="receipt" size={24} color="#8b5cf6" />
+              <Ionicons name="receipt" size={24} color="#a855f7" />
             </View>
             <Text style={styles.quickActionText}>Računi</Text>
           </TouchableOpacity>
@@ -488,7 +497,7 @@ export default function ProfileScreen() {
             onPress={() => setShowSettingsModal(true)}
           >
             <View style={styles.quickActionIcon}>
-              <Ionicons name="settings" size={24} color="#8b5cf6" />
+              <Ionicons name="settings" size={24} color="#a855f7" />
             </View>
             <Text style={styles.quickActionText}>Nastavitve</Text>
           </TouchableOpacity>
@@ -502,11 +511,11 @@ export default function ProfileScreen() {
           {/* Premium Status */}
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/premium")}>
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: profile.isPremium ? "#fef3c7" : "#f3e8ff" }]}>
+              <View style={[styles.menuIcon, { backgroundColor: profile.isPremium ? "rgba(251, 191, 36, 0.15)" : "rgba(168, 85, 247, 0.15)" }]}>
                 <Ionicons 
                   name={profile.isPremium ? "star" : "star-outline"} 
                   size={20} 
-                  color={profile.isPremium ? "#f59e0b" : "#8b5cf6"} 
+                  color={profile.isPremium ? "#fbbf24" : "#a855f7"} 
                 />
               </View>
               <Text style={styles.menuItemText}>
@@ -515,51 +524,51 @@ export default function ProfileScreen() {
                   : "Nadgradi na Premium"}
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
           </TouchableOpacity>
 
           {/* Loyalty Cards */}
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/loyalty-cards")}>
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: "#dbeafe" }]}>
+              <View style={[styles.menuIcon, { backgroundColor: "rgba(59, 130, 246, 0.15)" }]}>
                 <Ionicons name="card" size={20} color="#3b82f6" />
               </View>
               <Text style={styles.menuItemText}>Kartice zvestobe</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
           </TouchableOpacity>
 
           {/* Notifications */}
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/notifications")}>
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: "#fce7f3" }]}>
+              <View style={[styles.menuIcon, { backgroundColor: "rgba(236, 72, 153, 0.15)" }]}>
                 <Ionicons name="notifications" size={20} color="#ec4899" />
               </View>
               <Text style={styles.menuItemText}>Obvestila</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
           </TouchableOpacity>
 
           {/* Help */}
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/help")}>
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: "#d1fae5" }]}>
+              <View style={[styles.menuIcon, { backgroundColor: "rgba(16, 185, 129, 0.15)" }]}>
                 <Ionicons name="help-circle" size={20} color="#10b981" />
               </View>
               <Text style={styles.menuItemText}>Pomoč</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
           </TouchableOpacity>
 
           {/* Privacy */}
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/privacy")}>
+          <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={() => router.push("/privacy")}>
             <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: "#e0e7ff" }]}>
+              <View style={[styles.menuIcon, { backgroundColor: "rgba(99, 102, 241, 0.15)" }]}>
                 <Ionicons name="shield-checkmark" size={20} color="#6366f1" />
               </View>
               <Text style={styles.menuItemText}>Zasebnost</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
           </TouchableOpacity>
         </View>
 
@@ -577,7 +586,6 @@ export default function ProfileScreen() {
         {/* Version */}
         <Text style={styles.versionText}>Pr'Hran v2.0.0</Text>
 
-        <View style={{ height: insets.bottom + 100 }} />
       </Animated.ScrollView>
 
       {/* ================================================================== */}
@@ -590,59 +598,61 @@ export default function ProfileScreen() {
         animationType="fade"
         onRequestClose={() => setShowMemberModal(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setShowMemberModal(false)}
-        >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Družinski član</Text>
-              <TouchableOpacity onPress={() => setShowMemberModal(false)}>
-                <Ionicons name="close" size={24} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-            
-            {selectedMember && (
-              <View style={styles.memberDetail}>
-                <View style={styles.memberDetailAvatar}>
-                  {selectedMember.profilePictureUrl ? (
-                    <Image source={{ uri: selectedMember.profilePictureUrl }} style={styles.memberDetailImage} />
-                  ) : (
-                    <LinearGradient colors={["#94a3b8", "#64748b"]} style={styles.memberDetailPlaceholder}>
-                      <Text style={styles.memberDetailInitial}>
-                        {(selectedMember.nickname || "?").charAt(0).toUpperCase()}
-                      </Text>
-                    </LinearGradient>
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setShowMemberModal(false)}
+          >
+            <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Družinski član</Text>
+                <TouchableOpacity onPress={() => setShowMemberModal(false)}>
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
+              
+              {selectedMember && (
+                <View style={styles.memberDetail}>
+                  <View style={styles.memberDetailAvatar}>
+                    {selectedMember.profilePictureUrl ? (
+                      <Image source={{ uri: selectedMember.profilePictureUrl }} style={styles.memberDetailImage} />
+                    ) : (
+                      <LinearGradient colors={["#6366f1", "#4f46e5"]} style={styles.memberDetailPlaceholder}>
+                        <Text style={styles.memberDetailInitial}>
+                          {(selectedMember.nickname || "?").charAt(0).toUpperCase()}
+                        </Text>
+                      </LinearGradient>
+                    )}
+                  </View>
+                  <Text style={styles.memberDetailName}>{selectedMember.nickname}</Text>
+                  {selectedMember.email && (
+                    <Text style={styles.memberDetailEmail}>{selectedMember.email}</Text>
+                  )}
+                  
+                  {isOwner && (
+                    <TouchableOpacity 
+                      style={styles.removeButton}
+                      onPress={() => {
+                        Alert.alert(
+                          "Odstrani člana",
+                          `Ali res želiš odstraniti ${selectedMember.nickname} iz družinskega načrta?`,
+                          [
+                            { text: "Prekliči", style: "cancel" },
+                            { text: "Odstrani", style: "destructive", onPress: handleRemoveMember },
+                          ]
+                        );
+                      }}
+                    >
+                      <Ionicons name="person-remove" size={18} color="#ef4444" />
+                      <Text style={styles.removeButtonText}>Odstrani iz družine</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
-                <Text style={styles.memberDetailName}>{selectedMember.nickname}</Text>
-                {selectedMember.email && (
-                  <Text style={styles.memberDetailEmail}>{selectedMember.email}</Text>
-                )}
-                
-                {isOwner && (
-                  <TouchableOpacity 
-                    style={styles.removeButton}
-                    onPress={() => {
-                      Alert.alert(
-                        "Odstrani člana",
-                        `Ali res želiš odstraniti ${selectedMember.nickname} iz družinskega načrta?`,
-                        [
-                          { text: "Prekliči", style: "cancel" },
-                          { text: "Odstrani", style: "destructive", onPress: handleRemoveMember },
-                        ]
-                      );
-                    }}
-                  >
-                    <Ionicons name="person-remove" size={18} color="#ef4444" />
-                    <Text style={styles.removeButtonText}>Odstrani iz družine</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
+              )}
+            </View>
+          </TouchableOpacity>
+        </BlurView>
       </Modal>
 
       {/* ================================================================== */}
@@ -655,55 +665,57 @@ export default function ProfileScreen() {
         animationType="slide"
         onRequestClose={() => setShowInviteModal(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setShowInviteModal(false)}
-        >
-          <View style={[styles.modalContent, styles.inviteModal]} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Povabi družinskega člana</Text>
-              <TouchableOpacity onPress={() => setShowInviteModal(false)}>
-                <Ionicons name="close" size={24} color="#64748b" />
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setShowInviteModal(false)}
+          >
+            <View style={[styles.modalContent, styles.inviteModal]} onStartShouldSetResponder={() => true}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Povabi člana</Text>
+                <TouchableOpacity onPress={() => setShowInviteModal(false)}>
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.inviteDescription}>
+                Vnesi email naslov osebe, ki jo želiš povabiti v svoj družinski načrt.
+              </Text>
+              
+              <TextInput
+                style={styles.inviteInput}
+                placeholder="email@primer.com"
+                placeholderTextColor="#6b7280"
+                value={inviteEmail}
+                onChangeText={setInviteEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              
+              {inviteError ? (
+                <Text style={styles.inviteError}>{inviteError}</Text>
+              ) : null}
+              
+              <TouchableOpacity
+                style={[styles.inviteButton, { opacity: inviting ? 0.6 : 1 }]}
+                onPress={handleInvite}
+                disabled={inviting}
+              >
+                <LinearGradient colors={["#fbbf24", "#f59e0b"]} style={styles.buttonGradient}>
+                  <Text style={[styles.buttonText, { color: "#0a0a0f" }]}>
+                    {inviting ? "Pošiljam..." : "Pošlji vabilo"}
+                  </Text>
+                </LinearGradient>
               </TouchableOpacity>
+              
+              <Text style={styles.inviteNote}>
+                Preostala mesta: {availableSlots}
+              </Text>
             </View>
-            
-            <Text style={styles.inviteDescription}>
-              Vnesi email naslov osebe, ki jo želiš povabiti v svoj družinski načrt.
-            </Text>
-            
-            <TextInput
-              style={styles.inviteInput}
-              placeholder="email@primer.com"
-              placeholderTextColor="#94a3b8"
-              value={inviteEmail}
-              onChangeText={setInviteEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            
-            {inviteError ? (
-              <Text style={styles.inviteError}>{inviteError}</Text>
-            ) : null}
-            
-            <TouchableOpacity
-              style={[styles.inviteButton, { opacity: inviting ? 0.6 : 1 }]}
-              onPress={handleInvite}
-              disabled={inviting}
-            >
-              <LinearGradient colors={["#fbbf24", "#f59e0b"]} style={styles.buttonGradient}>
-                <Text style={[styles.buttonText, { color: "#1e293b" }]}>
-                  {inviting ? "Pošiljam..." : "Pošlji vabilo"}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            
-            <Text style={styles.inviteNote}>
-              Preostala mesta: {availableSlots}
-            </Text>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </BlurView>
       </Modal>
 
       {/* ================================================================== */}
@@ -716,76 +728,78 @@ export default function ProfileScreen() {
         animationType="slide"
         onRequestClose={() => setShowSettingsModal(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setShowSettingsModal(false)}
-        >
-          <View style={[styles.modalContent, styles.settingsModal]} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nastavitve</Text>
-              <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
-                <Ionicons name="close" size={24} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.settingsSection}>
-              <Text style={styles.settingsSectionTitle}>Račun</Text>
-              
-              <View style={styles.settingsItem}>
-                <Text style={styles.settingsLabel}>Email</Text>
-                <Text style={styles.settingsValue}>{profile.email || "Ni nastavljeno"}</Text>
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setShowSettingsModal(false)}
+          >
+            <View style={[styles.modalContent, styles.settingsModal]} onStartShouldSetResponder={() => true}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Nastavitve</Text>
+                <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </TouchableOpacity>
               </View>
               
-              <View style={styles.settingsItem}>
-                <Text style={styles.settingsLabel}>Vzdevek</Text>
-                <Text style={styles.settingsValue}>{profile.nickname || profile.name || "Ni nastavljeno"}</Text>
-              </View>
-              
-              <View style={styles.settingsItem}>
-                <Text style={styles.settingsLabel}>Email potrjen</Text>
-                <Text style={styles.settingsValue}>
-                  {profile.emailVerified ? "Da ✓" : "Ne"}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.settingsSection}>
-              <Text style={styles.settingsSectionTitle}>Naročnina</Text>
-              
-              <View style={styles.settingsItem}>
-                <Text style={styles.settingsLabel}>Načrt</Text>
-                <Text style={styles.settingsValue}>
-                  {profile.isPremium 
-                    ? (profile.premiumType === "family" ? "Family" : "Plus")
-                    : "Brezplačno"}
-                </Text>
-              </View>
-              
-              {profile.premiumUntil && (
+              <View style={styles.settingsSection}>
+                <Text style={styles.settingsSectionTitle}>Račun</Text>
+                
                 <View style={styles.settingsItem}>
-                  <Text style={styles.settingsLabel}>Veljavnost</Text>
+                  <Text style={styles.settingsLabel}>Email</Text>
+                  <Text style={styles.settingsValue}>{profile.email || "Ni nastavljeno"}</Text>
+                </View>
+                
+                <View style={styles.settingsItem}>
+                  <Text style={styles.settingsLabel}>Vzdevek</Text>
+                  <Text style={styles.settingsValue}>{profile.nickname || profile.name || "Ni nastavljeno"}</Text>
+                </View>
+                
+                <View style={styles.settingsItem}>
+                  <Text style={styles.settingsLabel}>Email potrjen</Text>
                   <Text style={styles.settingsValue}>
-                    {new Date(profile.premiumUntil).toLocaleDateString("sl-SI")}
+                    {profile.emailVerified ? "Da ✓" : "Ne"}
                   </Text>
                 </View>
-              )}
+              </View>
+              
+              <View style={styles.settingsSection}>
+                <Text style={styles.settingsSectionTitle}>Naročnina</Text>
+                
+                <View style={styles.settingsItem}>
+                  <Text style={styles.settingsLabel}>Načrt</Text>
+                  <Text style={styles.settingsValue}>
+                    {profile.isPremium 
+                      ? (profile.premiumType === "family" ? "Family" : "Plus")
+                      : "Brezplačno"}
+                  </Text>
+                </View>
+                
+                {profile.premiumUntil && (
+                  <View style={styles.settingsItem}>
+                    <Text style={styles.settingsLabel}>Veljavnost</Text>
+                    <Text style={styles.settingsValue}>
+                      {new Date(profile.premiumUntil).toLocaleDateString("sl-SI")}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </BlurView>
       </Modal>
     </View>
   );
 }
 
 // ============================================================================
-// STYLES
+// STYLES - DARK THEME
 // ============================================================================
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#0a0a0f",
   },
   scrollView: {
     flex: 1,
@@ -807,18 +821,18 @@ const styles = StyleSheet.create({
   authTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1e293b",
+    color: "#f1f5f9",
     marginBottom: 8,
   },
   authSubtitle: {
     fontSize: 16,
-    color: "#64748b",
+    color: "#9ca3af",
     marginBottom: 32,
     textAlign: "center",
   },
   loadingText: {
     fontSize: 16,
-    color: "#64748b",
+    color: "#9ca3af",
     marginTop: 16,
   },
   primaryButton: {
@@ -833,7 +847,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontSize: 16,
-    color: "#8b5cf6",
+    color: "#a855f7",
     fontWeight: "600",
   },
   buttonGradient: {
@@ -853,19 +867,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 24,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
     justifyContent: "center",
+    marginBottom: 24,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1e293b",
+    color: "#f1f5f9",
   },
 
   // Profiles Section
@@ -874,11 +882,10 @@ const styles = StyleSheet.create({
   },
   profilesScroll: {
     paddingVertical: 8,
-    gap: 16,
   },
   profileItem: {
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 20,
   },
   profileAvatarContainer: {
     width: 72,
@@ -889,7 +896,7 @@ const styles = StyleSheet.create({
   },
   profileAvatarSelected: {
     borderWidth: 3,
-    borderColor: "#8b5cf6",
+    borderColor: "#a855f7",
   },
   profileAvatar: {
     width: "100%",
@@ -909,7 +916,7 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1e293b",
+    color: "#e5e7eb",
     maxWidth: 72,
     textAlign: "center",
   },
@@ -917,23 +924,23 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     right: 4,
-    backgroundColor: "#fff",
+    backgroundColor: "#1f2937",
     borderRadius: 10,
-    padding: 2,
+    padding: 3,
   },
   pendingAvatar: {
     borderWidth: 2,
     borderStyle: "dashed",
-    borderColor: "#cbd5e1",
-    backgroundColor: "#f1f5f9",
+    borderColor: "#374151",
+    backgroundColor: "#1f2937",
     alignItems: "center",
     justifyContent: "center",
   },
   addProfileAvatar: {
     borderWidth: 2,
     borderStyle: "dashed",
-    borderColor: "#cbd5e1",
-    backgroundColor: "#f8fafc",
+    borderColor: "#374151",
+    backgroundColor: "#111827",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -942,21 +949,12 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-around",
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(31, 41, 55, 0.6)",
     borderRadius: 20,
     padding: 20,
     marginBottom: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
   },
   quickActionItem: {
     alignItems: "center",
@@ -966,7 +964,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 16,
-    backgroundColor: "#f3e8ff",
+    backgroundColor: "rgba(168, 85, 247, 0.15)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
@@ -974,26 +972,17 @@ const styles = StyleSheet.create({
   quickActionText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#1e293b",
+    color: "#e5e7eb",
   },
 
   // Menu Section
   menuSection: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(31, 41, 55, 0.6)",
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
   },
   menuItem: {
     flexDirection: "row",
@@ -1002,7 +991,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
+    borderBottomColor: "rgba(55, 65, 81, 0.5)",
   },
   menuItemLeft: {
     flexDirection: "row",
@@ -1020,7 +1009,7 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#1e293b",
+    color: "#e5e7eb",
   },
 
   // Logout
@@ -1038,22 +1027,24 @@ const styles = StyleSheet.create({
   versionText: {
     textAlign: "center",
     fontSize: 12,
-    color: "#94a3b8",
+    color: "#6b7280",
     marginTop: 8,
   },
 
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: "#1f2937",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
     maxHeight: "80%",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    borderBottomWidth: 0,
   },
   modalHeader: {
     flexDirection: "row",
@@ -1064,7 +1055,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1e293b",
+    color: "#f1f5f9",
   },
 
   // Member Detail
@@ -1097,12 +1088,12 @@ const styles = StyleSheet.create({
   memberDetailName: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1e293b",
+    color: "#f1f5f9",
     marginBottom: 4,
   },
   memberDetailEmail: {
     fontSize: 16,
-    color: "#64748b",
+    color: "#9ca3af",
     marginBottom: 24,
   },
   removeButton: {
@@ -1110,7 +1101,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: "#fef2f2",
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
     borderRadius: 12,
   },
   removeButtonText: {
@@ -1126,18 +1117,20 @@ const styles = StyleSheet.create({
   },
   inviteDescription: {
     fontSize: 15,
-    color: "#64748b",
+    color: "#9ca3af",
     marginBottom: 20,
     lineHeight: 22,
   },
   inviteInput: {
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#111827",
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: "#1e293b",
+    color: "#f1f5f9",
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#374151",
   },
   inviteError: {
     fontSize: 14,
@@ -1151,7 +1144,7 @@ const styles = StyleSheet.create({
   },
   inviteNote: {
     fontSize: 13,
-    color: "#94a3b8",
+    color: "#6b7280",
     textAlign: "center",
     marginTop: 16,
   },
@@ -1166,7 +1159,7 @@ const styles = StyleSheet.create({
   settingsSectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#8b5cf6",
+    color: "#a855f7",
     marginBottom: 12,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -1177,16 +1170,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
+    borderBottomColor: "rgba(55, 65, 81, 0.5)",
   },
   settingsLabel: {
     fontSize: 15,
-    color: "#64748b",
+    color: "#9ca3af",
   },
   settingsValue: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#1e293b",
+    color: "#f1f5f9",
   },
 });
 

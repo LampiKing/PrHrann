@@ -21,6 +21,16 @@ export default function ResetScreen() {
   const token = Array.isArray(params.token) ? params.token[0] : params.token;
   const errorParam = Array.isArray(params.error) ? params.error[0] : params.error;
 
+  // Mode: "request" = enter email to request reset, "reset" = enter new password
+  const hasToken = typeof token === "string" && token.length > 0;
+  const mode = hasToken && !errorParam ? "reset" : "request";
+
+  // Request mode state
+  const [email, setEmail] = useState("");
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+
+  // Reset mode state
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,10 +39,8 @@ export default function ResetScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const hasToken = typeof token === "string" && token.length > 0;
-
   useEffect(() => {
-    if (errorParam || !hasToken) {
+    if (errorParam && hasToken) {
       setError("Povezava za ponastavitev je neveljavna ali je potekla.");
     }
   }, [errorParam, hasToken]);
@@ -49,6 +57,11 @@ export default function ResetScreen() {
   const passwordStrengthColor =
     passwordStrengthLevel === 1 ? "#f97316" : passwordStrengthLevel === 2 ? "#fbbf24" : "#22c55e";
 
+  // Validation
+  const trimmedEmail = email.trim().toLowerCase();
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+  const canRequest = !requestLoading && trimmedEmail.length > 0 && isValidEmail;
+
   const canSubmit =
     !loading &&
     hasToken &&
@@ -57,6 +70,54 @@ export default function ResetScreen() {
     confirmPassword.length >= 6 &&
     newPassword === confirmPassword;
 
+  // Handle request password reset (enter email)
+  const handleRequestReset = async () => {
+    if (!canRequest) {
+      if (!trimmedEmail) {
+        setError("Vnesite e-naslov.");
+        return;
+      }
+      if (!isValidEmail) {
+        setError("Vnesite veljaven e-naslov.");
+        return;
+      }
+      return;
+    }
+
+    setRequestLoading(true);
+    setError("");
+    setMessage("");
+
+    const resetRedirectUrl =
+      Platform.OS === "web" && typeof window !== "undefined"
+        ? `${window.location.origin}/reset`
+        : "myapp://reset";
+
+    try {
+      // Use $fetch for direct API call to request-password-reset endpoint
+      const result = await authClient.$fetch("/request-password-reset", {
+        method: "POST",
+        body: {
+          email: trimmedEmail,
+          redirectTo: resetRedirectUrl,
+        },
+      });
+      if (result.error) {
+        setError("Pošiljanje ni uspelo. Poskusite znova.");
+        return;
+      }
+      setRequestSent(true);
+      setMessage("Če račun obstaja, smo poslali povezavo za ponastavitev na vaš e-naslov.");
+    } catch (err: any) {
+      // For security, show success message anyway
+      setRequestSent(true);
+      setMessage("Če račun obstaja, smo poslali povezavo za ponastavitev na vaš e-naslov.");
+    } finally {
+      setRequestLoading(false);
+    }
+  };
+
+  // Handle reset password (enter new password)
   const handleReset = async () => {
     if (!canSubmit) {
       if (!hasToken || errorParam) {
@@ -92,7 +153,7 @@ export default function ResetScreen() {
         router.replace({ pathname: "/auth", params: { mode: "login" } });
       }, 1400);
     } catch (err) {
-      console.log("Reset password error:", err);
+
       setError("Ponastavitev ni uspela. Poskusite znova.");
     } finally {
       setLoading(false);
@@ -112,9 +173,13 @@ export default function ResetScreen() {
           style={styles.keyboardView}
         >
           <View style={styles.card}>
-            <Text style={styles.title}>Ponastavi geslo</Text>
+            <Text style={styles.title}>
+              {mode === "request" ? "Pozabljeno geslo" : "Ponastavi geslo"}
+            </Text>
             <Text style={styles.subtitle}>
-              Vnesi novo geslo za svoj račun.
+              {mode === "request"
+                ? "Vnesite e-naslov in poslali vam bomo povezavo za ponastavitev."
+                : "Vnesite novo geslo za svoj račun."}
             </Text>
 
             {error ? (
@@ -131,119 +196,190 @@ export default function ResetScreen() {
               </View>
             ) : null}
 
-            <View
-              style={[
-                styles.inputContainer,
-                focusedField === "newPassword" && styles.inputContainerFocused,
-              ]}
-            >
-              <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Novo geslo"
-                placeholderTextColor="#6b7280"
-                value={newPassword}
-                onChangeText={setNewPassword}
-                onFocus={() => setFocusedField("newPassword")}
-                onBlur={() => setFocusedField(null)}
-                secureTextEntry={!showPassword}
-                autoComplete="new-password"
-                autoCorrect={false}
-                textContentType="newPassword"
-                returnKeyType="next"
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <Ionicons
-                  name={showPassword ? "eye-off" : "eye"}
-                  size={20}
-                  color="#6b7280"
-                />
-              </TouchableOpacity>
-            </View>
-
-            {newPassword.length > 0 && (
-              <View style={styles.strengthRow}>
-                <View style={styles.strengthBars}>
-                  {[0, 1, 2].map((index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.strengthBar,
-                        passwordStrengthLevel > index && { backgroundColor: passwordStrengthColor },
-                      ]}
-                    />
-                  ))}
+            {mode === "request" && !requestSent ? (
+              <>
+                {/* Email input for request mode */}
+                <View
+                  style={[
+                    styles.inputContainer,
+                    focusedField === "email" && styles.inputContainerFocused,
+                  ]}
+                >
+                  <Ionicons name="mail-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="E-naslov"
+                    placeholderTextColor="#6b7280"
+                    value={email}
+                    onChangeText={setEmail}
+                    onFocus={() => setFocusedField("email")}
+                    onBlur={() => setFocusedField(null)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    textContentType="emailAddress"
+                    returnKeyType="done"
+                    onSubmitEditing={handleRequestReset}
+                  />
                 </View>
-                <Text style={[styles.strengthText, { color: passwordStrengthColor }]}>
-                  {passwordStrengthLabel}
-                </Text>
-              </View>
-            )}
 
-            <View
-              style={[
-                styles.inputContainer,
-                focusedField === "confirmPassword" && styles.inputContainerFocused,
-              ]}
-            >
-              <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Ponovi geslo"
-                placeholderTextColor="#6b7280"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                onFocus={() => setFocusedField("confirmPassword")}
-                onBlur={() => setFocusedField(null)}
-                secureTextEntry={!showPassword}
-                autoComplete="new-password"
-                autoCorrect={false}
-                textContentType="newPassword"
-                returnKeyType="done"
-                onSubmitEditing={handleReset}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.primaryButton, !canSubmit && styles.primaryButtonDisabled]}
-              onPress={handleReset}
-              disabled={!canSubmit}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={
-                  !canSubmit
-                    ? ["rgba(148, 163, 184, 0.5)", "rgba(71, 85, 105, 0.6)"]
-                    : ["#c084fc", "#a855f7", "#7c3aed"]
-                }
-                style={styles.buttonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Text
-                      style={[
-                        styles.primaryButtonText,
-                        !canSubmit && styles.primaryButtonTextDisabled,
-                      ]}
-                    >
-                      Shrani novo geslo
-                    </Text>
+                <TouchableOpacity
+                  style={[styles.primaryButton, !canRequest && styles.primaryButtonDisabled]}
+                  onPress={handleRequestReset}
+                  disabled={!canRequest}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient
+                    colors={
+                      !canRequest
+                        ? ["rgba(148, 163, 184, 0.5)", "rgba(71, 85, 105, 0.6)"]
+                        : ["#c084fc", "#a855f7", "#7c3aed"]
+                    }
+                    style={styles.buttonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    {requestLoading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Text
+                          style={[
+                            styles.primaryButtonText,
+                            !canRequest && styles.primaryButtonTextDisabled,
+                          ]}
+                        >
+                          Pošlji povezavo
+                        </Text>
+                        <Ionicons
+                          name="send"
+                          size={18}
+                          color={!canRequest ? "#cbd5e1" : "#fff"}
+                        />
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            ) : mode === "reset" ? (
+              <>
+                {/* Password inputs for reset mode */}
+                <View
+                  style={[
+                    styles.inputContainer,
+                    focusedField === "newPassword" && styles.inputContainerFocused,
+                  ]}
+                >
+                  <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Novo geslo"
+                    placeholderTextColor="#6b7280"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    onFocus={() => setFocusedField("newPassword")}
+                    onBlur={() => setFocusedField(null)}
+                    secureTextEntry={!showPassword}
+                    autoComplete="new-password"
+                    autoCorrect={false}
+                    textContentType="newPassword"
+                    returnKeyType="next"
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
                     <Ionicons
-                      name="checkmark"
+                      name={showPassword ? "eye-off" : "eye"}
                       size={20}
-                      color={!canSubmit ? "#cbd5e1" : "#fff"}
+                      color="#6b7280"
                     />
-                  </>
+                  </TouchableOpacity>
+                </View>
+
+                {newPassword.length > 0 && (
+                  <View style={styles.strengthRow}>
+                    <View style={styles.strengthBars}>
+                      {[0, 1, 2].map((index) => (
+                        <View
+                          key={index}
+                          style={[
+                            styles.strengthBar,
+                            passwordStrengthLevel > index && { backgroundColor: passwordStrengthColor },
+                          ]}
+                        />
+                      ))}
+                    </View>
+                    <Text style={[styles.strengthText, { color: passwordStrengthColor }]}>
+                      {passwordStrengthLabel}
+                    </Text>
+                  </View>
                 )}
-              </LinearGradient>
-            </TouchableOpacity>
+
+                <View
+                  style={[
+                    styles.inputContainer,
+                    focusedField === "confirmPassword" && styles.inputContainerFocused,
+                  ]}
+                >
+                  <Ionicons name="lock-closed-outline" size={20} color="#a78bfa" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ponovi geslo"
+                    placeholderTextColor="#6b7280"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    onFocus={() => setFocusedField("confirmPassword")}
+                    onBlur={() => setFocusedField(null)}
+                    secureTextEntry={!showPassword}
+                    autoComplete="new-password"
+                    autoCorrect={false}
+                    textContentType="newPassword"
+                    returnKeyType="done"
+                    onSubmitEditing={handleReset}
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.primaryButton, !canSubmit && styles.primaryButtonDisabled]}
+                  onPress={handleReset}
+                  disabled={!canSubmit}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient
+                    colors={
+                      !canSubmit
+                        ? ["rgba(148, 163, 184, 0.5)", "rgba(71, 85, 105, 0.6)"]
+                        : ["#c084fc", "#a855f7", "#7c3aed"]
+                    }
+                    style={styles.buttonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Text
+                          style={[
+                            styles.primaryButtonText,
+                            !canSubmit && styles.primaryButtonTextDisabled,
+                          ]}
+                        >
+                          Shrani novo geslo
+                        </Text>
+                        <Ionicons
+                          name="checkmark"
+                          size={20}
+                          color={!canSubmit ? "#cbd5e1" : "#fff"}
+                        />
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </>
+            ) : null}
 
             <TouchableOpacity
               style={styles.backButton}

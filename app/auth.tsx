@@ -128,12 +128,10 @@ export default function AuthScreen() {
 
   // Redirect if authenticated
   useEffect(() => {
-    console.log("Auth useEffect: isAuthenticated =", isAuthenticated, "authLoading =", authLoading);
     // Only redirect if fully authenticated and not in a loading state
     if (isAuthenticated && !authLoading && profile && !profile.isAnonymous && !showSuccessOverlay && !loading && !resetLoading && !anonymousLoading) {
       // CRITICAL: Block users without verified email - redirect to verify screen
       if (!profile.emailVerified) {
-        console.log("Email not verified, redirecting to /verify");
         router.replace("/verify");
       } else {
         router.replace("/(tabs)");
@@ -288,7 +286,6 @@ export default function AuthScreen() {
         setSuccess("");
         setLoading(false);
         if (redirectTarget === "register") {
-          console.log("[AUTH] Redirecting to /verify after registration");
           router.replace("/verify");
         } else if (redirectTarget) {
           router.replace("/(tabs)");
@@ -302,7 +299,6 @@ export default function AuthScreen() {
     if (showSuccessOverlay && pendingRedirect === "register") {
       // Auto redirect to verify screen after 1.5 seconds for registrations
       const timer = setTimeout(() => {
-        console.log("[AUTH] Auto-redirecting to verify screen");
         closeSuccessOverlay();
       }, 1500);
       return () => clearTimeout(timer);
@@ -385,13 +381,10 @@ export default function AuthScreen() {
     try {
       if (isLogin) {
         // Login
-        console.log("Attempting login...");
         const result = await authClient.signIn.email({ 
           email: trimmedEmail, 
           password 
         });
-        
-        console.log("Login result:", result);
         
         if (result.error) {
           console.error("Login error details:", JSON.stringify(result.error));
@@ -413,19 +406,15 @@ export default function AuthScreen() {
           return;
         }
         
-        console.log("Login successful!");
         openSuccessOverlay("Uspešna prijava!", "login");
         // Router will redirect automatically via useEffect
       } else {
         // Register
-        console.log("Attempting registration...");
         const result = await authClient.signUp.email({ 
           email: trimmedEmail, 
           password, 
           name: trimmedNickname 
         });
-        
-        console.log("Register result:", result);
         
         if (result.error) {
           console.error("Register error details:", JSON.stringify(result.error));
@@ -454,12 +443,9 @@ export default function AuthScreen() {
           }
         }
 
-        console.log("Registration successful!");
-
         // Send verification email
         try {
           await requestEmailVerification({});
-          console.log("Verification email sent");
         } catch (emailErr) {
           console.warn("Failed to send verification email:", emailErr);
         }
@@ -471,7 +457,6 @@ export default function AuthScreen() {
         );
       }
     } catch (err: unknown) {
-      console.log("Auth error:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       if (isLogin) {
         if (errorMessage.includes("not found") || errorMessage.includes("exist")) {
@@ -519,9 +504,13 @@ export default function AuthScreen() {
 
     setResetLoading(true);
     try {
-      const result = await authClient.requestPasswordReset({
-        email: trimmedEmail,
-        redirectTo: resetRedirectUrl,
+      // Use $fetch for direct API call to request-password-reset endpoint
+      const result = await authClient.$fetch("/request-password-reset", {
+        method: "POST",
+        body: {
+          email: trimmedEmail,
+          redirectTo: resetRedirectUrl,
+        },
       });
       if (result.error) {
         setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
@@ -529,10 +518,9 @@ export default function AuthScreen() {
         return;
       }
       openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
-    } catch (err) {
-      console.log("Reset password error:", err);
-      setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
-      shakeError();
+    } catch (err: any) {
+      // For security, show success message anyway
+      openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
     } finally {
       setResetLoading(false);
     }
@@ -550,7 +538,6 @@ export default function AuthScreen() {
     try {
       const result = await authClient.signIn.anonymous();
       if (result.error) {
-        console.log("Anonymous error:", result.error);
         setError("Prijava kot gost ni uspela. Poskusite znova.");
         shakeError();
         setAnonymousLoading(false);
@@ -559,7 +546,6 @@ export default function AuthScreen() {
       openSuccessOverlay("Dobrodošli!", "guest");
       setAnonymousLoading(false);
     } catch (err) {
-      console.log("Anonymous error:", err);
       setError("Prijava kot gost ni uspela. Poskusite znova.");
       shakeError();
       setAnonymousLoading(false);
@@ -985,32 +971,51 @@ export default function AuthScreen() {
                       </TouchableOpacity>
                     </View>
 
-                    {/* Pozabljeno geslo - takoj pod password field */}
+                    {/* Ostani prijavljen + Pozabljeno geslo - v isti vrstici pod password */}
                     {isLogin && (
-                      <TouchableOpacity
-                        onPress={handleForgotPassword}
-                        disabled={resetLoading}
-                        activeOpacity={0.8}
-                        style={styles.forgotPasswordLink}
-                      >
-                        <Text
-                          style={[
-                            styles.forgotPasswordText,
-                            resetLoading && styles.forgotPasswordTextDisabled,
-                          ]}
+                      <View style={styles.loginAssist}>
+                        <TouchableOpacity
+                          style={styles.rememberRow}
+                          onPress={() => setRememberMe((prev) => !prev)}
+                          activeOpacity={0.8}
                         >
-                          {resetLoading ? "Pošiljam povezavo..." : "Pozabljeno geslo?"}
-                        </Text>
-                        {resetLoading && (
-                          <ActivityIndicator size="small" color="#a78bfa" style={{ marginLeft: 8 }} />
-                        )}
-                      </TouchableOpacity>
+                          <View
+                            style={[
+                              styles.rememberCheckbox,
+                              rememberMe && styles.rememberCheckboxChecked,
+                            ]}
+                          >
+                            {rememberMe && (
+                              <Ionicons name="checkmark" size={14} color="#fff" />
+                            )}
+                          </View>
+                          <Text style={styles.rememberText}>Ostani prijavljen</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={handleForgotPassword}
+                          disabled={resetLoading}
+                          activeOpacity={0.8}
+                          style={styles.forgotPasswordLink}
+                        >
+                          <Text
+                            style={[
+                              styles.forgotPasswordText,
+                              resetLoading && styles.forgotPasswordTextDisabled,
+                            ]}
+                          >
+                            {resetLoading ? "Pošiljam..." : "Pozabljeno geslo?"}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
                     )}
 
-                    <View style={styles.helperRow}>
-                      <Ionicons name="shield-checkmark-outline" size={16} color="#6b7280" />
-                      <Text style={styles.helperText}>Vsaj 8 znakov; najbolj varno je črke + številke + posebni znaki.</Text>
-                    </View>
+                    {!isLogin && (
+                      <View style={styles.helperRow}>
+                        <Ionicons name="shield-checkmark-outline" size={16} color="#6b7280" />
+                        <Text style={styles.helperText}>Vsaj 8 znakov; najbolj varno je črke + številke + posebni znaki.</Text>
+                      </View>
+                    )}
 
                     {!isLogin && password.length > 0 && (
                       <View style={styles.strengthRow}>
@@ -1109,28 +1114,6 @@ export default function AuthScreen() {
                       </LinearGradient>
                     </TouchableOpacity>
                   </View>
-
-                  {isLogin && (
-                    <View style={styles.loginAssist}>
-                      <TouchableOpacity
-                        style={styles.rememberRow}
-                        onPress={() => setRememberMe((prev) => !prev)}
-                        activeOpacity={0.8}
-                      >
-                        <View
-                          style={[
-                            styles.rememberCheckbox,
-                            rememberMe && styles.rememberCheckboxChecked,
-                          ]}
-                        >
-                          {rememberMe && (
-                            <Ionicons name="checkmark" size={14} color="#fff" />
-                          )}
-                        </View>
-                        <Text style={styles.rememberText}>Ostani prijavljen</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
 
                   {/* Anonymous Sign In */}
                   <View style={styles.anonymousDivider}>
@@ -1576,8 +1559,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   loginAssist: {
-    marginTop: 14,
-    gap: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    marginBottom: 4,
   },
   rememberRow: {
     flexDirection: "row",
@@ -1618,9 +1604,6 @@ const styles = StyleSheet.create({
   forgotPasswordLink: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-end",
-    marginTop: 8,
-    marginBottom: 4,
   },
   forgotPasswordText: {
     color: "#a78bfa",
