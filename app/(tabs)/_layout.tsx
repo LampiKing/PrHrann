@@ -28,21 +28,59 @@ export default function TabsLayout() {
   const seedStores = useMutation(api.stores.seedStores);
   const ensureProfileAttemptedRef = useRef(false);
   const seedStoresAttemptedRef = useRef(false);
+  const profileLoadStartRef = useRef<number | null>(null);
 
+  // Track when profile loading started
+  useEffect(() => {
+    if (isAuthenticated && profile === undefined && !profileLoadStartRef.current) {
+      profileLoadStartRef.current = Date.now();
+    }
+    if (profile !== undefined) {
+      profileLoadStartRef.current = null;
+    }
+  }, [isAuthenticated, profile]);
+
+  // Create profile if: profile is null OR loading times out
   useEffect(() => {
     if (!isAuthenticated || ensureProfileAttemptedRef.current) {
       return;
     }
+    
+    // Immediate creation if profile is null (doesn't exist)
     if (profile === null) {
+      console.log("Profile is null, creating new profile...");
       ensureProfileAttemptedRef.current = true;
       ensureProfile({})
         .then(() => {
+          console.log("Profile created successfully");
           ensureProfileAttemptedRef.current = false;
         })
         .catch((error) => {
           console.error("Napaka pri ustvarjanju profila:", error);
           ensureProfileAttemptedRef.current = false;
         });
+      return;
+    }
+    
+    // Timeout fallback: if profile is undefined for too long, try creating
+    if (profile === undefined && profileLoadStartRef.current) {
+      const timeout = setTimeout(() => {
+        if (profile === undefined && !ensureProfileAttemptedRef.current) {
+          console.log("Profile loading timeout, attempting to create profile...");
+          ensureProfileAttemptedRef.current = true;
+          ensureProfile({})
+            .then(() => {
+              console.log("Profile created after timeout");
+              ensureProfileAttemptedRef.current = false;
+            })
+            .catch((error) => {
+              console.error("Napaka pri ustvarjanju profila (timeout):", error);
+              ensureProfileAttemptedRef.current = false;
+            });
+        }
+      }, 3000); // 3 second timeout
+      
+      return () => clearTimeout(timeout);
     }
   }, [isAuthenticated, profile, ensureProfile]);
 

@@ -196,6 +196,8 @@ function ProfileScreenInner() {
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
   const submitSuggestion = useMutation(api.userSuggestions.submitSuggestion);
+  const ensureProfile = useMutation(api.userProfiles.ensureProfile);
+  const [retryingProfile, setRetryingProfile] = useState(false);
 
   // --- Derived State & Memoized Values (Calculated only when profile is loaded) ---
   const profilePictureUrl = profilePictureOverride || profile?.profilePictureUrl;
@@ -644,6 +646,39 @@ function ProfileScreenInner() {
           />
           <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
           <Text style={styles.authText}>Nalaganje profila...</Text>
+          <Text style={[styles.authText, { fontSize: 12, opacity: 0.6, marginTop: 8 }]}>
+            Če nalaganje traja predolgo, poskusi osvežiti.
+          </Text>
+          <TouchableOpacity
+            style={[styles.authButton, { marginTop: 20, opacity: retryingProfile ? 0.6 : 1 }]}
+            onPress={async () => {
+              if (retryingProfile) return;
+              setRetryingProfile(true);
+              try {
+                console.log("Manual profile creation attempt...");
+                await ensureProfile({});
+                console.log("Profile created successfully");
+                setProfileLoadingTimedOut(false);
+              } catch (error) {
+                console.error("Profile creation error:", error);
+                Alert.alert("Napaka", "Profila ni bilo mogoče ustvariti. Poskusi znova.");
+              } finally {
+                setRetryingProfile(false);
+              }
+            }}
+            disabled={retryingProfile}
+          >
+            <LinearGradient
+              colors={["#8b5cf6", "#7c3aed"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.authButtonGradient}
+            >
+              <Text style={styles.authButtonText}>
+                {retryingProfile ? "Ustvarjam profil..." : "Osveži profil"}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -651,22 +686,6 @@ function ProfileScreenInner() {
 
   // If loading timed out or profile is null, show basic fallback interface
   if (isAuthenticated && (profileLoadingTimedOut || profile === null)) {
-    // Create fallback profile data
-    const fallbackProfile = profile || {
-      _id: "fallback",
-      _creationTime: Date.now(),
-      userId: "unknown", 
-      nickname: "Uporabnik",
-      email: "unknown@example.com",
-      isAdmin: true, // Assume admin for admin users experiencing this issue
-      isPremium: false,
-      searchesRemaining: 3,
-      premiumType: null,
-      dailySearches: 0,
-      canSearch: true,
-      totalSavings: 0
-    };
-
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -683,16 +702,50 @@ function ProfileScreenInner() {
               </LinearGradient>
             </View>
             <Text style={styles.title}>
-              {profile?.nickname || "Uporabnik"} profil
+              {profile?.nickname || "Tvoj profil"}
             </Text>
-            <Text style={[styles.authText, { marginTop: 8 }]}>
+            <Text style={[styles.authText, { marginTop: 8, textAlign: "center", paddingHorizontal: 20 }]}>
               {profileLoadingTimedOut
-                ? "Profil se ni uspel naložiti. Poskusi osvežiti."
-                : "Profil ni bil najden."}
+                ? "Profil se ni uspel naložiti. Klikni spodnji gumb za ustvaritev."
+                : "Profil ni bil najden. Klikni spodnji gumb za ustvaritev."}
             </Text>
           </View>
 
-          {/* Admin panel temporarily removed */}
+          {/* Create Profile Button */}
+          <View style={[styles.section, { marginTop: 20 }]}>
+            <TouchableOpacity
+              style={[styles.authButton, { opacity: retryingProfile ? 0.6 : 1 }]}
+              onPress={async () => {
+                if (retryingProfile) return;
+                setRetryingProfile(true);
+                try {
+                  console.log("Creating profile from fallback UI...");
+                  await ensureProfile({});
+                  console.log("Profile created successfully from fallback");
+                  // Reset timeout state to trigger re-query
+                  setProfileLoadingTimedOut(false);
+                } catch (error) {
+                  console.error("Profile creation error:", error);
+                  Alert.alert("Napaka", "Profila ni bilo mogoče ustvariti. Poskusi znova ali se odjavi in prijavi nazaj.");
+                } finally {
+                  setRetryingProfile(false);
+                }
+              }}
+              disabled={retryingProfile}
+            >
+              <LinearGradient
+                colors={["#8b5cf6", "#7c3aed"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.authButtonGradient}
+              >
+                <Ionicons name={retryingProfile ? "sync" : "add-circle"} size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.authButtonText}>
+                  {retryingProfile ? "Ustvarjam profil..." : "Ustvari profil"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
 
           {/* Sign Out Option */}
           <View style={[styles.section, { marginTop: 20 }]}>
