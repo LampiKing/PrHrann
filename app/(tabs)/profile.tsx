@@ -212,21 +212,22 @@ export default function ProfileScreen() {
     setShowMemberModal(true);
   }, []);
 
-  const handleRemoveMember = useCallback(async () => {
-    if (!selectedMember) return;
-    
+  const handleRemoveMember = useCallback(async (member: FamilyMember) => {
+    if (!member?.userId) return;
+
     try {
-      await removeFamilyMember({ memberUserId: selectedMember.userId });
+      await removeFamilyMember({ memberUserId: member.userId });
       setShowMemberModal(false);
       setSelectedMember(null);
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
+      Alert.alert("Uspešno", "Član je bil odstranjen iz družine.");
     } catch (error) {
       console.error("Remove member error:", error);
       Alert.alert("Napaka", "Člana ni bilo mogoče odstraniti.");
     }
-  }, [selectedMember, removeFamilyMember]);
+  }, [removeFamilyMember]);
 
   const handleInvite = useCallback(async () => {
     if (!inviteEmail.trim()) {
@@ -370,7 +371,7 @@ export default function ProfileScreen() {
       }
 
       if (!base64Image) {
-        Alert.alert("Napaka", "Slike ni bilo mogoce prebrati.");
+        Alert.alert("Napaka", "Slike ni bilo mogoče prebrati.");
         return;
       }
 
@@ -1053,7 +1054,7 @@ export default function ProfileScreen() {
                           `Ali res želiš odstraniti ${selectedMember.nickname} iz družinskega načrta?`,
                           [
                             { text: "Prekliči", style: "cancel" },
-                            { text: "Odstrani", style: "destructive", onPress: handleRemoveMember },
+                            { text: "Odstrani", style: "destructive", onPress: () => handleRemoveMember(selectedMember) },
                           ]
                         );
                       }}
@@ -1209,15 +1210,15 @@ export default function ProfileScreen() {
       <Modal
         visible={showFeedbackModal}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowFeedbackModal(false)}
       >
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
           <Pressable 
-            style={styles.modalOverlay} 
+            style={styles.centeredModalOverlay} 
             onPress={() => setShowFeedbackModal(false)}
           >
-            <Pressable style={styles.feedbackModalContent} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.feedbackModalContent} onStartShouldSetResponder={() => true}>
               {/* Header */}
               <LinearGradient
                 colors={["rgba(168, 85, 247, 0.3)", "rgba(124, 58, 237, 0.1)"]}
@@ -1299,7 +1300,7 @@ export default function ProfileScreen() {
                   Sporočilo bo poslano direktno razvijalcu
                 </Text>
               </View>
-            </Pressable>
+            </View>
           </Pressable>
         </BlurView>
       </Modal>
@@ -1312,7 +1313,7 @@ export default function ProfileScreen() {
       >
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
           <TouchableOpacity
-            style={styles.modalOverlay}
+            style={styles.centeredModalOverlay}
             activeOpacity={1}
             onPress={() => setShowFeedbackSuccessModal(false)}
           >
@@ -1326,7 +1327,7 @@ export default function ProfileScreen() {
               </View>
               <Text style={styles.feedbackSuccessTitle}>Poslano</Text>
               <Text style={styles.feedbackSuccessText}>
-                Hvala! Sporocilo smo prejeli in ga bomo pregledali.
+                Hvala! Sporočilo smo prejeli in ga bomo pregledali.
               </Text>
               <View style={styles.feedbackSuccessActions}>
                 <TouchableOpacity
@@ -1603,6 +1604,13 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: "flex-end",
+  },
+  centeredModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   modalContent: {
     backgroundColor: "#1f2937",

@@ -89,7 +89,7 @@ export const sendFeedback = action({
       });
     } catch (error) {
       console.error("Feedback store error:", error);
-      return { success: false, error: "Feedback ni bilo mogoce shraniti." };
+      return { success: false, error: "Feedback ni bilo mogoče shraniti." };
     }
 
     const resendApiKey = process.env.RESEND_API_KEY;

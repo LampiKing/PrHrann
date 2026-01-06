@@ -643,7 +643,7 @@ export default function SearchScreen() {
           alert(recordResult.error || "Daily search limit reached. Upgrade to PrHran Plus for unlimited search.");
         } else if (needsEmailVerification) {
           setEmailVerificationPrompt(
-            "Za nadaljevanje mora? potrditi svoj e-naslov. Preveri po?to ali potrdi z novim emailom."
+            "Za nadaljevanje moraš potrditi svoj e-naslov. Preveri pošto ali potrdi z novim emailom."
           );
           setEmailVerificationMessage("");
           setEmailVerificationError("");
@@ -2432,7 +2432,7 @@ export default function SearchScreen() {
 
               <Text style={styles.premiumModalTitle}>📸 PrHran Plus – odkleni kamero</Text>
               <Text style={styles.premiumModalSubtitle}>
-                Slikanje izdelkov je del Premium Plus (solo). Z nadgradnjo dobiš neomejeno iskanje,
+                Slikanje izdelkov je del Premium Plus. Z nadgradnjo dobiš neomejeno iskanje,
                 pametne kupone in pregled prihrankov.
               </Text>
 

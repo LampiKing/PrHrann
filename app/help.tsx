@@ -32,7 +32,7 @@ const FAQ_ITEMS = [
   {
     question: "Kaj vključujeta Premium Plus in Family?",
     answer:
-      "Premium Plus (solo) vključuje: neomejeno iskanje, slikanje izdelkov, pametne kupone, pregled prihrankov in lestvice. Family vključuje vse iz Plus + možnost povabila do 2 članov (skupaj 3 profili) in družinsko mini ligo.",
+      "Premium Plus vključuje: neomejeno iskanje, slikanje izdelkov, pametne kupone, pregled prihrankov in lestvice. Family vključuje vse iz Plus + možnost povabila do 2 članov (skupaj 3 profili) in družinsko mini ligo.",
   },
   {
     question: "Kako dodam izdelek v košarico?",
@@ -378,6 +378,5 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
 });
-
 
 

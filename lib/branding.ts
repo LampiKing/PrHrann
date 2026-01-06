@@ -4,7 +4,7 @@ export const PLAN_FAMILY = "PrHran Family";
 
 export const PRICING = {
   plusMonthly: "1.99 EUR",
-  familyMonthly: "2.99 EUR",
+  familyMonthly: "3.99 EUR",
   currencySuffix: "/ mesec",
 };
 
@@ -14,7 +14,7 @@ export const FREE_LIMITS = {
 
 export const MARKETING = {
   ctaPlus: "Začni z 1,99 EUR/mesec",
-  ctaFamily: "Začni z 2,99 EUR/mesec",
+  ctaFamily: "Začni z 3,99 EUR/mesec",
   footerLine: "Prekliči kadarkoli • DDV vključen • Varno plačilo",
   labels: {
     unlimited: "neomejeno",

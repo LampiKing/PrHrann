@@ -158,7 +158,7 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="leaderboard"
           options={{
-            title: "Lestvica",
+            title: "Tekmovanje",
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="trophy" size={size} color={color} />
