@@ -715,9 +715,11 @@ export default function ProfileScreen() {
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <Ionicons name="people" size={22} color="#fbbf24" style={{ marginRight: 8 }} />
-                <Text style={styles.sectionTitle}>Družinski člani</Text>
-                <TouchableOpacity 
+                <View style={styles.sectionTitleGroup}>
+                  <Ionicons name="people" size={22} color="#fbbf24" />
+                  <Text style={styles.sectionTitle}>Družinski člani</Text>
+                </View>
+                <TouchableOpacity
                   onPress={() => setShowInfoTooltip(showInfoTooltip === "family" ? null : "family")}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   style={styles.helpButton}
@@ -728,8 +730,8 @@ export default function ProfileScreen() {
               {showInfoTooltip === "family" && (
                 <View style={styles.tooltipBox}>
                   <Text style={styles.tooltipText}>
-                    Z Family Premium lahko povabite do 2 clanov (skupaj 3). 
-                    Vsi clani si delijo ugodnosti, vsak pa ima svoj profil.
+                    Z Family Premium lahko povabite do 2 članov (skupaj 3).
+                    Vsi člani si delijo ugodnosti, vsak pa ima svoj profil.
                   </Text>
                 </View>
               )}
@@ -808,9 +810,9 @@ export default function ProfileScreen() {
             </ScrollView>
             
             <Text style={styles.sectionSubtext}>
-              {availableSlots > 0 
+              {availableSlots > 0
                 ? `Še ${availableSlots} prost${availableSlots === 1 ? "o" : "a"} mest${availableSlots === 1 ? "o" : "a"}`
-                : "Vsa mesta so zasedena. Za novo vabilo odstrani clana."}
+                : "Vsa mesta so zasedena. Za novo vabilo odstrani člana."}
             </Text>
           </View>
         )}
@@ -819,11 +821,28 @@ export default function ProfileScreen() {
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <Ionicons name="trophy" size={22} color="#fbbf24" style={{ marginRight: 8 }} />
-                <Text style={styles.sectionTitle}>Family mini liga</Text>
+                <View style={styles.sectionTitleGroup}>
+                  <Ionicons name="trophy" size={22} color="#fbbf24" />
+                  <Text style={styles.sectionTitle}>Družinska mini liga</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowInfoTooltip(showInfoTooltip === "family-league" ? null : "family-league")}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.helpButton}
+                >
+                  <Ionicons name="help-circle" size={20} color="#a855f7" />
+                </TouchableOpacity>
               </View>
+              {showInfoTooltip === "family-league" && (
+                <View style={styles.tooltipBox}>
+                  <Text style={styles.tooltipText}>
+                    Mini liga prikazuje prihranke znotraj vaše Family skupine.
+                    Namenjena je zabavni motivaciji in ne vpliva na glavno lestvico.
+                  </Text>
+                </View>
+              )}
               <Text style={styles.leaderboardSubtext}>
-                Mini tekmovanje znotraj vase druzine.
+                Prijazno tekmovanje znotraj vaše družine.
               </Text>
             </View>
 
@@ -1903,6 +1922,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
+  },
+  sectionTitleGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 18,
@@ -1912,8 +1937,9 @@ const styles = StyleSheet.create({
   sectionSubtext: {
     fontSize: 13,
     color: "#6b7280",
-    textAlign: "center",
+    textAlign: "left",
     marginTop: 12,
+    lineHeight: 18,
   },
   helpButton: {
     backgroundColor: "rgba(168, 85, 247, 0.15)",
@@ -2191,6 +2217,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#94a3b8",
     marginTop: 8,
+    lineHeight: 18,
+    textAlign: "left",
   },
   familyLeaderboardList: {
     gap: 10,
@@ -2250,6 +2278,7 @@ const styles = StyleSheet.create({
   familyLeaderboardInfo: {
     flex: 1,
     marginRight: 8,
+    minWidth: 0,
   },
   familyLeaderboardName: {
     fontSize: 14,
@@ -2265,6 +2294,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#f1f5f9",
+    minWidth: 80,
+    textAlign: "right",
+    fontVariant: ["tabular-nums"],
   },
   feedbackSuccessCard: {
     width: "85%",
