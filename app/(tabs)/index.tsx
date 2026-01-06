@@ -260,6 +260,20 @@ export default function SearchScreen() {
   const cartPreviewAnim = useRef(new RNAnimated.Value(0)).current;
   const cartToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cartPreviewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Premium cart animation states
+  const cartSuccessScale = useRef(new RNAnimated.Value(0)).current;
+  const cartSuccessRotate = useRef(new RNAnimated.Value(0)).current;
+  const cartGlowAnim = useRef(new RNAnimated.Value(0)).current;
+  const confettiAnims = useRef(
+    Array.from({ length: 12 }, () => ({
+      x: new RNAnimated.Value(0),
+      y: new RNAnimated.Value(0),
+      opacity: new RNAnimated.Value(0),
+      scale: new RNAnimated.Value(0),
+      rotate: new RNAnimated.Value(0),
+    }))
+  ).current;
 
   const profile = useQuery(
     api.userProfiles.getProfile,
@@ -444,19 +458,122 @@ export default function SearchScreen() {
     }
     setCartToastMessage(message);
     setShowCartToast(true);
-    RNAnimated.timing(cartToastAnim, {
+    
+    // Reset animations
+    cartSuccessScale.setValue(0);
+    cartSuccessRotate.setValue(0);
+    cartGlowAnim.setValue(0);
+    confettiAnims.forEach(anim => {
+      anim.x.setValue(0);
+      anim.y.setValue(0);
+      anim.opacity.setValue(0);
+      anim.scale.setValue(0);
+      anim.rotate.setValue(0);
+    });
+    
+    // Main toast slide in with spring
+    RNAnimated.spring(cartToastAnim, {
       toValue: 1,
-      duration: 180,
+      tension: 100,
+      friction: 8,
       useNativeDriver: true,
     }).start();
+    
+    // Success checkmark animation - bounce in with rotation
+    RNAnimated.sequence([
+      RNAnimated.delay(100),
+      RNAnimated.parallel([
+        RNAnimated.spring(cartSuccessScale, {
+          toValue: 1,
+          tension: 200,
+          friction: 6,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(cartSuccessRotate, {
+          toValue: 1,
+          duration: 400,
+          easing: Easing.out(Easing.back(2)),
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+    
+    // Glow pulse animation
+    RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(cartGlowAnim, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(cartGlowAnim, {
+          toValue: 0.3,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+      { iterations: 2 }
+    ).start();
+    
+    // Confetti burst animation
+    confettiAnims.forEach((anim, index) => {
+      const angle = (index / confettiAnims.length) * Math.PI * 2;
+      const distance = 60 + Math.random() * 40;
+      const targetX = Math.cos(angle) * distance;
+      const targetY = Math.sin(angle) * distance - 20; // bias upward
+      
+      RNAnimated.sequence([
+        RNAnimated.delay(50 + index * 20),
+        RNAnimated.parallel([
+          RNAnimated.timing(anim.opacity, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          RNAnimated.spring(anim.scale, {
+            toValue: 1,
+            tension: 300,
+            friction: 10,
+            useNativeDriver: true,
+          }),
+          RNAnimated.timing(anim.x, {
+            toValue: targetX,
+            duration: 500,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          RNAnimated.timing(anim.y, {
+            toValue: targetY,
+            duration: 500,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          RNAnimated.timing(anim.rotate, {
+            toValue: Math.random() * 4 - 2,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
+        RNAnimated.timing(anim.opacity, {
+          toValue: 0,
+          duration: 300,
+          delay: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+    
     cartToastTimeoutRef.current = setTimeout(() => {
       RNAnimated.timing(cartToastAnim, {
         toValue: 0,
-        duration: 180,
+        duration: 250,
+        easing: Easing.in(Easing.ease),
         useNativeDriver: true,
       }).start(() => setShowCartToast(false));
-    }, 1600);
-  }, [cartToastAnim]);
+    }, 2200);
+  }, [cartToastAnim, cartSuccessScale, cartSuccessRotate, cartGlowAnim, confettiAnims]);
 
   const triggerCartPreview = useCallback(() => {
     if (cartPreviewTimeoutRef.current) {
@@ -1923,21 +2040,115 @@ export default function SearchScreen() {
                 {
                   translateY: cartToastAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [20, 0],
+                    outputRange: [40, 0],
+                  }),
+                },
+                {
+                  scale: cartToastAnim.interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: [0.8, 1.05, 1],
                   }),
                 },
               ],
             },
           ]}
         >
+          {/* Confetti particles */}
+          {confettiAnims.map((anim, index) => (
+            <RNAnimated.View
+              key={`confetti-${index}`}
+              pointerEvents="none"
+              style={[
+                styles.confettiParticle,
+                {
+                  backgroundColor: [
+                    '#10b981', '#34d399', '#6ee7b7', '#a7f3d0',
+                    '#fbbf24', '#fcd34d', '#fde68a',
+                    '#8b5cf6', '#a78bfa', '#c4b5fd',
+                    '#ec4899', '#f472b6'
+                  ][index % 12],
+                  opacity: anim.opacity,
+                  transform: [
+                    { translateX: anim.x },
+                    { translateY: anim.y },
+                    { scale: anim.scale },
+                    {
+                      rotate: anim.rotate.interpolate({
+                        inputRange: [-2, 2],
+                        outputRange: ['-180deg', '180deg'],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          ))}
+          
+          {/* Glow effect behind toast */}
+          <RNAnimated.View
+            style={[
+              styles.cartToastGlow,
+              {
+                opacity: cartGlowAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 0.8],
+                }),
+                transform: [
+                  {
+                    scale: cartGlowAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.2],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+          
           <LinearGradient
-            colors={["rgba(16, 185, 129, 0.25)", "rgba(16, 185, 129, 0.15)"]}
+            colors={["rgba(16, 185, 129, 0.35)", "rgba(5, 150, 105, 0.25)"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.cartToastGradient}
           >
-            <Ionicons name="checkmark-circle" size={18} color="#10b981" />
-            <Text style={styles.cartToastText}>{cartToastMessage}</Text>
+            {/* Animated checkmark container */}
+            <RNAnimated.View
+              style={[
+                styles.cartToastIconContainer,
+                {
+                  transform: [
+                    {
+                      scale: cartSuccessScale.interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0, 1.3, 1],
+                      }),
+                    },
+                    {
+                      rotate: cartSuccessRotate.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['-45deg', '0deg'],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={["#10b981", "#059669"]}
+                style={styles.cartToastIconGradient}
+              >
+                <Ionicons name="checkmark" size={18} color="#fff" />
+              </LinearGradient>
+            </RNAnimated.View>
+            
+            <View style={styles.cartToastContent}>
+              <Text style={styles.cartToastTitle}>Dodano v košarico!</Text>
+              <Text style={styles.cartToastText}>{cartToastMessage}</Text>
+            </View>
+            
+            <View style={styles.cartToastBadge}>
+              <Ionicons name="cart" size={14} color="#10b981" />
+            </View>
           </LinearGradient>
         </RNAnimated.View>
       )}
@@ -3150,23 +3361,76 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     bottom: 110,
-    borderRadius: 14,
-    overflow: "hidden",
+    borderRadius: 18,
+    overflow: "visible",
+    zIndex: 100,
+  },
+  cartToastGlow: {
+    position: "absolute",
+    top: -10,
+    left: -10,
+    right: -10,
+    bottom: -10,
+    borderRadius: 28,
+    backgroundColor: "rgba(16, 185, 129, 0.25)",
   },
   cartToastGradient: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.35)",
-    borderRadius: 14,
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: "rgba(16, 185, 129, 0.5)",
+    borderRadius: 18,
+    backgroundColor: "rgba(6, 78, 59, 0.95)",
+    ...createShadow("#10b981", 0, 8, 0.4, 20, 10),
+  },
+  cartToastIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  cartToastIconGradient: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cartToastContent: {
+    flex: 1,
+  },
+  cartToastTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#ecfdf5",
+    marginBottom: 2,
+    letterSpacing: 0.2,
   },
   cartToastText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
-    color: "#d1fae5",
+    color: "#a7f3d0",
+  },
+  cartToastBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(16, 185, 129, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+  },
+  confettiParticle: {
+    position: "absolute",
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    left: "50%",
+    top: "50%",
+    marginLeft: -4,
+    marginTop: -4,
   },
   cartPreview: {
     position: "absolute",
