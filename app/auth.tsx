@@ -1174,8 +1174,8 @@ export default function AuthScreen() {
                     <Ionicons name="camera" size={20} color="#fbbf24" />
                   </View>
                   <Text style={styles.featureText}>
-                    Slikaj izdelek -{"\u003e"} takoj najde najnižjo ceno{" "}
-                    <Text style={styles.premiumBadge}>PREMIUM</Text>
+                    Slikaj izdelek – takoj najde najnižjo ceno{" "}
+                    <Text style={styles.premiumBadge}>PREMIUM PLUS</Text>
                   </Text>
                 </View>
               </View>

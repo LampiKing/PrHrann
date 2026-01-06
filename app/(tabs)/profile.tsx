@@ -836,13 +836,12 @@ export default function ProfileScreen() {
               {showInfoTooltip === "family-league" && (
                 <View style={styles.tooltipBox}>
                   <Text style={styles.tooltipText}>
-                    Mini liga prikazuje prihranke znotraj vaše Family skupine.
-                    Namenjena je zabavni motivaciji in ne vpliva na glavno lestvico.
+                    Kdo bo v družini prihranil največ? Spodaj vidiš razvrstitev po prihrankih.
                   </Text>
                 </View>
               )}
               <Text style={styles.leaderboardSubtext}>
-                Prijazno tekmovanje znotraj vaše družine.
+                Spremljaj, kdo bo prihranil največ.
               </Text>
             </View>
 

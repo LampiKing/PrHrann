@@ -2430,10 +2430,10 @@ export default function SearchScreen() {
                 </LinearGradient>
               </View>
 
-              <Text style={styles.premiumModalTitle}>📸 PrHran Plus - Unlock Kamera</Text>
+              <Text style={styles.premiumModalTitle}>📸 PrHran Plus – odkleni kamero</Text>
               <Text style={styles.premiumModalSubtitle}>
-                Slikanje izdelkov je na voljo samo v Plus načrtu. Nadgradi za neomejeno iskanje in
-                slikanje izdelkov za najnižje cene! 🎯
+                Slikanje izdelkov je del Premium Plus (solo). Z nadgradnjo dobiš neomejeno iskanje,
+                pametne kupone in pregled prihrankov.
               </Text>
 
               <View style={styles.premiumFeatures}>
@@ -2447,11 +2447,11 @@ export default function SearchScreen() {
                 </View>
                 <View style={styles.premiumFeatureItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>Hitrejši prikaz top 10 rezultatov</Text>
+                  <Text style={styles.premiumFeatureText}>🎟️ Pametni kuponi in akcije v trgovinah</Text>
                 </View>
                 <View style={styles.premiumFeatureItem}>
                   <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
-                  <Text style={styles.premiumFeatureText}>🏆 Sodeluj v lestvici in osvoji nagrade</Text>
+                  <Text style={styles.premiumFeatureText}>📊 Pregled prihrankov in lestvic</Text>
                 </View>
               </View>
 

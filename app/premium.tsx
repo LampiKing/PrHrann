@@ -21,17 +21,17 @@ import { createShadow } from "@/lib/shadow-helper";
 import FloatingBackground from "@/lib/FloatingBackground";
 
 const INDIVIDUAL_FEATURES = [
-  { icon: "infinite", title: "Neomejeno iskanje", description: "Brez dnevnih omejitev" },
-  { icon: "camera", title: "Slikaj izdelek", description: "Takoj najde najnižjo ceno" },
-  { icon: "pricetag", title: "Pametni kuponi", description: "Najboljse akcije na enem mestu" },
-  { icon: "analytics", title: "Letni prihranek", description: "Sledenje prihrankom po računih" },
-  { icon: "trophy", title: "Lestvice in značke", description: "Letna sezona varčevanja" },
+  { icon: "infinite", title: "Neomejeno iskanje", description: "Brez dnevnih omejitev v vseh trgovinah." },
+  { icon: "camera", title: "Slikaj izdelek", description: "Takoj najde najni?jo ceno." },
+  { icon: "pricetag", title: "Pametni kuponi", description: "Ve? akcij in ekskluzivni kuponi." },
+  { icon: "analytics", title: "Pregled prihrankov", description: "Sledenje prihrankom po ra?unih." },
+  { icon: "trophy", title: "Lestvice in zna?ke", description: "Tekmuj in zbiraj nagrade." },
 ];
 
 const FAMILY_BONUS_FEATURES = [
-  { icon: "people", title: "Do 3 uporabniki", description: "Family paket za en dom" },
-  { icon: "trophy", title: "Family lestvica", description: "Ločena lestvica za družino" },
-  { icon: "document-text", title: "4 računi na dan", description: "Skupni family limit" },
+  { icon: "people", title: "Do 3 profili", description: "Povabi do 2 ?lana (skupaj 3)." },
+  { icon: "trophy", title: "Dru?inska mini liga", description: "Kdo bo v dru?ini prihranil najve??" },
+  { icon: "person-circle", title: "Vsak svoj profil", description: "Premium ugodnosti za vse ?lane." },
 ];
 
 export default function PremiumScreen() {
@@ -302,7 +302,7 @@ export default function PremiumScreen() {
                     end={{ x: 1, y: 0 }}
                     style={styles.popularBadgeGradient}
                   >
-                    <Text style={styles.popularBadgeText}>NAJBOLJSE</Text>
+                    <Text style={styles.popularBadgeText}>NAJBOLJ?E</Text>
                   </LinearGradient>
                 </View>
                 {selectedPlan === "family" && (
@@ -323,14 +323,14 @@ export default function PremiumScreen() {
                 </Text>
                 <Text style={styles.planDescription}>{MARKETING.blurbs.familyShort}</Text>
                 <View style={styles.savingsBadge}>
-                  <Text style={styles.savingsText}>Skupni paket za 3</Text>
+                  <Text style={styles.savingsText}>Skupaj do 3 profilov</Text>
                 </View>
               </TouchableOpacity>
             </View>
 
             {/* Features Comparison */}
             <View style={styles.comparisonContainer}>
-              <Text style={styles.comparisonTitle}>Kaj se razlikuje?</Text>
+              <Text style={styles.comparisonTitle}>Kaj dobi? z vsakim paketom?</Text>
               
               <View style={styles.comparisonTable}>
                 {/* Header */}
@@ -397,7 +397,7 @@ export default function PremiumScreen() {
 
                 <View style={styles.comparisonRow}>
                   <View style={[styles.comparisonCell, styles.featureNameCell]}>
-                    <Text style={styles.comparisonItemText}>Family lestvica</Text>
+                    <Text style={styles.comparisonItemText}>Dru?inska mini liga</Text>
                   </View>
                   <View style={[styles.comparisonCell, styles.basicCell]}>
                     <Ionicons name="close" size={20} color="#ef4444" />
@@ -412,7 +412,7 @@ export default function PremiumScreen() {
 
                 <View style={styles.comparisonRow}>
                   <View style={[styles.comparisonCell, styles.featureNameCell]}>
-                    <Text style={styles.comparisonItemText}>Uporabnikov</Text>
+                    <Text style={styles.comparisonItemText}>?t. uporabnikov</Text>
                   </View>
                   <View style={[styles.comparisonCell, styles.basicCell]}>
                     <Text style={styles.comparisonValue}>1</Text>
@@ -451,7 +451,7 @@ export default function PremiumScreen() {
 
             {/* Features List */}
             <View style={styles.featuresContainer}>
-              <Text style={styles.featuresTitle}>Premium prednosti</Text>
+              <Text style={styles.featuresTitle}>Prednosti izbranega paketa</Text>
               {features.map((feature) => (
                 <View key={feature.title} style={styles.featureRow}>
                   <View style={styles.featureIconContainer}>
@@ -515,7 +515,7 @@ export default function PremiumScreen() {
             <View style={styles.trustBadges}>
               <View style={styles.trustBadge}>
                 <Ionicons name="shield-checkmark" size={16} color="#10b981" />
-                <Text style={styles.trustText}>Varno placilo</Text>
+                <Text style={styles.trustText}>Varno plačilo</Text>
               </View>
               <View style={styles.trustBadge}>
                 <Ionicons name="refresh" size={16} color="#10b981" />
@@ -523,7 +523,7 @@ export default function PremiumScreen() {
               </View>
               <View style={styles.trustBadge}>
                 <Ionicons name="lock-closed" size={16} color="#10b981" />
-                <Text style={styles.trustText}>SSL zascita</Text>
+                <Text style={styles.trustText}>SSL zaščita</Text>
               </View>
             </View>
 

@@ -30,9 +30,9 @@ const FAQ_ITEMS = [
       "Sistem upošteva aktivne kupone in akcije v trgovinah. Pri izračunu končne cene ti pokažemo, koliko lahko prihraniš z uporabo kuponov. Premium uporabniki imajo dostop do ekskluzivnih kuponov.",
   },
   {
-    question: "Kaj vključuje Premium naročnina?",
+    question: "Kaj vključujeta Premium Plus in Family?",
     answer:
-      "Premium naročnina (1,99 EUR/mesec) vključuje: neomejeno iskanje izdelkov, dostop do vseh trgovin, obvestila o padcih cen in ekskluzivne kupone.",
+      "Premium Plus (solo) vključuje: neomejeno iskanje, slikanje izdelkov, pametne kupone, pregled prihrankov in lestvice. Family vključuje vse iz Plus + možnost povabila do 2 članov (skupaj 3 profili) in družinsko mini ligo.",
   },
   {
     question: "Kako dodam izdelek v košarico?",
@@ -378,7 +378,6 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
 });
-
 
 
 

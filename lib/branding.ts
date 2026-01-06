@@ -13,16 +13,16 @@ export const FREE_LIMITS = {
 };
 
 export const MARKETING = {
-  ctaPlus: "Začni z 1.99 EUR/mesec",
-  ctaFamily: "Začni z 2.99 EUR/mesec",
-  footerLine: "Prekliči kadarkoli - DDV vključen - Varno plačilo",
+  ctaPlus: "Začni z 1,99 EUR/mesec",
+  ctaFamily: "Začni z 2,99 EUR/mesec",
+  footerLine: "Prekliči kadarkoli • DDV vključen • Varno plačilo",
   labels: {
     unlimited: "neomejeno",
     perDaySuffix: "/dan",
   },
   blurbs: {
-    plusShort: "Popolno za neomejeno iskanje",
-    familyShort: "Do 3 uporabnikov + deljenje seznamov",
+    plusShort: "Premium funkcije za 1 uporabnika: neomejeno iskanje, kamera, kuponi.",
+    familyShort: "Vse iz Plus + do 2 povabljena člana (skupaj 3 profili).",
   },
 };
 
