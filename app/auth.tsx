@@ -9,7 +9,6 @@ import {
   Platform,
   ScrollView,
   Image,
-  ActivityIndicator,
   Animated,
   Easing,
 } from "react-native";
@@ -255,6 +254,14 @@ export default function AuthScreen() {
     }
   };
 
+  const getResetRedirectUrl = () => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const baseUrl = process.env.EXPO_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || window.location.origin;
+      return `${baseUrl}/reset`;
+    }
+    return "myapp://reset";
+  };
+
   const shakeError = () => {
     triggerErrorHaptic();
     Animated.sequence([
@@ -497,10 +504,7 @@ export default function AuthScreen() {
       return;
     }
 
-    const resetRedirectUrl =
-      Platform.OS === "web" && typeof window !== "undefined"
-        ? `${window.location.origin}/reset`
-        : "myapp://reset";
+    const resetRedirectUrl = getResetRedirectUrl();
 
     setResetLoading(true);
     try {
@@ -518,7 +522,8 @@ export default function AuthScreen() {
         return;
       }
       openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
-    } catch (err: any) {
+    } catch (error) {
+      console.warn("Password reset request failed:", error);
       // For security, show success message anyway
       openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
     } finally {
@@ -545,7 +550,8 @@ export default function AuthScreen() {
       }
       openSuccessOverlay("Dobrodošli!", "guest");
       setAnonymousLoading(false);
-    } catch (err) {
+    } catch (error) {
+      console.error("Anonymous sign-in error:", error);
       setError("Prijava kot gost ni uspela. Poskusite znova.");
       shakeError();
       setAnonymousLoading(false);
@@ -1788,6 +1794,3 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
-
-
-

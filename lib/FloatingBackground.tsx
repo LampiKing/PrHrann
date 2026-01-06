@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Animated, Easing, Dimensions } from "react-native";
+import { View, StyleSheet, Animated, Easing, Dimensions, PixelRatio } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Device from "expo-device";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const SHORT_SIDE = Math.min(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 // Different preset positions for icons
 type IconConfig = {
@@ -16,7 +18,7 @@ type IconConfig = {
   right?: string;
 };
 
-const ICON_CONFIGS: IconConfig[] = [
+const DEFAULT_ICON_CONFIGS: IconConfig[] = [
   { icon: "cart", size: 40, color: "#a855f7", top: "8%", left: "5%", opacity: 0.15 },
   { icon: "pricetag", size: 32, color: "#fbbf24", top: "15%", right: "8%", opacity: 0.12 },
   { icon: "flash", size: 28, color: "#ec4899", top: "35%", left: "3%", opacity: 0.1 },
@@ -30,14 +32,38 @@ const ICON_CONFIGS: IconConfig[] = [
 type FloatingBackgroundProps = {
   variant?: "full" | "sparse" | "minimal";
   animated?: boolean;
+  iconConfigs?: IconConfig[];
+  deviceAdaptive?: boolean;
+  performanceMode?: "auto" | "low" | "high";
 };
 
 export default function FloatingBackground({ 
   variant = "sparse", 
-  animated = true 
+  animated = true,
+  iconConfigs,
+  deviceAdaptive = true,
+  performanceMode = "auto",
 }: FloatingBackgroundProps) {
   const anim1 = useRef(new Animated.Value(0)).current;
   const anim2 = useRef(new Animated.Value(0)).current;
+
+  const isCompactScreen = SHORT_SIDE <= 360;
+  const deviceType = Device.deviceType;
+  const isTabletLike =
+    deviceType === Device.DeviceType.TABLET ||
+    deviceType === Device.DeviceType.DESKTOP ||
+    SHORT_SIDE >= 768;
+  const deviceVariant = isTabletLike ? "full" : isCompactScreen ? "minimal" : "sparse";
+  const resolvedVariant = deviceAdaptive && variant === "sparse" ? deviceVariant : variant;
+  const resolvedIcons = iconConfigs ?? DEFAULT_ICON_CONFIGS;
+
+  const lowEndByYear = Device.deviceYearClass ? Device.deviceYearClass <= 2018 : false;
+  const lowEndByMemory = Device.totalMemory ? Device.totalMemory <= 3 * 1024 ** 3 : false;
+  const lowEndByDensity = isCompactScreen && PixelRatio.get() <= 2;
+  const isLowEndDevice =
+    performanceMode === "low" ||
+    (performanceMode === "auto" && (lowEndByYear || lowEndByMemory || lowEndByDensity));
+  const shouldRasterize = animated && isLowEndDevice;
 
   useEffect(() => {
     if (!animated) return;
@@ -67,14 +93,14 @@ export default function FloatingBackground({
 
   // Filter icons based on variant
   const getIcons = () => {
-    switch (variant) {
+    switch (resolvedVariant) {
       case "full":
-        return ICON_CONFIGS;
+        return resolvedIcons;
       case "minimal":
-        return ICON_CONFIGS.slice(0, 3);
+        return resolvedIcons.slice(0, 3);
       case "sparse":
       default:
-        return ICON_CONFIGS.slice(0, 5);
+        return resolvedIcons.slice(0, 5);
     }
   };
 
@@ -122,6 +148,8 @@ export default function FloatingBackground({
         return (
           <Animated.View
             key={`${config.icon}-${index}`}
+            shouldRasterizeIOS={shouldRasterize}
+            renderToHardwareTextureAndroid={shouldRasterize}
             style={[positionStyle, animatedStyle]}
           >
             <Ionicons 

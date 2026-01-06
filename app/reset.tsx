@@ -71,6 +71,14 @@ export default function ResetScreen() {
     confirmPassword.length >= 6 &&
     newPassword === confirmPassword;
 
+  const getResetRedirectUrl = () => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const baseUrl = process.env.EXPO_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || window.location.origin;
+      return `${baseUrl}/reset`;
+    }
+    return "myapp://reset";
+  };
+
   // Handle request password reset (enter email)
   const handleRequestReset = async () => {
     if (!canRequest) {
@@ -89,10 +97,7 @@ export default function ResetScreen() {
     setError("");
     setMessage("");
 
-    const resetRedirectUrl =
-      Platform.OS === "web" && typeof window !== "undefined"
-        ? `${window.location.origin}/reset`
-        : "myapp://reset";
+    const resetRedirectUrl = getResetRedirectUrl();
 
     try {
       // Use $fetch for direct API call to request-password-reset endpoint
@@ -109,7 +114,8 @@ export default function ResetScreen() {
       }
       setRequestSent(true);
       setMessage("Če račun obstaja, smo poslali povezavo za ponastavitev na vaš e-naslov.");
-    } catch (err: any) {
+    } catch (error) {
+      console.warn("Password reset request failed:", error);
       // For security, show success message anyway
       setRequestSent(true);
       setMessage("Če račun obstaja, smo poslali povezavo za ponastavitev na vaš e-naslov.");
@@ -153,8 +159,8 @@ export default function ResetScreen() {
       setTimeout(() => {
         router.replace({ pathname: "/auth", params: { mode: "login" } });
       }, 1400);
-    } catch (err) {
-
+    } catch (error) {
+      console.error("Reset password error:", error);
       setError("Ponastavitev ni uspela. Poskusite znova.");
     } finally {
       setLoading(false);
@@ -553,4 +559,3 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
 });
-

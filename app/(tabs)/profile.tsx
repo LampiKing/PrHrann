@@ -13,7 +13,6 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Dimensions,
   Pressable,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -23,6 +22,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { authClient } from "@/lib/auth-client";
@@ -30,7 +30,6 @@ import { useConvexAuth } from "convex/react";
 import { getSeasonalLogoSource } from "@/lib/Logo";
 import FloatingBackground from "@/lib/FloatingBackground";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 88 : 72;
 
 // ============================================================================
@@ -42,6 +41,7 @@ type FamilyMember = {
   nickname: string;
   email?: string;
   profilePictureUrl?: string;
+  totalSavings?: number;
   joinedAt?: number;
 };
 
@@ -52,6 +52,16 @@ type PendingInvite = {
   createdAt: number;
   expiresAt: number;
 };
+
+type FamilyLeaderboardEntry = {
+  userId: string;
+  nickname: string;
+  profilePictureUrl?: string;
+  totalSavings: number;
+  isOwner: boolean;
+};
+
+type IoniconName = keyof typeof Ionicons.glyphMap;
 
 // ============================================================================
 // MAIN COMPONENT
@@ -77,6 +87,7 @@ export default function ProfileScreen() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showFeedbackSuccessModal, setShowFeedbackSuccessModal] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackCategory, setFeedbackCategory] = useState("improvement");
   const [sendingFeedback, setSendingFeedback] = useState(false);
@@ -102,6 +113,10 @@ export default function ProfileScreen() {
   const pendingInvites = useQuery(
     api.familyPlan.getPendingInvitations,
     isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
+  );
+  const familyLeaderboard = useQuery(
+    api.familyPlan.getFamilyLeaderboard,
+    isAuthenticated ? {} : "skip"
   );
 
   // Mutations
@@ -164,8 +179,18 @@ export default function ProfileScreen() {
   const isOwner = familyData?.isOwner ?? false;
   const familyMembers: FamilyMember[] = familyData?.members ?? [];
   const pendingInvitations: PendingInvite[] = (pendingInvites ?? []) as PendingInvite[];
-  const availableSlots = familyData?.availableSlots ?? 0;
+  const pendingCount = pendingInvitations.length;
+  const maxFamilyMembers = familyData?.maxMembers ?? 3;
+  const availableSlots = Math.max(0, maxFamilyMembers - 1 - familyMembers.length - pendingCount);
   const canInvite = isOwner && availableSlots > 0;
+  const familyLeaderboardEntries: FamilyLeaderboardEntry[] =
+    (familyLeaderboard?.members ?? []) as FamilyLeaderboardEntry[];
+
+  useEffect(() => {
+    if (showInviteModal && !canInvite) {
+      setShowInviteModal(false);
+    }
+  }, [showInviteModal, canInvite]);
 
   // ============================================================================
   // HANDLERS
@@ -252,6 +277,14 @@ export default function ProfileScreen() {
 
   const handleSignOut = useCallback(async () => {
     setSigningOut(true);
+    setShowSettingsModal(false);
+    setShowFeedbackModal(false);
+    setShowFeedbackSuccessModal(false);
+    setShowInviteModal(false);
+    setShowMemberModal(false);
+    setShowInfoTooltip(null);
+    setSelectedMember(null);
+    setInviteError("");
     try {
       await authClient.signOut();
       router.replace("/auth");
@@ -261,6 +294,39 @@ export default function ProfileScreen() {
       setSigningOut(false);
     }
   }, [router]);
+
+  const PROFILE_IMAGE_MAX_BASE64 = 900_000;
+  const PROFILE_IMAGE_SIZES = [640, 512, 448, 384];
+  const PROFILE_IMAGE_QUALITY = [0.85, 0.75, 0.65, 0.55];
+
+  const buildProfileImageBase64 = useCallback(async (uri: string) => {
+    let lastBase64 = "";
+
+    for (let index = 0; index < PROFILE_IMAGE_SIZES.length; index += 1) {
+      const size = PROFILE_IMAGE_SIZES[index];
+      const quality = PROFILE_IMAGE_QUALITY[index] ?? PROFILE_IMAGE_QUALITY[PROFILE_IMAGE_QUALITY.length - 1];
+
+      const result = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: size, height: size } }],
+        {
+          compress: quality,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        }
+      );
+
+      if (result.base64) {
+        const candidate = `data:image/jpeg;base64,${result.base64}`;
+        lastBase64 = candidate;
+        if (candidate.length <= PROFILE_IMAGE_MAX_BASE64) {
+          return candidate;
+        }
+      }
+    }
+
+    return lastBase64 || null;
+  }, []);
 
   // Handle profile picture change
   const handleChangeProfilePicture = useCallback(async () => {
@@ -277,7 +343,7 @@ export default function ProfileScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.7,
+        quality: 1,
         base64: true,
       });
 
@@ -293,9 +359,13 @@ export default function ProfileScreen() {
       
       setUploadingImage(true);
 
-      // Convert to data URI (base64)
-      let base64Image = "";
-      if (Platform.OS === "web" && asset.uri) {
+      let base64Image = await buildProfileImageBase64(asset.uri);
+
+      if (!base64Image && asset.base64) {
+        base64Image = `data:image/jpeg;base64,${asset.base64}`;
+      }
+
+      if (!base64Image && Platform.OS === "web" && asset.uri) {
         const response = await fetch(asset.uri);
         const blob = await response.blob();
         base64Image = await new Promise<string>((resolve) => {
@@ -303,10 +373,15 @@ export default function ProfileScreen() {
           reader.onloadend = () => resolve(reader.result as string);
           reader.readAsDataURL(blob);
         });
-      } else if (asset.base64) {
-        base64Image = `data:image/jpeg;base64,${asset.base64}`;
-      } else {
-        Alert.alert("Napaka", "Slike ni bilo mogoče prebrati.");
+      }
+
+      if (!base64Image) {
+        Alert.alert("Napaka", "Slike ni bilo mogoce prebrati.");
+        return;
+      }
+
+      if (base64Image.length > PROFILE_IMAGE_MAX_BASE64) {
+        Alert.alert("Napaka", "Slika je prevelika. Poskusi z bolj stisnjeno sliko.");
         return;
       }
       
@@ -327,7 +402,7 @@ export default function ProfileScreen() {
     } finally {
       setUploadingImage(false);
     }
-  }, [updateProfilePicture]);
+  }, [buildProfileImageBase64, updateProfilePicture]);
 
   // Handle feedback submission
   const handleSendFeedback = useCallback(async () => {
@@ -362,10 +437,10 @@ export default function ProfileScreen() {
         setShowFeedbackModal(false);
         setFeedbackMessage("");
         setFeedbackCategory("improvement");
+        setShowFeedbackSuccessModal(true);
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-        Alert.alert("Hvala! 💜", "Vaše sporočilo je bilo uspešno poslano. Hvala za vaš prispevek k izboljšavi aplikacije!");
       } else {
         console.error("Feedback error:", result.error);
         Alert.alert("Napaka", result.error || "Sporočila ni bilo mogoče poslati.");
@@ -475,6 +550,60 @@ export default function ProfileScreen() {
   // ============================================================================
 
   const hasFamilyPlan = profile.premiumType === "family";
+  const hasFamilyAccess = profile.premiumType === "family" || Boolean(profile.familyOwnerId);
+  const showFamilyLeaderboard = hasFamilyAccess && familyLeaderboardEntries.length > 0;
+  const planLabel = profile.isPremium
+    ? (profile.premiumType === "family" ? "Family Premium" : "Premium Plus")
+    : "Brezplačno";
+  const searchesLabel = profile.isPremium ? "Iskanja" : "Iskanja danes";
+  const searchesValue = profile.isPremium ? "Neomejeno" : `${profile.searchesRemaining}`;
+  const highlightItems: Array<{
+    key: string;
+    icon: IoniconName;
+    label: string;
+    value: string;
+    colors: [string, string];
+    iconColor: string;
+  }> = [
+    {
+      key: "plan",
+      icon: profile.isPremium ? "diamond" : "sparkles",
+      label: "Paket",
+      value: planLabel,
+      colors: ["rgba(251, 191, 36, 0.18)", "rgba(245, 158, 11, 0.06)"],
+      iconColor: "#fbbf24",
+    },
+    {
+      key: "searches",
+      icon: "search",
+      label: searchesLabel,
+      value: searchesValue,
+      colors: ["rgba(59, 130, 246, 0.18)", "rgba(37, 99, 235, 0.06)"],
+      iconColor: "#60a5fa",
+    },
+  ];
+
+  if (hasFamilyPlan) {
+    highlightItems.push({
+      key: "family-slots",
+      icon: "people",
+      label: "Prosta mesta",
+      value: familyData ? `${availableSlots}` : "...",
+      colors: ["rgba(168, 85, 247, 0.18)", "rgba(124, 58, 237, 0.06)"],
+      iconColor: "#c084fc",
+    });
+  } else if (profile.isPremium) {
+    highlightItems.push({
+      key: "validity",
+      icon: "calendar",
+      label: "Veljavnost",
+      value: profile.premiumUntil
+        ? new Date(profile.premiumUntil).toLocaleDateString("sl-SI")
+        : "Aktivno",
+      colors: ["rgba(16, 185, 129, 0.18)", "rgba(5, 150, 105, 0.06)"],
+      iconColor: "#34d399",
+    });
+  }
 
   return (
     <View style={styles.container}>
@@ -548,9 +677,7 @@ export default function ProfileScreen() {
                 style={styles.premiumBadge}
               >
                 <Ionicons name="star" size={14} color="#0a0a0f" />
-                <Text style={styles.premiumBadgeText}>
-                  {profile.premiumType === "family" ? "Family Premium" : "Premium Plus"}
-                </Text>
+                <Text style={styles.premiumBadgeText}>{planLabel}</Text>
               </LinearGradient>
             </View>
           ) : (
@@ -564,29 +691,17 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
           
-          {/* Savings Stats */}
-          <View style={styles.savingsStatsContainer}>
-            <View style={styles.savingsStat}>
-              <Ionicons name="trending-down" size={20} color="#10b981" />
-              <View style={styles.savingsStatText}>
-                <Text style={styles.savingsStatValue}>
-                  {profile.totalSavings ? `€${profile.totalSavings.toFixed(2)}` : "€0.00"}
-                </Text>
-                <Text style={styles.savingsStatLabel}>Prihranki</Text>
-              </View>
-            </View>
-            <View style={styles.savingsStatDivider} />
-            <View style={styles.savingsStat}>
-              <Ionicons name="search" size={20} color="#3b82f6" />
-              <View style={styles.savingsStatText}>
-                <Text style={styles.savingsStatValue}>
-                  {profile.isPremium ? "∞" : `${profile.searchesRemaining}`}
-                </Text>
-                <Text style={styles.savingsStatLabel}>
-                  {profile.isPremium ? "Iskanj" : "Danes"}
-                </Text>
-              </View>
-            </View>
+          {/* Profile Highlights */}
+          <View style={styles.heroHighlights}>
+            {highlightItems.map((item) => (
+              <LinearGradient key={item.key} colors={item.colors} style={styles.heroHighlightCard}>
+                <View style={styles.heroHighlightIcon}>
+                  <Ionicons name={item.icon} size={16} color={item.iconColor} />
+                </View>
+                <Text style={styles.heroHighlightValue}>{item.value}</Text>
+                <Text style={styles.heroHighlightLabel}>{item.label}</Text>
+              </LinearGradient>
+            ))}
           </View>
         </View>
 
@@ -611,8 +726,8 @@ export default function ProfileScreen() {
               {showInfoTooltip === "family" && (
                 <View style={styles.tooltipBox}>
                   <Text style={styles.tooltipText}>
-                    Z Family Premium lahko povabite do 5 članov, ki bodo imeli dostop do vseh premium funkcij. 
-                    Vsi člani si delijo ugodnosti, vsak pa ima svoj profil.
+                    Z Family Premium lahko povabite do 2 clanov (skupaj 3). 
+                    Vsi clani si delijo ugodnosti, vsak pa ima svoj profil.
                   </Text>
                 </View>
               )}
@@ -693,8 +808,65 @@ export default function ProfileScreen() {
             <Text style={styles.sectionSubtext}>
               {availableSlots > 0 
                 ? `Še ${availableSlots} prost${availableSlots === 1 ? "o" : "a"} mest${availableSlots === 1 ? "o" : "a"}`
-                : "Vsa mesta so zasedena"}
+                : "Vsa mesta so zasedena. Za novo vabilo odstrani clana."}
             </Text>
+          </View>
+        )}
+
+        {showFamilyLeaderboard && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="trophy" size={22} color="#fbbf24" style={{ marginRight: 8 }} />
+                <Text style={styles.sectionTitle}>Family mini liga</Text>
+              </View>
+              <Text style={styles.leaderboardSubtext}>
+                Mini tekmovanje znotraj vase druzine.
+              </Text>
+            </View>
+
+            <View style={styles.familyLeaderboardList}>
+              {familyLeaderboardEntries.map((member, index) => {
+                const isCurrentUser = member.userId === profile.userId;
+                const isTop = index === 0;
+                const rankIcon: IoniconName = isTop ? "trophy" : "medal";
+                const rankColor = isTop ? "#fbbf24" : "#94a3b8";
+                const savingsValue = `€${(member.totalSavings ?? 0).toFixed(2)}`;
+
+                return (
+                  <View
+                    key={member.userId}
+                    style={[styles.familyLeaderboardRow, isTop && styles.familyLeaderboardRowTop]}
+                  >
+                    <View style={[styles.familyLeaderboardRank, isTop && styles.familyLeaderboardRankTop]}>
+                      <Ionicons name={rankIcon} size={14} color={rankColor} />
+                    </View>
+                    <View style={styles.familyLeaderboardAvatar}>
+                      {member.profilePictureUrl ? (
+                        <Image source={{ uri: member.profilePictureUrl }} style={styles.familyLeaderboardImage} />
+                      ) : (
+                        <LinearGradient
+                          colors={["#6366f1", "#4f46e5"]}
+                          style={styles.familyLeaderboardAvatarFallback}
+                        >
+                          <Text style={styles.familyLeaderboardInitial}>
+                            {(member.nickname || "?").charAt(0).toUpperCase()}
+                          </Text>
+                        </LinearGradient>
+                      )}
+                    </View>
+                    <View style={styles.familyLeaderboardInfo}>
+                      <Text style={styles.familyLeaderboardName} numberOfLines={1}>
+                        {member.nickname}
+                        {isCurrentUser ? " (ti)" : ""}
+                      </Text>
+                      <Text style={styles.familyLeaderboardLabel}>Prihranki</Text>
+                    </View>
+                    <Text style={styles.familyLeaderboardValue}>{savingsValue}</Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -1109,6 +1281,49 @@ export default function ProfileScreen() {
               </View>
             </Pressable>
           </Pressable>
+        </BlurView>
+      </Modal>
+
+      <Modal
+        visible={showFeedbackSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowFeedbackSuccessModal(false)}
+      >
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowFeedbackSuccessModal(false)}
+          >
+            <View style={styles.feedbackSuccessCard} onStartShouldSetResponder={() => true}>
+              <LinearGradient
+                colors={["rgba(251, 191, 36, 0.2)", "rgba(168, 85, 247, 0.1)"]}
+                style={styles.feedbackSuccessGlow}
+              />
+              <View style={styles.feedbackSuccessIcon}>
+                <Ionicons name="checkmark-circle" size={42} color="#fbbf24" />
+              </View>
+              <Text style={styles.feedbackSuccessTitle}>Poslano</Text>
+              <Text style={styles.feedbackSuccessText}>
+                Hvala! Sporocilo smo prejeli in ga bomo pregledali.
+              </Text>
+              <View style={styles.feedbackSuccessActions}>
+                <TouchableOpacity
+                  style={[styles.feedbackSuccessButton, styles.feedbackSuccessButtonGhost]}
+                  onPress={() => setShowFeedbackSuccessModal(false)}
+                >
+                  <Text style={styles.feedbackSuccessButtonText}>OK</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.feedbackSuccessButton, styles.feedbackSuccessButtonPrimary]}
+                  onPress={() => setShowFeedbackSuccessModal(false)}
+                >
+                  <Text style={styles.feedbackSuccessButtonTextPrimary}>Super!</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
         </BlurView>
       </Modal>
     </View>
@@ -1628,38 +1843,46 @@ const styles = StyleSheet.create({
     color: "#a855f7",
   },
   
-  // Savings Stats
-  savingsStatsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
+  // Hero Highlights
+  heroHighlights: {
+    width: "100%",
     marginTop: 20,
-    paddingTop: 20,
+    paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "rgba(55, 65, 81, 0.5)",
-  },
-  savingsStat: {
+    borderTopColor: "rgba(55, 65, 81, 0.35)",
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  heroHighlightCard: {
+    flexBasis: "48%",
+    flexGrow: 1,
+    borderRadius: 16,
+    padding: 14,
+    minHeight: 96,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  heroHighlightIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
     alignItems: "center",
-    gap: 10,
+    justifyContent: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.4)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    marginBottom: 10,
   },
-  savingsStatText: {
-    alignItems: "flex-start",
-  },
-  savingsStatValue: {
-    fontSize: 20,
+  heroHighlightValue: {
+    fontSize: 16,
     fontWeight: "700",
     color: "#f1f5f9",
   },
-  savingsStatLabel: {
+  heroHighlightLabel: {
     fontSize: 12,
     color: "#9ca3af",
-    marginTop: 2,
-  },
-  savingsStatDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "rgba(55, 65, 81, 0.5)",
+    marginTop: 4,
   },
 
   // Section Card
@@ -1961,6 +2184,148 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6b7280",
     textAlign: "center",
+  },
+  leaderboardSubtext: {
+    fontSize: 13,
+    color: "#94a3b8",
+    marginTop: 8,
+  },
+  familyLeaderboardList: {
+    gap: 10,
+  },
+  familyLeaderboardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.12)",
+  },
+  familyLeaderboardRowTop: {
+    borderColor: "rgba(251, 191, 36, 0.4)",
+    backgroundColor: "rgba(251, 191, 36, 0.08)",
+  },
+  familyLeaderboardRank: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.2)",
+    marginRight: 10,
+  },
+  familyLeaderboardRankTop: {
+    borderColor: "rgba(251, 191, 36, 0.5)",
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+  },
+  familyLeaderboardAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    overflow: "hidden",
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: "rgba(99, 102, 241, 0.35)",
+  },
+  familyLeaderboardImage: {
+    width: "100%",
+    height: "100%",
+  },
+  familyLeaderboardAvatarFallback: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  familyLeaderboardInitial: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  familyLeaderboardInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  familyLeaderboardName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#f1f5f9",
+  },
+  familyLeaderboardLabel: {
+    fontSize: 12,
+    color: "#94a3b8",
+    marginTop: 2,
+  },
+  familyLeaderboardValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#f1f5f9",
+  },
+  feedbackSuccessCard: {
+    width: "85%",
+    maxWidth: 360,
+    alignSelf: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.95)",
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.3)",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  feedbackSuccessGlow: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+  },
+  feedbackSuccessIcon: {
+    marginBottom: 12,
+  },
+  feedbackSuccessTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#f8fafc",
+    marginBottom: 6,
+  },
+  feedbackSuccessText: {
+    fontSize: 13,
+    color: "#cbd5e1",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  feedbackSuccessActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 20,
+    width: "100%",
+  },
+  feedbackSuccessButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  feedbackSuccessButtonGhost: {
+    borderColor: "rgba(148, 163, 184, 0.4)",
+    backgroundColor: "rgba(148, 163, 184, 0.1)",
+  },
+  feedbackSuccessButtonPrimary: {
+    borderColor: "rgba(251, 191, 36, 0.5)",
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
+  },
+  feedbackSuccessButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#e2e8f0",
+  },
+  feedbackSuccessButtonTextPrimary: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#f8fafc",
   },
 });
 

@@ -263,4 +263,3 @@ export const createAuth = (
     
     return betterAuth(config);
 };
-

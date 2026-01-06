@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { action } from "./_generated/server";
+import { action, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // Feedback categories
 export const FEEDBACK_CATEGORIES = [
@@ -9,6 +10,59 @@ export const FEEDBACK_CATEGORIES = [
   { id: "design", label: "Dizajn / Izgled", icon: "color-palette" },
   { id: "other", label: "Drugo", icon: "chatbubble" },
 ] as const;
+
+const FEEDBACK_TO_SUGGESTION: Record<string, "feature" | "improvement" | "bug" | "other"> = {
+  bug: "bug",
+  feature: "feature",
+  improvement: "improvement",
+  design: "improvement",
+  other: "other",
+};
+
+const getCategoryLabel = (category: string) =>
+  FEEDBACK_CATEGORIES.find((c) => c.id === category)?.label || category;
+
+const buildSuggestionTitle = (message: string, categoryLabel: string) => {
+  const firstLine = message.split(/\r?\n/)[0].trim();
+  if (firstLine.length >= 5) {
+    return firstLine.slice(0, 80);
+  }
+  return `${categoryLabel} predlog`;
+};
+
+export const storeFeedbackInternal = internalMutation({
+  args: {
+    userId: v.string(),
+    userName: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    category: v.string(),
+    message: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const trimmedMessage = args.message.trim();
+    if (!trimmedMessage) {
+      throw new Error("Feedback message is empty");
+    }
+
+    const categoryLabel = getCategoryLabel(args.category);
+    const suggestionType = FEEDBACK_TO_SUGGESTION[args.category] || "other";
+    const title = buildSuggestionTitle(trimmedMessage, categoryLabel);
+    const description = args.userEmail
+      ? `${trimmedMessage}\n\nKontakt: ${args.userEmail}`
+      : trimmedMessage;
+
+    await ctx.db.insert("userSuggestions", {
+      userId: args.userId,
+      userNickname: args.userName || "Anonimen",
+      suggestionType,
+      title,
+      description,
+      status: "pending",
+      rewardGiven: false,
+      submittedAt: Date.now(),
+    });
+  },
+});
 
 export const sendFeedback = action({
   args: {
@@ -22,15 +76,31 @@ export const sendFeedback = action({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    const userId = identity?.subject || "anonymous";
+
+    try {
+      await ctx.runMutation(internal.feedback.storeFeedbackInternal, {
+        userId,
+        userName: args.userName || identity?.name || undefined,
+        userEmail: args.userEmail || identity?.email || undefined,
+        category: args.category,
+        message: args.message,
+      });
+    } catch (error) {
+      console.error("Feedback store error:", error);
+      return { success: false, error: "Feedback ni bilo mogoce shraniti." };
+    }
+
     const resendApiKey = process.env.RESEND_API_KEY;
     const feedbackEmail = process.env.FEEDBACK_EMAIL || "prrhran@gmail.com";
     
     if (!resendApiKey) {
-      console.error("RESEND_API_KEY not configured");
-      return { success: false, error: "Email service not configured" };
+      console.warn("RESEND_API_KEY not configured - stored feedback only");
+      return { success: true };
     }
 
-    const categoryLabel = FEEDBACK_CATEGORIES.find(c => c.id === args.category)?.label || args.category;
+    const categoryLabel = getCategoryLabel(args.category);
     
     const html = `
       <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #1a1025 0%, #0a0a0f 100%); border-radius: 16px; overflow: hidden;">
@@ -85,14 +155,14 @@ export const sendFeedback = action({
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Feedback email failed: ${response.status} ${errorText}`);
-        return { success: false, error: "Napaka pri pošiljanju" };
+        return { success: true };
       }
 
       console.log(`Feedback sent successfully from: ${args.userEmail || "unknown"}`);
       return { success: true };
     } catch (error) {
       console.error("Feedback send error:", error);
-      return { success: false, error: "Napaka pri pošiljanju" };
+      return { success: true };
     }
   },
 });

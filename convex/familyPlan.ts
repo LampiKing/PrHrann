@@ -289,8 +289,17 @@ export const createFamilyInvitationInternal = mutation({
 
     // Preveri število članov
     const currentMembers = profile.familyMembers || [];
-    if (currentMembers.length >= MAX_FAMILY_MEMBERS - 1) {
-      throw new Error(`Maksimalno število članov je ${MAX_FAMILY_MEMBERS} (vključno s tabo)`);
+    const now = Date.now();
+    const pendingInvites = await ctx.db
+      .query("familyInvitations")
+      .withIndex("by_inviter", (q) => q.eq("inviterId", userId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .collect();
+    const activePendingCount = pendingInvites.filter((invite) => invite.expiresAt > now).length;
+    if (currentMembers.length + activePendingCount >= MAX_FAMILY_MEMBERS - 1) {
+      throw new Error(
+        `Family nacrt je poln (skupaj ${MAX_FAMILY_MEMBERS}). Najprej odstrani clana ali pocakaj na odgovor.`
+      );
     }
 
     // Preveri če je email že povabljen
@@ -325,7 +334,6 @@ export const createFamilyInvitationInternal = mutation({
     // Ustvari vabilo
     const token = generateInviteToken();
     const inviterName = profile.nickname || profile.name || "Pr'Hran uporabnik";
-    const now = Date.now();
     const expiresAt = now + INVITATION_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
     await ctx.db.insert("familyInvitations", {
@@ -608,16 +616,105 @@ export const getFamilyMembers = authQuery({
           userId: memberId,
           nickname: memberProfile.nickname || "Neznani uporabnik",
           email: memberProfile.email,
+          profilePictureUrl: memberProfile.profilePictureUrl,
+          totalSavings: memberProfile.totalSavings ?? 0,
           joinedAt: memberProfile._creationTime, // Uporabi _creationTime namesto createdAt
         });
       }
     }
 
+    const now = Date.now();
+    const pendingInvites = await ctx.db
+      .query("familyInvitations")
+      .withIndex("by_inviter", (q) => q.eq("inviterId", userId))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .collect();
+    const activePendingCount = pendingInvites.filter((inv) => inv.expiresAt > now).length;
+
     return {
       isOwner: true,
       members,
       maxMembers: MAX_FAMILY_MEMBERS,
-      availableSlots: MAX_FAMILY_MEMBERS - 1 - members.length,
+      pendingCount: activePendingCount,
+      availableSlots: Math.max(0, MAX_FAMILY_MEMBERS - 1 - members.length - activePendingCount),
+    };
+  },
+});
+
+/**
+ * Family mini leaderboard (owner + members)
+ */
+export const getFamilyLeaderboard = authQuery({
+  args: {},
+  handler: async (ctx) => {
+    const userId = ctx.user._id;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      return { isFamily: false, members: [] };
+    }
+
+    const ownerId = profile.premiumType === "family" ? userId : profile.familyOwnerId;
+    if (!ownerId) {
+      return { isFamily: false, members: [] };
+    }
+
+    const ownerProfile =
+      profile.premiumType === "family"
+        ? profile
+        : await ctx.db
+            .query("userProfiles")
+            .withIndex("by_user_id", (q) => q.eq("userId", ownerId))
+            .first();
+
+    if (!ownerProfile) {
+      return { isFamily: false, members: [] };
+    }
+
+    const members: Array<{
+      userId: string;
+      nickname: string;
+      profilePictureUrl?: string;
+      totalSavings: number;
+      isOwner: boolean;
+    }> = [
+      {
+        userId: ownerId,
+        nickname: ownerProfile.nickname || ownerProfile.name || "Uporabnik",
+        profilePictureUrl: ownerProfile.profilePictureUrl,
+        totalSavings: ownerProfile.totalSavings ?? 0,
+        isOwner: true,
+      },
+    ];
+
+    const memberIds = ownerProfile.familyMembers || [];
+    for (const memberId of memberIds) {
+      const memberProfile = await ctx.db
+        .query("userProfiles")
+        .withIndex("by_user_id", (q) => q.eq("userId", memberId))
+        .first();
+
+      if (memberProfile) {
+        members.push({
+          userId: memberId,
+          nickname: memberProfile.nickname || memberProfile.name || "Uporabnik",
+          profilePictureUrl: memberProfile.profilePictureUrl,
+          totalSavings: memberProfile.totalSavings ?? 0,
+          isOwner: false,
+        });
+      }
+    }
+
+    members.sort((a, b) => b.totalSavings - a.totalSavings);
+
+    return {
+      isFamily: true,
+      ownerId,
+      members,
     };
   },
 });
