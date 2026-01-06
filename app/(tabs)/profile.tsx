@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect, useCallback } from "react";
 import React from "react";
 import {
   Alert,
@@ -10,176 +10,81 @@ import {
   Platform,
   Animated,
   Image,
-  TextInput,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { PLAN_FREE, PLAN_PLUS, PLAN_FAMILY } from "@/lib/branding";
 import { authClient } from "@/lib/auth-client";
-import { createShadow } from "@/lib/shadow-helper";
 import { useConvexAuth } from "convex/react";
 import { getSeasonalLogoSource } from "@/lib/Logo";
-import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
-import BADGE_TOP_100 from "@/assets/images/Top 100 badge 2026.png";
-import BADGE_TOP_10 from "@/assets/images/Top 10 badge 2026.png";
-import BADGE_GOLD from "@/assets/images/Zlati badge 2026.png";
-import BADGE_SILVER from "@/assets/images/Srebrni badge 2026.png";
-import BADGE_BRONZE from "@/assets/images/Bronasti badge 2026.png";
 
-type AwardEntry = {
-  year: number;
-  award: string;
-  rank: number;
-  leaderboard: "standard" | "family";
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+type FamilyMember = {
+  userId: string;
+  nickname: string;
+  email?: string;
+  profilePictureUrl?: string;
+  joinedAt?: number;
 };
 
-class ProfileErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; retryCount: number }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, retryCount: 0 };
-  }
+type PendingInvite = {
+  id: string;
+  email: string;
+  token: string;
+  createdAt: number;
+  expiresAt: number;
+};
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
-  componentDidCatch(error: unknown) {
-    console.error("Profile screen render error:", error);
-    if (this.state.retryCount < 2) {
-      setTimeout(() => {
-        this.setState((prev) => ({
-          hasError: false,
-          retryCount: prev.retryCount + 1,
-        }));
-      }, 800);
-    }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <View style={styles.container}>
-          <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
-          <View style={[styles.authPrompt, { paddingTop: 60 }]}>
-            <Text style={styles.authTitle}>Nalaganje profila</Text>
-            <Text style={styles.authText}>Samo trenutek...</Text>
-            <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 16 }} />
-          </View>
-        </View>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-function ProfileScreenInner() {
+export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
 
-  // --- State for UI (Modals, Inputs, etc.) ---
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showCancelSuccessModal, setShowCancelSuccessModal] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [showSignOutToast] = useState(false);
-  const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const [receiptImage, setReceiptImage] = useState<string | null>(null);
-  const [receiptConfirmed, setReceiptConfirmed] = useState(false);
-  const [receiptSubmitting, setReceiptSubmitting] = useState(false);
-  const [receiptError, setReceiptError] = useState("");
-  const [receiptSuccess, setReceiptSuccess] = useState("");
-  const [nicknameInput, setNicknameInput] = useState("");
-  const [showFamilyModal, setShowFamilyModal] = useState(false);
-  const [familyInviteEmail, setFamilyInviteEmail] = useState("");
-  const [familyInviting, setFamilyInviting] = useState(false);
-  const [familyError, setFamilyError] = useState("");
-  const [familySuccess, setFamilySuccess] = useState("");
-  const [uploadingProfilePic, setUploadingProfilePic] = useState(false);
-  const [profilePictureOverride, setProfilePictureOverride] = useState<string | null>(null);
-  const [showAISuggestionsModal, setShowAISuggestionsModal] = useState(false);
-  const [showUserSuggestionsModal, setShowUserSuggestionsModal] = useState(false);
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackType, setFeedbackType] = useState<"feature" | "improvement" | "bug" | "store" | "product" | "other">("feature");
-  const [feedbackTitle, setFeedbackTitle] = useState("");
-  const [feedbackDescription, setFeedbackDescription] = useState("");
-  const [submittingFeedback, setSubmittingFeedback] = useState(false);
-  const [feedbackError, setFeedbackError] = useState("");
-  const [feedbackSuccess, setFeedbackSuccess] = useState("");
-  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
-
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
-
-  // Helper function to format date
-  const formatDateShort = (timestamp?: number): string | null => {
-    if (!timestamp) return null;
-    const date = new Date(timestamp);
-    return date.toLocaleDateString("sl-SI", { day: "numeric", month: "short", year: "numeric" });
-  };
-
-  // --- Core Data Loading ---
-  // 1. Load profile - undefined while loading, null if not found, object if found.
-  const [profileLoadingTimedOut, setProfileLoadingTimedOut] = useState(false);
-  const profile = useQuery(api.userProfiles.getProfile, isAuthenticated ? {} : "skip");
+  // ============================================================================
+  // STATE
+  // ============================================================================
   
-  // Single timeout mechanism to prevent infinite loading
-  useEffect(() => {
-    // Reset timeout state when profile loads or auth changes
-    if (profile !== undefined || !isAuthenticated) {
-      setProfileLoadingTimedOut(false);
-      return;
-    }
-    
-    // Set timeout only when authenticated and profile is still loading
-    const timeout = setTimeout(() => {
-      if (profile === undefined && isAuthenticated) {
-        console.warn("Profile loading timeout - showing fallback UI");
-        setProfileLoadingTimedOut(true);
-      }
-    }, 5000); // 5 second timeout
-    
-    return () => clearTimeout(timeout);
-  }, [isAuthenticated, profile]);
+  const [profileLoadingTimedOut, setProfileLoadingTimedOut] = useState(false);
+  const [retryingProfile, setRetryingProfile] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
-  // Profile is considered loading only if: authenticated, profile is undefined, AND timeout hasn't occurred
-  const isProfileLoading = isAuthenticated && profile === undefined && !profileLoadingTimedOut;
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
-  // Debug logging (throttled)
-  const debugLoggedRef = useRef(false);
-  useEffect(() => {
-    if (!debugLoggedRef.current && isAuthenticated) {
-      console.log("Profile state:", {
-        profileStatus: profile === undefined ? "loading" : profile === null ? "not-found" : "loaded",
-        timedOut: profileLoadingTimedOut
-      });
-      debugLoggedRef.current = true;
-      setTimeout(() => { debugLoggedRef.current = false; }, 10000);
-    }
-  }, [isAuthenticated, profile, profileLoadingTimedOut]);
+  // ============================================================================
+  // DATA FETCHING
+  // ============================================================================
 
-  // 2. Admin functionality temporarily removed for debugging
-
-  // 3. Load other user-specific data ONLY when authenticated.
-  const receipts = useQuery(api.receipts.getReceipts, isAuthenticated ? { limit: 20 } : "skip");
-  const awards = useQuery(api.awards.getMyAwards, isAuthenticated ? {} : "skip");
-
-  // 4. Load family-plan data ONLY when profile is loaded and user has a family plan.
-  const familyMembers = useQuery(
+  const profile = useQuery(api.userProfiles.getProfile, isAuthenticated ? {} : "skip");
+  const ensureProfile = useMutation(api.userProfiles.ensureProfile);
+  
+  // Family data - only fetch if user has family plan
+  const familyData = useQuery(
     api.familyPlan.getFamilyMembers,
     isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
   );
@@ -188,37 +93,33 @@ function ProfileScreenInner() {
     isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
   );
 
-  // --- Mutations and Actions ---
-  const submitReceipt = useAction(api.receipts.submitReceipt);
-  const deleteAccount = useAction(api.userProfiles.deleteAccount);
+  // Mutations
   const inviteFamilyMember = useAction(api.familyPlan.inviteFamilyMember);
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
-  const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
-  const submitSuggestion = useMutation(api.userSuggestions.submitSuggestion);
-  const ensureProfile = useMutation(api.userProfiles.ensureProfile);
-  const [retryingProfile, setRetryingProfile] = useState(false);
 
-  // --- Derived State & Memoized Values (Calculated only when profile is loaded) ---
-  const profilePictureUrl = profilePictureOverride || profile?.profilePictureUrl;
-  const searchesRemaining = profile?.searchesRemaining ?? (profile?.isAnonymous ? 1 : 3);
-  const maxSearches = profile?.isPremium ? 999 : (profile?.isAnonymous ? 1 : 3);
-  const searchProgress = profile?.isPremium ? 1 : Math.max(0, Math.min(1, searchesRemaining / maxSearches));
-  const searchResetTime = profile?.searchResetTime;
-  
-  // Calculate receipts for today
-  const today = new Date().toISOString().split("T")[0];
-  const receiptsToday = (receipts ?? []).filter((r) => r.purchaseDateKey === today);
-  const receiptLimit = profile?.premiumType === "family" ? 4 : 2;
-  const receiptsRemaining = Math.max(0, receiptLimit - receiptsToday.length);
-  
-  // Check if suggestions API is available
-  const hasSuggestionsAPI = typeof submitSuggestion === "function";
-  
-  // Track if profile has resolved (not undefined)
-  const hasResolvedProfile = profile !== undefined;
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
 
-  // --- Effects ---
+  // Profile loading timeout
+  useEffect(() => {
+    if (profile !== undefined || !isAuthenticated) {
+      setProfileLoadingTimedOut(false);
+      return;
+    }
+    
+    const timeout = setTimeout(() => {
+      if (profile === undefined && isAuthenticated) {
+        console.warn("Profile loading timeout");
+        setProfileLoadingTimedOut(true);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, [isAuthenticated, profile]);
+
+  // Entry animation
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -233,399 +134,140 @@ function ProfileScreenInner() {
     ]).start();
   }, []);
 
-  useEffect(() => {
-    const update = () => {
-      if (!profile?.isPremium && searchResetTime && searchesRemaining <= 0) {
-        const diff = Math.max(0, searchResetTime - Date.now());
-        const minutes = Math.floor(diff / 60000);
-        const seconds = Math.floor((diff % 60000) / 1000);
-        setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, "0")}`);
-      } else {
-        setTimeRemaining(null);
-      }
-    };
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [searchResetTime, profile?.isPremium, searchesRemaining, maxSearches]);
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
 
-  useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: searchProgress,
-      duration: 800,
-      useNativeDriver: false,
-    }).start();
-  }, [searchProgress]);
+  const isProfileLoading = isAuthenticated && profile === undefined && !profileLoadingTimedOut;
+  const isOwner = familyData?.isOwner ?? false;
+  const familyMembers: FamilyMember[] = familyData?.members ?? [];
+  const pendingInvitations: PendingInvite[] = (pendingInvites ?? []) as PendingInvite[];
+  const availableSlots = familyData?.availableSlots ?? 0;
+  const canInvite = isOwner && availableSlots > 0;
 
-  useEffect(() => {
-    if (profile?.nickname && !nicknameInput) {
-      setNicknameInput(profile.nickname);
-    }
-  }, [profile?.nickname, nicknameInput]);
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
 
-  const handleUpgrade = async () => {
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    router.push("/premium");
-  };
-
-  const handleCaptureReceipt = async () => {
-    if (receiptsRemaining <= 0) {
-      setReceiptError("Dosežen dnevni limit računov.");
-      return;
-    }
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      setReceiptError("Dostop do kamere ni dovoljen.");
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setReceiptImage(result.assets[0].uri);
-      setReceiptConfirmed(false);
-      setReceiptError("");
-      setReceiptSuccess("");
-    }
-  };
-
-  const resetReceiptState = () => {
-    setReceiptImage(null);
-    setReceiptConfirmed(false);
-    setReceiptError("");
-    setReceiptSuccess("");
-  };
-
-  const handleSubmitReceipt = async () => {
-    if (!receiptImage) {
-      setReceiptError("Najprej posnemi račun.");
-      return;
-    }
-    if (!receiptConfirmed) {
-      setReceiptError("Potrdi, da je slikani račun tvoj.");
-      return;
-    }
-
-    setReceiptSubmitting(true);
-    setReceiptError("");
-    setReceiptSuccess("");
-
+  const handleRetryProfile = useCallback(async () => {
+    if (retryingProfile) return;
+    setRetryingProfile(true);
     try {
-      let base64Image = "";
-      if (Platform.OS === "web") {
-        const response = await fetch(receiptImage);
-        const blob = await response.blob();
-        base64Image = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-      } else {
-        const base64 = await FileSystem.readAsStringAsync(receiptImage, {
-          encoding: "base64",
-        });
-        base64Image = `data:image/jpeg;base64,${base64}`;
-      }
-
-      const result = await submitReceipt({
-        imageBase64: base64Image,
-        confirmed: receiptConfirmed,
-      });
-
-      if (!result.success) {
-        setReceiptError(result.error ?? "Oddaja računa ni uspela.");
-        return;
-      }
-
-      if (result.invalidReason) {
-        setReceiptSuccess(`Račun shranjen, a neveljaven: ${result.invalidReason}`);
-      } else {
-        setReceiptSuccess("Račun potrjen in upoštevan.");
-      }
-
-      setTimeout(() => {
-        setShowReceiptModal(false);
-        resetReceiptState();
-      }, 1200);
+      await ensureProfile({});
+      setProfileLoadingTimedOut(false);
     } catch (error) {
-      console.error("Receipt error:", error);
-      setReceiptError("Oddaja računa ni uspela.");
+      console.error("Profile creation error:", error);
+      Alert.alert("Napaka", "Profila ni bilo mogoče ustvariti.");
     } finally {
-      setReceiptSubmitting(false);
+      setRetryingProfile(false);
     }
-  };
+  }, [retryingProfile, ensureProfile]);
 
-  const handleProfilePictureUpload = async () => {
+  const handleMemberPress = useCallback((member: FamilyMember) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    setSelectedMember(member);
+    setShowMemberModal(true);
+  }, []);
 
+  const handleRemoveMember = useCallback(async () => {
+    if (!selectedMember) return;
+    
     try {
-      const { status } =
-        Platform.OS === "web"
-          ? { status: "granted" as const }
-          : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Dovoljenje potrebno", "Omogoči dostop do galerije, da lahko dodaš fotografijo.");
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.7,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        setUploadingProfilePic(true);
-        let base64Image = "";
-        if (Platform.OS === "web") {
-          const response = await fetch(result.assets[0].uri);
-          const blob = await response.blob();
-          base64Image = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-        } else {
-          const base64 = await FileSystem.readAsStringAsync(result.assets[0].uri, {
-            encoding: "base64",
-          });
-          base64Image = `data:image/jpeg;base64,${base64}`;
-        }
-
-        const updateResult = await updateProfilePicture({ profilePictureUrl: base64Image });
-        if (!updateResult.success) {
-          Alert.alert("Napaka", updateResult.error ?? "Nalaganje fotografije ni uspelo.");
-          return;
-        }
-        setProfilePictureOverride(base64Image);
-
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      }
-    } catch (error) {
-      console.error("Profile picture upload failed:", error);
-      Alert.alert("Napaka", "Nalaganje fotografije ni uspelo. Poskusi znova.");
-    } finally {
-      setUploadingProfilePic(false);
-    }
-  };
-
-  const openFeedbackModal = () => {
-    if (!hasSuggestionsAPI) {
-      Alert.alert("Predlogi", "Oddaja predlogov trenutno ni na voljo.");
-      return;
-    }
-    setFeedbackError("");
-    setFeedbackSuccess("");
-    setShowFeedbackModal(true);
-  };
-
-  const closeFeedbackModal = () => {
-    setShowFeedbackModal(false);
-    setFeedbackError("");
-    setFeedbackSuccess("");
-  };
-
-  const handleSubmitFeedback = async () => {
-    if (submittingFeedback) return;
-    const title = feedbackTitle.trim();
-    const description = feedbackDescription.trim();
-
-    if (title.length < 5) {
-      setFeedbackError("Naslov mora imeti vsaj 5 znakov.");
-      return;
-    }
-    if (description.length < 20) {
-      setFeedbackError("Opis mora imeti vsaj 20 znakov.");
-      return;
-    }
-
-    setSubmittingFeedback(true);
-    setFeedbackError("");
-    setFeedbackSuccess("");
-    try {
-      const result = await submitSuggestion({
-        suggestionType: feedbackType,
-        title,
-        description,
-      });
-
-      if (!result.success) {
-        setFeedbackError(result.error ?? "Oddaja predloga ni uspela.");
-        return;
-      }
-
-      setFeedbackTitle("");
-      setFeedbackDescription("");
-      setFeedbackSuccess("Hvala! Predlog je poslan.");
-      setTimeout(() => setShowFeedbackModal(false), 1200);
-    } catch (error) {
-      console.error("Submit suggestion failed:", error);
-      setFeedbackError("Oddaja predloga ni uspela.");
-    } finally {
-      setSubmittingFeedback(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    if (signingOut) return;
-    setSigningOut(true);
-    const timeoutMs = 6000;
-    try {
-      await Promise.race([
-        authClient.signOut(),
-        new Promise((resolve) => setTimeout(resolve, timeoutMs)),
-      ]);
-    } catch (error) {
-      console.error("Napaka pri odjavi:", error);
-    } finally {
+      await removeFamilyMember({ memberId: selectedMember.userId });
+      setShowMemberModal(false);
+      setSelectedMember(null);
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      router.replace({ pathname: "/auth", params: { mode: "login" } });
-      setSigningOut(false);
-    }
-  };
-
-    const handleDeleteAccount = async () => {
-    if (deletingAccount) {
-      return;
-    }
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    }
-    setDeletingAccount(true);
-    try {
-      await deleteAccount({});
-      await authClient.signOut();
-      router.replace({ pathname: "/auth", params: { mode: "login" } });
     } catch (error) {
-      console.error("Napaka pri brisanju:", error);
-    } finally {
-      setDeletingAccount(false);
-      setShowDeleteModal(false);
+      console.error("Remove member error:", error);
+      Alert.alert("Napaka", "Člana ni bilo mogoče odstraniti.");
     }
-  };
+  }, [selectedMember, removeFamilyMember]);
 
-  const handleInviteFamilyMember = async () => {
-    const trimmedEmail = familyInviteEmail.trim().toLowerCase();
-    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setFamilyError("Vnesi veljaven e-naslov");
+  const handleInvite = useCallback(async () => {
+    if (!inviteEmail.trim()) {
+      setInviteError("Vnesi email naslov");
       return;
     }
-
-    setFamilyInviting(true);
-    setFamilyError("");
-    setFamilySuccess("");
-
+    
+    setInviting(true);
+    setInviteError("");
+    
     try {
-      await inviteFamilyMember({ email: trimmedEmail });
-      setFamilySuccess(`Vabilo poslano na ${trimmedEmail}!`);
-      setFamilyInviteEmail("");
-      setTimeout(() => {
-        setFamilySuccess("");
-      }, 3000);
+      const result = await inviteFamilyMember({ email: inviteEmail.trim().toLowerCase() });
+      if (!result.success) {
+        setInviteError(result.error || "Vabilo ni uspelo");
+        return;
+      }
+      
+      setShowInviteModal(false);
+      setInviteEmail("");
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      Alert.alert("Uspešno", "Vabilo poslano!");
     } catch (error: unknown) {
-      setFamilyError(error instanceof Error ? error.message : "Napaka pri pošiljanju vabila");
+      const errorMessage = error instanceof Error ? error.message : "Vabilo ni uspelo";
+      setInviteError(errorMessage);
     } finally {
-      setFamilyInviting(false);
+      setInviting(false);
     }
-  };
+  }, [inviteEmail, inviteFamilyMember]);
 
-  const handleRemoveMember = async (memberUserId: string) => {
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.ImpactFeedbackStyle.Warning);
-    }
+  const handleCancelInvite = useCallback(async (inviteId: string) => {
     try {
-      await removeFamilyMember({ memberUserId });
-    } catch (error: unknown) {
-      console.error("Remove member error:", error);
-    }
-  };
-
-  const handleCancelInvite = async (invitationId: string) => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await cancelInvitation({ invitationId: invitationId as any });
-    } catch (error: unknown) {
+      await cancelInvitation({ invitationId: inviteId as never });
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+    } catch (error) {
       console.error("Cancel invite error:", error);
     }
-  };
+  }, [cancelInvitation]);
 
-  const handleCancelSubscription = async () => {
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.ImpactFeedbackStyle.Warning);
-    }
+  const handleSignOut = useCallback(async () => {
+    setSigningOut(true);
     try {
-      // Note: Subscription cancellation would require payment provider integration
-      // For now just close modal - backend would handle actual cancellation
-      setShowCancelModal(false);
-      setShowCancelSuccessModal(true);
+      await authClient.signOut();
+      router.replace("/auth");
     } catch (error) {
-      console.error("Cancel subscription error:", error);
-      setShowCancelModal(false);
+      console.error("Sign out error:", error);
+    } finally {
+      setSigningOut(false);
     }
-  };
+  }, [router]);
 
-  // Show loading state while auth is initializing
+  // ============================================================================
+  // RENDER HELPERS
+  // ============================================================================
+
+  // Loading state while auth is checking
   if (isAuthLoading) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
-        <View style={[styles.authPrompt, { paddingTop: insets.top + 40 }]}>
-          <Image
-            source={getSeasonalLogoSource()}
-            style={styles.authLogo}
-            resizeMode="contain"
-          />
-          <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
-          <Text style={styles.authText}>Preverjanje prijave...</Text>
+        <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#8b5cf6" />
         </View>
       </View>
     );
   }
 
-  // 2. If not authenticated, show login prompt
+  // Not authenticated
   if (!isAuthenticated) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
-        <View style={[styles.authPrompt, { paddingTop: insets.top + 40 }]}>
-          <Image
-            source={getSeasonalLogoSource()}
-            style={styles.authLogo}
-            resizeMode="contain"
-          />
-          <Text style={styles.authTitle}>Prijava je potrebna</Text>
-          <Text style={styles.authText}>
-            Za dostop do profila in shranjevanje{"\n"}nastavitev se prijavi ali registriraj
-          </Text>
-          <TouchableOpacity
-            style={styles.authButton}
-            onPress={() => router.push({ pathname: "/auth", params: { mode: "register" } })}
-          >
-            <LinearGradient
-              colors={["#8b5cf6", "#7c3aed"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.authButtonGradient}
-            >
-              <Text style={styles.authButtonText}>Prijava / Registracija</Text>
+        <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+        <View style={[styles.centerContent, { paddingTop: insets.top + 40 }]}>
+          <Image source={getSeasonalLogoSource()} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.authTitle}>Prijava potrebna</Text>
+          <Text style={styles.authSubtitle}>Prijavi se za dostop do profila</Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={() => router.push("/auth")}>
+            <LinearGradient colors={["#8b5cf6", "#7c3aed"]} style={styles.buttonGradient}>
+              <Text style={styles.buttonText}>Prijava</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -633,3170 +275,918 @@ function ProfileScreenInner() {
     );
   }
 
-  // 3. If authenticated, but profile is still loading, show profile loader
+  // Profile loading
   if (isProfileLoading) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
-        <View style={[styles.authPrompt, { paddingTop: insets.top + 40 }]}>
-          <Image
-            source={getSeasonalLogoSource()}
-            style={styles.authLogo}
-            resizeMode="contain"
-          />
+        <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+        <View style={[styles.centerContent, { paddingTop: insets.top + 40 }]}>
+          <Image source={getSeasonalLogoSource()} style={styles.logo} resizeMode="contain" />
           <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
-          <Text style={styles.authText}>Nalaganje profila...</Text>
-          <Text style={[styles.authText, { fontSize: 12, opacity: 0.6, marginTop: 8 }]}>
-            Če nalaganje traja predolgo, poskusi osvežiti.
-          </Text>
+          <Text style={styles.loadingText}>Nalaganje profila...</Text>
           <TouchableOpacity
-            style={[styles.authButton, { marginTop: 20, opacity: retryingProfile ? 0.6 : 1 }]}
-            onPress={async () => {
-              if (retryingProfile) return;
-              setRetryingProfile(true);
-              try {
-                console.log("Manual profile creation attempt...");
-                await ensureProfile({});
-                console.log("Profile created successfully");
-                setProfileLoadingTimedOut(false);
-              } catch (error) {
-                console.error("Profile creation error:", error);
-                Alert.alert("Napaka", "Profila ni bilo mogoče ustvariti. Poskusi znova.");
-              } finally {
-                setRetryingProfile(false);
-              }
-            }}
+            style={[styles.secondaryButton, { marginTop: 20 }]}
+            onPress={handleRetryProfile}
             disabled={retryingProfile}
           >
-            <LinearGradient
-              colors={["#8b5cf6", "#7c3aed"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.authButtonGradient}
-            >
-              <Text style={styles.authButtonText}>
-                {retryingProfile ? "Ustvarjam profil..." : "Osveži profil"}
-              </Text>
-            </LinearGradient>
+            <Text style={styles.secondaryButtonText}>
+              {retryingProfile ? "Ustvarjam..." : "Osveži"}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  // If loading timed out or profile is null, show basic fallback interface
-  if (isAuthenticated && (profileLoadingTimedOut || profile === null)) {
+  // Profile not found / timeout - show create button
+  if (profileLoadingTimedOut || profile === null) {
     return (
       <View style={styles.container}>
-        <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
-        <ScrollView style={styles.scrollView} contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}>
-          
-          {/* Basic Profile Header */}
-          <View style={[styles.header, { paddingVertical: 20 }]}>
-            <View style={styles.profilePictureContainer}>
-              <LinearGradient
-                colors={["#a855f7", "#8b5cf6"]}
-                style={styles.profilePicturePlaceholder}
-              >
-                <Ionicons name="person" size={48} color="#fff" />
-              </LinearGradient>
-            </View>
-            <Text style={styles.title}>
-              {profile?.nickname || "Tvoj profil"}
-            </Text>
-            <Text style={[styles.authText, { marginTop: 8, textAlign: "center", paddingHorizontal: 20 }]}>
-              {profileLoadingTimedOut
-                ? "Profil se ni uspel naložiti. Klikni spodnji gumb za ustvaritev."
-                : "Profil ni bil najden. Klikni spodnji gumb za ustvaritev."}
-            </Text>
-          </View>
-
-          {/* Create Profile Button */}
-          <View style={[styles.section, { marginTop: 20 }]}>
-            <TouchableOpacity
-              style={[styles.authButton, { opacity: retryingProfile ? 0.6 : 1 }]}
-              onPress={async () => {
-                if (retryingProfile) return;
-                setRetryingProfile(true);
-                try {
-                  console.log("Creating profile from fallback UI...");
-                  await ensureProfile({});
-                  console.log("Profile created successfully from fallback");
-                  // Reset timeout state to trigger re-query
-                  setProfileLoadingTimedOut(false);
-                } catch (error) {
-                  console.error("Profile creation error:", error);
-                  Alert.alert("Napaka", "Profila ni bilo mogoče ustvariti. Poskusi znova ali se odjavi in prijavi nazaj.");
-                } finally {
-                  setRetryingProfile(false);
-                }
-              }}
-              disabled={retryingProfile}
-            >
-              <LinearGradient
-                colors={["#8b5cf6", "#7c3aed"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.authButtonGradient}
-              >
-                <Ionicons name={retryingProfile ? "sync" : "add-circle"} size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.authButtonText}>
-                  {retryingProfile ? "Ustvarjam profil..." : "Ustvari profil"}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          {/* Sign Out Option */}
-          <View style={[styles.section, { marginTop: 20 }]}>
-            <TouchableOpacity style={styles.authButton} onPress={() => authClient.signOut()}>
-              <LinearGradient
-                colors={["#ef4444", "#dc2626"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.authButtonGradient}
-              >
-                <Text style={styles.authButtonText}>Odjava</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+        <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+        <View style={[styles.centerContent, { paddingTop: insets.top + 40 }]}>
+          <Image source={getSeasonalLogoSource()} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.authTitle}>Profil ni najden</Text>
+          <Text style={styles.authSubtitle}>Ustvari svoj profil za začetek</Text>
+          <TouchableOpacity
+            style={[styles.primaryButton, { opacity: retryingProfile ? 0.6 : 1 }]}
+            onPress={handleRetryProfile}
+            disabled={retryingProfile}
+          >
+            <LinearGradient colors={["#8b5cf6", "#7c3aed"]} style={styles.buttonGradient}>
+              <Ionicons name="add-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.buttonText}>
+                {retryingProfile ? "Ustvarjam..." : "Ustvari profil"}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.secondaryButton, { marginTop: 16 }]} onPress={handleSignOut}>
+            <Text style={styles.secondaryButtonText}>Odjava</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
 
-  // --- From this point on, we can safely assume `profile` is a valid object ---
+  // ============================================================================
+  // MAIN PROFILE UI
+  // ============================================================================
 
-  const displayNickname =
-    profile.nickname ??
-    profile.name ??
-    (profile.email ? profile.email.split("@")[0] : "Uporabnik");
-  // receiptLimit is already defined above
-  const premiumUntilLabel = formatDateShort(profile.premiumUntil);
-  const premiumUntilMessage = premiumUntilLabel
-    ? `Premium velja do ${premiumUntilLabel}.`
-    : "Premium velja do konca trenutnega obdobja.";
+  const hasFamilyPlan = profile.premiumType === "family";
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
-
-      {/* Ambient Glow */}
-      <View style={[styles.glowOrb, styles.glowOrb1]} />
-      <View style={[styles.glowOrb, styles.glowOrb2]} />
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
+      <LinearGradient colors={["#f8fafc", "#f1f5f9", "#e2e8f0"]} style={StyleSheet.absoluteFill} />
+      
+      <Animated.ScrollView
+        style={[styles.scrollView, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <TouchableOpacity
-            style={styles.profilePictureContainer}
-            onPress={handleProfilePictureUpload}
-            disabled={uploadingProfilePic}
-            activeOpacity={0.7}
-          >
-            {profilePictureUrl ? (
-              <Image
-                source={{ uri: profilePictureUrl }}
-                style={styles.profilePicture}
-                resizeMode="cover"
-              />
-            ) : (
-              <LinearGradient
-                colors={["#a855f7", "#8b5cf6"]}
-                style={styles.profilePicturePlaceholder}
-              >
-                <Ionicons name="person" size={48} color="#fff" />
-              </LinearGradient>
-            )}
-            {uploadingProfilePic && (
-              <View style={styles.uploadingOverlay}>
-                <ActivityIndicator size="small" color="#fff" />
-              </View>
-            )}
-            <View style={styles.profilePictureEditBadge}>
-              <Ionicons name="camera" size={14} color="#fff" />
-            </View>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#1e293b" />
           </TouchableOpacity>
-          <Text style={styles.title}>
-            {profile.premiumType === "family" ? `${displayNickname} Family profil` : `${displayNickname} profil`}
-          </Text>
-        </Animated.View>
+          <Text style={styles.headerTitle}>Profil</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
-        {/* Plan Card */}
-        <Animated.View style={[styles.planCard, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <LinearGradient
-            colors={
-              profile.isPremium
-                ? ["rgba(251, 191, 36, 0.26)", "rgba(245, 158, 11, 0.2)"]
-                : ["rgba(139, 92, 246, 0.15)", "rgba(59, 7, 100, 0.3)"]
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[
-              styles.planGradient,
-              profile.isPremium && styles.planGradientPremium,
-              profile.isPremium && styles.planPremiumShadow,
-            ]}
+        {/* ================================================================== */}
+        {/* FAMILY MEMBERS SECTION (or single profile) */}
+        {/* ================================================================== */}
+        
+        <View style={styles.profilesSection}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.profilesScroll}
           >
-            <View style={styles.planHeader}>
-              <View style={styles.planInfo}>
-                <View style={styles.planBadge}>
-                  {profile.isPremium ? (
-                    <Ionicons name="star" size={16} color="#fbbf24" />
-                  ) : (
-                    <Ionicons name="person" size={16} color="#a78bfa" />
-                  )}
-                  <Text style={[styles.planBadgeText, profile.isPremium && styles.planBadgeTextPremium]}>
-                    {profile.isPremium ? (profile.premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS) : PLAN_FREE}
-                  </Text>
-                </View>
-                <Text style={styles.planPrice}>
-                  {profile.isPremium ? (profile.premiumType === "family" ? "2,99  EUR/mesec" : "1,99  EUR/mesec") : "Brezplačno"}
-                </Text>
-                {profile.isPremium && (
-                  <Text style={styles.planExpiry}>
-                    {premiumUntilLabel ? `Velja do ${premiumUntilLabel}` : "Velja do konca obdobja"}
-                  </Text>
-                )}
-              </View>
-              {(!profile.isPremium || (profile.isPremium && profile.premiumType === "solo")) && (
-                <TouchableOpacity
-                  style={styles.upgradeButton}
-                  onPress={handleUpgrade}
-                >
-                  <LinearGradient
-                    colors={["#fbbf24", "#f59e0b"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.upgradeGradient}
-                  >
-                    <Ionicons name="star" size={14} color="#0b0814" />
-                    <Text style={styles.upgradeText}>
-                      {profile.isPremium ? "Nadgradi na Family" : "Nadgradi"}
+            {/* Current User (Owner) */}
+            <TouchableOpacity 
+              style={styles.profileItem}
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.profileAvatarContainer, styles.profileAvatarSelected]}>
+                {profile.profilePictureUrl ? (
+                  <Image source={{ uri: profile.profilePictureUrl }} style={styles.profileAvatar} />
+                ) : (
+                  <LinearGradient colors={["#8b5cf6", "#7c3aed"]} style={styles.profileAvatarPlaceholder}>
+                    <Text style={styles.profileAvatarInitial}>
+                      {(profile.nickname || profile.name || "U").charAt(0).toUpperCase()}
                     </Text>
                   </LinearGradient>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Search Progress */}
-            <View style={styles.searchProgress}>
-              <View style={styles.searchProgressHeader}>
-                <Text style={styles.searchProgressLabel}>Brezplačna iskanja</Text>
-                <Text style={styles.searchProgressValue}>
-                  {profile.isPremium ? "neomejeno" : `${Math.max(0, searchesRemaining)}/${maxSearches}`}
-                </Text>
+                )}
               </View>
-              <View style={styles.progressBar}>
-                <Animated.View
-                  style={[
-                    styles.progressFill,
-                    profile.isPremium && styles.progressFillPremium,
-                    {
-                      width: progressAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ["0%", "100%"],
-                      }),
-                    },
-                  ]}
-                />
-              </View>
-              {!profile.isPremium && searchesRemaining <= 0 && timeRemaining ? (
-                <View style={styles.searchTimer}>
-                  <Ionicons name="time-outline" size={14} color="#fbbf24" />
-                  <Text style={styles.searchTimerText}>Novo iskanje čez {timeRemaining}</Text>
-                </View>
-              ) : !profile.isPremium && searchesRemaining === 1 ? (
-                <Text style={styles.searchWarning}>
-                  Še samo 1 brezplačno iskanje.
-                </Text>
-              ) : null}
-            </View>
-
-            {/* Plan Features */}
-            <View style={styles.planFeatures}>
-              <View style={styles.planFeature}>
-                <Ionicons
-                  name={profile.isPremium ? "checkmark-circle" : "checkmark-circle-outline"}
-                  size={18}
-                  color={profile.isPremium ? "#10b981" : "#6b7280"}
-                />
-                <Text style={[styles.planFeatureText, !profile.isPremium && styles.planFeatureTextDisabled]}>
-                  {profile.isPremium
-                    ? "Neomejeno iskanje"
-                    : (maxSearches === 1 ? "1 iskanje na dan" : `${maxSearches} iskanja na dan`)}
-                </Text>
-              </View>
-              <View style={styles.planFeature}>
-                <Ionicons
-                  name={profile.isPremium ? "checkmark-circle" : "close-circle-outline"}
-                  size={18}
-                  color={profile.isPremium ? "#10b981" : "#6b7280"}
-                />
-                <Text style={[styles.planFeatureText, !profile.isPremium && styles.planFeatureTextDisabled]}>
-                  {profile.isPremium ? "Vse razpoložljive trgovine" : "Samo osnovne trgovine"}
-                </Text>
-              </View>
-              <View style={styles.planFeature}>
-                <Ionicons
-                  name={profile.isPremium ? "checkmark-circle" : "close-circle-outline"}
-                  size={18}
-                  color={profile.isPremium ? "#10b981" : "#6b7280"}
-                />
-                <Text style={[styles.planFeatureText, !profile.isPremium && styles.planFeatureTextDisabled]}>
-                  {profile.isPremium ? "Ekskluzivni kuponi" : "Osnovni kuponi"}
-                </Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Achievements */}
-        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Dosežki</Text>
-          <Text style={styles.sectionSubtitle}>Letni dosežki iz varčevanja</Text>
-          {awardYears.length === 0 ? (
-            <View style={styles.emptyAwards}>
-              <Ionicons name="trophy-outline" size={26} color="#a78bfa" />
-              <Text style={styles.emptyAwardsText}>
-                Še ni dosežkov. Dodaj račune in začni varčevati.
+              <Text style={styles.profileName} numberOfLines={1}>
+                {profile.nickname || profile.name || "Ti"}
               </Text>
-            </View>
-          ) : (
-            awardYears.map((year) => (
-              <View key={year} style={styles.awardYearCard}>
-                <Text style={styles.awardYearTitle}>{year}</Text>
-                <View style={styles.awardList}>
-                  {awardsByYear[year].map((award, index) => {
-                    const badge = getAwardBadge(award);
-                    const leaderboardLabel =
-                      award.leaderboard === "family" ? "Family lestvica" : "Skupna lestvica";
-                    return (
-                      <View key={`${year}-${award.rank}-${index}`} style={styles.awardBadgeCard}>
-                        <Image source={badge.image} style={styles.awardBadgeImage} />
-                        <View style={styles.awardBadgeInfo}>
-                          <Text style={styles.awardBadgeTitle}>{badge.title}</Text>
-                          <Text style={styles.awardBadgeMeta}>
-                            {leaderboardLabel} - #{award.rank}
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
+              {hasFamilyPlan && isOwner && (
+                <View style={styles.ownerBadge}>
+                  <Ionicons name="star" size={10} color="#fbbf24" />
                 </View>
-              </View>
-            ))
-          )}
-        </Animated.View>
+              )}
+            </TouchableOpacity>
 
-        {/* Receipts */}
-        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Računi</Text>
-          <Text style={styles.sectionSubtitle}>
-            Prihranek se računa iz potrjenih računov (max {receiptLimit}/dan).
-          </Text>
-          <View style={styles.receiptCard}>
-            <View style={styles.receiptHeader}>
-              <View>
-                <Text style={styles.receiptTitle}>Računi danes</Text>
-                <Text style={styles.receiptMeta}>
-                  {receiptsToday.length}/{receiptLimit} uporabljeno
-                </Text>
-              </View>
+            {/* Family Members */}
+            {hasFamilyPlan && familyMembers.map((member) => (
               <TouchableOpacity
-                style={[styles.receiptButton, receiptsRemaining <= 0 && styles.receiptButtonDisabled]}
-                onPress={() => {
-                  setShowReceiptModal(true);
-                  resetReceiptState();
-                }}
-                disabled={receiptsRemaining <= 0}
+                key={member.userId}
+                style={styles.profileItem}
+                onPress={() => handleMemberPress(member)}
+                activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={receiptsRemaining <= 0 ? ["#475569", "#334155"] : ["#22c55e", "#16a34a"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.receiptButtonGradient}
-                >
-                  <Ionicons name="camera" size={16} color="#fff" />
-                  <Text style={styles.receiptButtonText}>Dodaj račun</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.receiptHint}>
-              Račun velja samo danes do 23:00. Brez potrditve se ne upošteva.
-            </Text>
-          </View>
-
-          <View style={styles.receiptList}>
-            {receipts && receipts.length > 0 ? (
-              receipts.map((receipt) => (
-                <View key={receipt._id} style={styles.receiptItem}>
-                  <View style={styles.receiptItemRow}>
-                    <Text style={styles.receiptStore}>{receipt.storeName ?? "Neznana trgovina"}</Text>
-                    <Text style={styles.receiptDate}>{receipt.purchaseDateKey}</Text>
-                  </View>
-                  <View style={styles.receiptItemRow}>
-                    <Text style={styles.receiptTotal}>Plačano: {formatCurrency(receipt.totalPaid)}</Text>
-                    <Text style={styles.receiptSaved}>
-                      Prihranek: {formatCurrency(receipt.savedAmount)}
-                    </Text>
-                  </View>
-                  {!receipt.isValid && (
-                    <Text style={styles.receiptInvalid}>
-                      Neveljaven račun: {receipt.invalidReason ?? "Ni potrjen"}
-                    </Text>
+                <View style={styles.profileAvatarContainer}>
+                  {member.profilePictureUrl ? (
+                    <Image source={{ uri: member.profilePictureUrl }} style={styles.profileAvatar} />
+                  ) : (
+                    <LinearGradient colors={["#94a3b8", "#64748b"]} style={styles.profileAvatarPlaceholder}>
+                      <Text style={styles.profileAvatarInitial}>
+                        {(member.nickname || "?").charAt(0).toUpperCase()}
+                      </Text>
+                    </LinearGradient>
                   )}
                 </View>
-              ))
-            ) : (
-              <Text style={styles.receiptEmpty}>Ni računov.</Text>
-            )}
-          </View>
-        </Animated.View>
+                <Text style={styles.profileName} numberOfLines={1}>{member.nickname}</Text>
+              </TouchableOpacity>
+            ))}
 
-        {/* User Feedback Button - TODO: Add modal when implemented */}
-        {!profile.isAnonymous && (
-          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <TouchableOpacity style={styles.feedbackButton} onPress={openFeedbackModal} activeOpacity={0.85}>
-              <LinearGradient
-                colors={["rgba(236, 72, 153, 0.2)", "rgba(147, 51, 234, 0.2)"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.feedbackButtonGradient}
-              >
-                <View style={styles.feedbackButtonContent}>
-                  <View style={styles.feedbackButtonHeader}>
-                    <Ionicons name="bulb-outline" size={24} color="#ec4899" />
-                    <Text style={styles.feedbackButtonTitle}>Predlagaj izboljšavo</Text>
-                  </View>
-                  <Text style={styles.feedbackButtonSubtitle}>
-                    Povej nam svoje mnenje in dobij 1 dan premium BREZPLAČNO za koristne predloge!
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#ec4899" />
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        {/* Admin panel temporarily removed for debugging */}
-
-        {/* Family Plan Management */}
-        {profile.premiumType === "family" && (
-          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-            <View style={styles.familyHeader}>
-              <Text style={styles.sectionTitle}>Family Plan</Text>
+            {/* Pending Invites */}
+            {hasFamilyPlan && pendingInvitations.map((invite) => (
               <TouchableOpacity
-                style={styles.addMemberButton}
-                onPress={() => setShowFamilyModal(true)}
+                key={invite.id}
+                style={styles.profileItem}
+                onPress={() => {
+                  Alert.alert(
+                    "Čakajoče vabilo",
+                    `Email: ${invite.email}\n\nŽeliš preklicati vabilo?`,
+                    [
+                      { text: "Prekliči vabilo", style: "destructive", onPress: () => handleCancelInvite(invite.id) },
+                      { text: "Zapri", style: "cancel" },
+                    ]
+                  );
+                }}
+                activeOpacity={0.8}
               >
-                <Ionicons name="person-add" size={18} color="#fbbf24" />
-                <Text style={styles.addMemberText}>Povabi</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.sectionSubtitle}>
-              {familyMembers?.availableSlots || 0} / {familyMembers?.maxMembers || 3} prostih mest
-            </Text>
-
-            <View style={styles.familyList}>
-              {/* Current Members */}
-              {familyMembers?.members && familyMembers.members.length > 0 && (
-                <>
-                  {familyMembers.members.map((member: { userId: string; nickname: string; email: string | undefined }) => (
-                    <View key={member.userId} style={styles.familyMemberCard}>
-                      <View style={styles.familyMemberIcon}>
-                        <Ionicons name="person" size={20} color="#10b981" />
-                      </View>
-                      <View style={styles.familyMemberInfo}>
-                        <Text style={styles.familyMemberName}>{member.nickname}</Text>
-                        <Text style={styles.familyMemberEmail}>{member.email}</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.removeMemberButton}
-                        onPress={() => handleRemoveMember(member.userId)}
-                      >
-                        <Ionicons name="close-circle" size={20} color="#ef4444" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </>
-              )}
-
-              {/* Pending Invitations */}
-              {pendingInvites && pendingInvites.length > 0 && (
-                <>
-                  {pendingInvites.map((invite: { id: string; email: string | undefined }) => (
-                    <View key={invite.id} style={styles.familyPendingCard}>
-                      <View style={styles.familyMemberIcon}>
-                        <Ionicons name="mail" size={20} color="#f59e0b" />
-                      </View>
-                      <View style={styles.familyMemberInfo}>
-                        <Text style={styles.familyMemberEmail}>{invite.email}</Text>
-                        <Text style={styles.familyPendingText}>Vabilo poslano</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.removeMemberButton}
-                        onPress={() => handleCancelInvite(invite.id)}
-                      >
-                        <Ionicons name="close-circle" size={20} color="#6b7280" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </>
-              )}
-
-              {/* Empty State */}
-              {(!familyMembers?.members || familyMembers.members.length === 0) &&
-                (!pendingInvites || pendingInvites.length === 0) && (
-                  <View style={styles.familyEmpty}>
-                    <Ionicons name="people-outline" size={40} color="#6b7280" />
-                    <Text style={styles.familyEmptyText}>
-                      Dodaj družinske člane in delite premium funkcije!
-                    </Text>
-                  </View>
-                )}
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Settings */}
-        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <Text style={styles.sectionTitle}>Nastavitve</Text>
-
-          <View style={styles.settingsList}>
-            <TouchableOpacity style={styles.settingItem} onPress={() => router.push("/notifications")}>
-              <View style={styles.settingIcon}>
-                <Ionicons name="notifications-outline" size={20} color="#a78bfa" />
-              </View>
-              <Text style={styles.settingText}>Obvestila</Text>
-              <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.settingItem} onPress={() => router.push("/loyalty-cards")}>
-              <View style={styles.settingIcon}>
-                <Ionicons name="card-outline" size={20} color="#a78bfa" />
-              </View>
-              <Text style={styles.settingText}>Kartice zvestobe</Text>
-              <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.settingItem} onPress={() => router.push("/help")}>
-              <View style={styles.settingIcon}>
-                <Ionicons name="help-circle-outline" size={20} color="#a78bfa" />
-              </View>
-              <Text style={styles.settingText}>Pomoč</Text>
-              <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.settingItem} onPress={() => router.push("/terms")}>
-              <View style={styles.settingIcon}>
-                <Ionicons name="document-text-outline" size={20} color="#a78bfa" />
-              </View>
-              <Text style={styles.settingText}>Pogoji uporabe</Text>
-              <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-            </TouchableOpacity>
-
-            {profile.isPremium && (
-              <TouchableOpacity 
-                style={styles.settingItem}
-                onPress={() => setShowCancelModal(true)}
-              >
-                <View style={[styles.settingIcon, { backgroundColor: "rgba(251, 191, 36, 0.15)" }]}>
-                  <Ionicons name="close-circle-outline" size={20} color="#fbbf24" />
+                <View style={[styles.profileAvatarContainer, styles.pendingAvatar]}>
+                  <Ionicons name="hourglass-outline" size={28} color="#94a3b8" />
                 </View>
-                <Text style={styles.settingText}>Prekliči naročnino</Text>
-                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+                <Text style={[styles.profileName, { color: "#94a3b8" }]} numberOfLines={1}>
+                  Čaka...
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            {/* Add Profile Button */}
+            {hasFamilyPlan && canInvite && (
+              <TouchableOpacity
+                style={styles.profileItem}
+                onPress={() => {
+                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowInviteModal(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.profileAvatarContainer, styles.addProfileAvatar]}>
+                  <Ionicons name="add" size={32} color="#94a3b8" />
+                </View>
+                <Text style={[styles.profileName, { color: "#94a3b8" }]}>Dodaj</Text>
               </TouchableOpacity>
             )}
+          </ScrollView>
+        </View>
 
-            <TouchableOpacity 
-              style={[styles.settingItem, styles.settingItemDanger]}
-              onPress={() => setShowDeleteModal(true)}
-            >
-              <View style={[styles.settingIcon, { backgroundColor: "rgba(239, 68, 68, 0.15)" }]}>
-                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+        {/* ================================================================== */}
+        {/* QUICK ACTIONS */}
+        {/* ================================================================== */}
+        
+        <View style={styles.quickActions}>
+          <TouchableOpacity 
+            style={styles.quickActionItem}
+            onPress={() => router.push("/shopping-lists")}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons name="list" size={24} color="#8b5cf6" />
+            </View>
+            <Text style={styles.quickActionText}>Seznami</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.quickActionItem}
+            onPress={() => router.push("/receipts")}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons name="receipt" size={24} color="#8b5cf6" />
+            </View>
+            <Text style={styles.quickActionText}>Računi</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.quickActionItem}
+            onPress={() => setShowSettingsModal(true)}
+          >
+            <View style={styles.quickActionIcon}>
+              <Ionicons name="settings" size={24} color="#8b5cf6" />
+            </View>
+            <Text style={styles.quickActionText}>Nastavitve</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ================================================================== */}
+        {/* MENU ITEMS */}
+        {/* ================================================================== */}
+        
+        <View style={styles.menuSection}>
+          {/* Premium Status */}
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/premium")}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, { backgroundColor: profile.isPremium ? "#fef3c7" : "#f3e8ff" }]}>
+                <Ionicons 
+                  name={profile.isPremium ? "star" : "star-outline"} 
+                  size={20} 
+                  color={profile.isPremium ? "#f59e0b" : "#8b5cf6"} 
+                />
               </View>
-              <Text style={styles.settingTextDanger}>Izbriši račun</Text>
-              <Ionicons name="chevron-forward" size={20} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
+              <Text style={styles.menuItemText}>
+                {profile.isPremium 
+                  ? (profile.premiumType === "family" ? "Family Premium" : "Premium Plus")
+                  : "Nadgradi na Premium"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+          </TouchableOpacity>
 
-        {/* Sign Out */}
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut} disabled={signingOut}>
-          <Ionicons name="log-out-outline" size={20} color={signingOut ? "#9ca3af" : "#ef4444"} />
-          <Text style={[styles.signOutText, signingOut && { color: "#9ca3af" }]}>
+          {/* Loyalty Cards */}
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/loyalty-cards")}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, { backgroundColor: "#dbeafe" }]}>
+                <Ionicons name="card" size={20} color="#3b82f6" />
+              </View>
+              <Text style={styles.menuItemText}>Kartice zvestobe</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+          </TouchableOpacity>
+
+          {/* Notifications */}
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/notifications")}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, { backgroundColor: "#fce7f3" }]}>
+                <Ionicons name="notifications" size={20} color="#ec4899" />
+              </View>
+              <Text style={styles.menuItemText}>Obvestila</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+          </TouchableOpacity>
+
+          {/* Help */}
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/help")}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, { backgroundColor: "#d1fae5" }]}>
+                <Ionicons name="help-circle" size={20} color="#10b981" />
+              </View>
+              <Text style={styles.menuItemText}>Pomoč</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+          </TouchableOpacity>
+
+          {/* Privacy */}
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/privacy")}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIcon, { backgroundColor: "#e0e7ff" }]}>
+                <Ionicons name="shield-checkmark" size={20} color="#6366f1" />
+              </View>
+              <Text style={styles.menuItemText}>Zasebnost</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Logout */}
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={handleSignOut}
+          disabled={signingOut}
+        >
+          <Text style={styles.logoutText}>
             {signingOut ? "Odjavljam..." : "Odjava"}
           </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 120 }} />
-      </ScrollView>
+        {/* Version */}
+        <Text style={styles.versionText}>Pr'Hran v2.0.0</Text>
 
-      {showReceiptModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.receiptModal}>
-            <LinearGradient
-              colors={["rgba(34, 197, 94, 0.18)", "rgba(15, 23, 42, 0.9)"]}
-              style={styles.receiptModalGradient}
-            >
-              <TouchableOpacity
-                style={styles.modalClose}
-                onPress={() => {
-                  setShowReceiptModal(false);
-                  resetReceiptState();
-                }}
-              >
-                <Ionicons name="close" size={22} color="#9ca3af" />
+        <View style={{ height: insets.bottom + 100 }} />
+      </Animated.ScrollView>
+
+      {/* ================================================================== */}
+      {/* MEMBER DETAIL MODAL */}
+      {/* ================================================================== */}
+      
+      <Modal
+        visible={showMemberModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMemberModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowMemberModal(false)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Družinski član</Text>
+              <TouchableOpacity onPress={() => setShowMemberModal(false)}>
+                <Ionicons name="close" size={24} color="#64748b" />
               </TouchableOpacity>
+            </View>
+            
+            {selectedMember && (
+              <View style={styles.memberDetail}>
+                <View style={styles.memberDetailAvatar}>
+                  {selectedMember.profilePictureUrl ? (
+                    <Image source={{ uri: selectedMember.profilePictureUrl }} style={styles.memberDetailImage} />
+                  ) : (
+                    <LinearGradient colors={["#94a3b8", "#64748b"]} style={styles.memberDetailPlaceholder}>
+                      <Text style={styles.memberDetailInitial}>
+                        {(selectedMember.nickname || "?").charAt(0).toUpperCase()}
+                      </Text>
+                    </LinearGradient>
+                  )}
+                </View>
+                <Text style={styles.memberDetailName}>{selectedMember.nickname}</Text>
+                {selectedMember.email && (
+                  <Text style={styles.memberDetailEmail}>{selectedMember.email}</Text>
+                )}
+                
+                {isOwner && (
+                  <TouchableOpacity 
+                    style={styles.removeButton}
+                    onPress={() => {
+                      Alert.alert(
+                        "Odstrani člana",
+                        `Ali res želiš odstraniti ${selectedMember.nickname} iz družinskega načrta?`,
+                        [
+                          { text: "Prekliči", style: "cancel" },
+                          { text: "Odstrani", style: "destructive", onPress: handleRemoveMember },
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="person-remove" size={18} color="#ef4444" />
+                    <Text style={styles.removeButtonText}>Odstrani iz družine</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
-              <Text style={styles.receiptModalTitle}>Dodaj račun</Text>
+      {/* ================================================================== */}
+      {/* INVITE MODAL */}
+      {/* ================================================================== */}
+      
+      <Modal
+        visible={showInviteModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowInviteModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowInviteModal(false)}
+        >
+          <View style={[styles.modalContent, styles.inviteModal]} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Povabi družinskega člana</Text>
+              <TouchableOpacity onPress={() => setShowInviteModal(false)}>
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.inviteDescription}>
+              Vnesi email naslov osebe, ki jo želiš povabiti v svoj družinski načrt.
+            </Text>
+            
+            <TextInput
+              style={styles.inviteInput}
+              placeholder="email@primer.com"
+              placeholderTextColor="#94a3b8"
+              value={inviteEmail}
+              onChangeText={setInviteEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            
+            {inviteError ? (
+              <Text style={styles.inviteError}>{inviteError}</Text>
+            ) : null}
+            
+            <TouchableOpacity
+              style={[styles.inviteButton, { opacity: inviting ? 0.6 : 1 }]}
+              onPress={handleInvite}
+              disabled={inviting}
+            >
+              <LinearGradient colors={["#fbbf24", "#f59e0b"]} style={styles.buttonGradient}>
+                <Text style={[styles.buttonText, { color: "#1e293b" }]}>
+                  {inviting ? "Pošiljam..." : "Pošlji vabilo"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            
+            <Text style={styles.inviteNote}>
+              Preostala mesta: {availableSlots}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
-              {receiptImage ? (
-                <Image source={{ uri: receiptImage }} style={styles.receiptPreview} />
-              ) : (
-                <View style={styles.receiptPlaceholder}>
-                  <Ionicons name="receipt-outline" size={42} color="#a78bfa" />
-                  <Text style={styles.receiptPlaceholderText}>Posnemi račun s kamero.</Text>
+      {/* ================================================================== */}
+      {/* SETTINGS MODAL */}
+      {/* ================================================================== */}
+      
+      <Modal
+        visible={showSettingsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowSettingsModal(false)}
+        >
+          <View style={[styles.modalContent, styles.settingsModal]} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nastavitve</Text>
+              <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
+                <Ionicons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>Račun</Text>
+              
+              <View style={styles.settingsItem}>
+                <Text style={styles.settingsLabel}>Email</Text>
+                <Text style={styles.settingsValue}>{profile.email || "Ni nastavljeno"}</Text>
+              </View>
+              
+              <View style={styles.settingsItem}>
+                <Text style={styles.settingsLabel}>Vzdevek</Text>
+                <Text style={styles.settingsValue}>{profile.nickname || profile.name || "Ni nastavljeno"}</Text>
+              </View>
+              
+              <View style={styles.settingsItem}>
+                <Text style={styles.settingsLabel}>Email potrjen</Text>
+                <Text style={styles.settingsValue}>
+                  {profile.emailVerified ? "Da ✓" : "Ne"}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>Naročnina</Text>
+              
+              <View style={styles.settingsItem}>
+                <Text style={styles.settingsLabel}>Načrt</Text>
+                <Text style={styles.settingsValue}>
+                  {profile.isPremium 
+                    ? (profile.premiumType === "family" ? "Family" : "Plus")
+                    : "Brezplačno"}
+                </Text>
+              </View>
+              
+              {profile.premiumUntil && (
+                <View style={styles.settingsItem}>
+                  <Text style={styles.settingsLabel}>Veljavnost</Text>
+                  <Text style={styles.settingsValue}>
+                    {new Date(profile.premiumUntil).toLocaleDateString("sl-SI")}
+                  </Text>
                 </View>
               )}
-
-              <TouchableOpacity
-                style={styles.receiptCheckRow}
-                onPress={() => setReceiptConfirmed((value) => !value)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.receiptCheckBox, receiptConfirmed && styles.receiptCheckBoxChecked]}>
-                  {receiptConfirmed && <Ionicons name="checkmark" size={14} color="#fff" />}
-                </View>
-                <Text style={styles.receiptCheckText}>Potrdi, da je slikani račun tvoj.</Text>
-              </TouchableOpacity>
-
-              {receiptError ? <Text style={styles.receiptErrorText}>{receiptError}</Text> : null}
-              {receiptSuccess ? <Text style={styles.receiptSuccessText}>{receiptSuccess}</Text> : null}
-
-              <View style={styles.receiptModalActions}>
-                <TouchableOpacity
-                  style={[styles.receiptActionButton, receiptsRemaining <= 0 && styles.receiptActionDisabled]}
-                  onPress={handleCaptureReceipt}
-                  disabled={receiptsRemaining <= 0 || receiptSubmitting}
-                >
-                  <LinearGradient
-                    colors={receiptsRemaining <= 0 ? ["#475569", "#334155"] : ["#8b5cf6", "#7c3aed"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.receiptActionGradient}
-                  >
-                    <Ionicons name="camera" size={18} color="#fff" />
-                    <Text style={styles.receiptActionText}>Odpri kamero</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.receiptActionButton,
-                    styles.receiptActionSecondary,
-                    (!receiptImage || receiptSubmitting) && styles.receiptActionDisabled,
-                  ]}
-                  onPress={handleSubmitReceipt}
-                  disabled={!receiptImage || receiptSubmitting}
-                >
-                  <LinearGradient
-                    colors={!receiptImage || receiptSubmitting ? ["#475569", "#334155"] : ["#22c55e", "#16a34a"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.receiptActionGradient}
-                  >
-                    {receiptSubmitting ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <>
-                        <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                        <Text style={styles.receiptActionText}>Oddaj račun</Text>
-                      </>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
+            </View>
           </View>
-        </View>
-      )}
-
-
-      {showSignOutToast && (
-        <View style={styles.toastOverlay}>
-          <LinearGradient
-            colors={["rgba(16, 185, 129, 0.25)", "rgba(16, 185, 129, 0.15)"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.toastContainer}
-          >
-            <Ionicons name="checkmark-circle" size={20} color="#10b981" />
-            <Text style={styles.toastText}>Uspesno odjavljeno</Text>
-          </LinearGradient>
-        </View>
-      )}
-
-      {showFeedbackModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.feedbackModal}>
-            <LinearGradient
-              colors={["rgba(236, 72, 153, 0.25)", "rgba(15, 23, 42, 0.9)"]}
-              style={styles.feedbackModalGradient}
-            >
-              <TouchableOpacity style={styles.modalClose} onPress={closeFeedbackModal}>
-                <Ionicons name="close" size={22} color="#9ca3af" />
-              </TouchableOpacity>
-
-              <Text style={styles.feedbackModalTitle}>Predlagaj izboljsavo</Text>
-              <Text style={styles.feedbackModalSubtitle}>
-                Pomagaj nam izboljsati aplikacijo. Za koristne predloge dobis 1 dan premium.
-              </Text>
-
-              <View style={styles.feedbackTypeRow}>
-                {feedbackTypeOptions.map((option) => {
-                  const isActive = feedbackType === option.value;
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[styles.feedbackTypeChip, isActive && styles.feedbackTypeChipActive]}
-                      onPress={() => setFeedbackType(option.value)}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={[styles.feedbackTypeText, isActive && styles.feedbackTypeTextActive]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <View style={styles.feedbackInputContainer}>
-                <TextInput
-                  placeholder="Kratek naslov"
-                  placeholderTextColor="#94a3b8"
-                  style={styles.feedbackInput}
-                  value={feedbackTitle}
-                  onChangeText={setFeedbackTitle}
-                  maxLength={120}
-                />
-              </View>
-
-              <View style={styles.feedbackInputContainer}>
-                <TextInput
-                  placeholder="Opisi predlog ali napako"
-                  placeholderTextColor="#94a3b8"
-                  style={[styles.feedbackInput, styles.feedbackInputMultiline]}
-                  value={feedbackDescription}
-                  onChangeText={setFeedbackDescription}
-                  multiline
-                  maxLength={800}
-                />
-              </View>
-
-              {feedbackError ? <Text style={styles.feedbackError}>{feedbackError}</Text> : null}
-              {feedbackSuccess ? <Text style={styles.feedbackSuccess}>{feedbackSuccess}</Text> : null}
-
-              <View style={styles.feedbackActions}>
-                <TouchableOpacity style={styles.feedbackCancel} onPress={closeFeedbackModal}>
-                  <Text style={styles.feedbackCancelText}>Preklici</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.feedbackSubmit, submittingFeedback && styles.feedbackSubmitDisabled]}
-                  onPress={handleSubmitFeedback}
-                  disabled={submittingFeedback}
-                >
-                  <LinearGradient
-                    colors={["#ec4899", "#9333ea"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.feedbackSubmitGradient}
-                  >
-                    {submittingFeedback ? (
-                      <ActivityIndicator size="small" color="#fff" />
-                    ) : (
-                      <Text style={styles.feedbackSubmitText}>Poslji</Text>
-                    )}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Premium Modal */}
-      {showPremiumModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={["rgba(139, 92, 246, 0.2)", "rgba(59, 7, 100, 0.4)"]}
-              style={styles.modalGradient}
-            >
-              <TouchableOpacity
-                style={styles.modalClose}
-                onPress={() => setShowPremiumModal(false)}
-              >
-                <Ionicons name="close" size={24} color="#9ca3af" />
-              </TouchableOpacity>
-
-              <Image
-                source={getSeasonalLogoSource()}
-                style={styles.modalLogo}
-                resizeMode="contain"
-              />
-
-              <Text style={styles.modalTitle}>Pr'Hran Premium</Text>
-              <Text style={styles.modalPrice}>1,99  EUR/mesec</Text>
-
-              <View style={styles.modalFeatures}>
-                <View style={styles.modalFeatureRow}>
-                  <View style={styles.modalFeatureCol}>
-                    <Text style={styles.modalFeatureLabel}>ZASTONJ</Text>
-                    <View style={styles.modalFeature}>
-                      <Ionicons name="checkmark" size={16} color="#10b981" />
-                      <Text style={styles.modalFeatureText}>3 iskanja/dan</Text>
-                    </View>
-                    <View style={styles.modalFeature}>
-                      <Ionicons name="close" size={16} color="#ef4444" />
-                      <Text style={styles.modalFeatureTextDisabled}>Omejeno število trgovin</Text>
-                    </View>
-                    <View style={styles.modalFeature}>
-                      <Ionicons name="close" size={16} color="#ef4444" />
-                      <Text style={styles.modalFeatureTextDisabled}>Ekskluzivni kuponi</Text>
-                    </View>
-                  </View>
-                  <View style={styles.modalFeatureDivider} />
-                  <View style={styles.modalFeatureCol}>
-                    <Text style={styles.modalFeatureLabelPremium}>PREMIUM</Text>
-                    <View style={styles.modalFeature}>
-                      <Ionicons name="checkmark" size={16} color="#10b981" />
-                      <Text style={styles.modalFeatureText}>Neomejeno</Text>
-                    </View>
-                    <View style={styles.modalFeature}>
-                      <Ionicons name="checkmark" size={16} color="#10b981" />
-                      <Text style={styles.modalFeatureText}>Vse razpoložljive trgovine</Text>
-                    </View>
-                    <View style={styles.modalFeature}>
-                      <Ionicons name="checkmark" size={16} color="#10b981" />
-                      <Text style={styles.modalFeatureText}>Ekskluzivni kuponi</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              <TouchableOpacity style={styles.modalButton} onPress={handleUpgrade}>
-                <LinearGradient
-                  colors={["#fbbf24", "#f59e0b"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.modalButtonGradient}
-                >
-                  <Ionicons name="star" size={18} color="#000" />
-                  <Text style={styles.modalButtonText}>Nadgradi na PrHran Plus</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <Text style={styles.modalDisclaimer}>
-                Prekliči kadarkoli. Brez skritih stroškov.
-              </Text>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Delete Account Modal */}
-      {showDeleteModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={["rgba(239, 68, 68, 0.2)", "rgba(127, 29, 29, 0.4)"]}
-              style={styles.modalGradient}
-            >
-              <TouchableOpacity
-                style={styles.modalClose}
-                onPress={() => setShowDeleteModal(false)}
-              >
-                <Ionicons name="close" size={24} color="#9ca3af" />
-              </TouchableOpacity>
-
-              <View style={styles.deleteIconContainer}>
-                <LinearGradient
-                  colors={["#ef4444", "#dc2626"]}
-                  style={styles.deleteIconBg}
-                >
-                  <Ionicons name="warning" size={32} color="#fff" />
-                </LinearGradient>
-              </View>
-
-              <Text style={styles.deleteTitle}>Izbriši račun?</Text>
-              <Text style={styles.deleteDescription}>
-                Ta dejanje je nepovratno. Vsi tvoji podatki, košarica in nastavitve bodo trajno izbrisani.
-              </Text>
-
-              <View style={styles.deleteButtons}>
-                <TouchableOpacity 
-                  style={styles.cancelDeleteButton}
-                  onPress={() => setShowDeleteModal(false)}
-                >
-                  <Text style={styles.cancelDeleteText}>Prekliči</Text>
-                </TouchableOpacity>
-
-                                  <TouchableOpacity 
-                    style={styles.confirmDeleteButton}
-                    onPress={handleDeleteAccount}
-                    disabled={deletingAccount}
-                  >
-                    <LinearGradient
-                      colors={["#ef4444", "#dc2626"]}
-                      style={styles.confirmDeleteGradient}
-                    >
-                      {deletingAccount ? (
-                        <ActivityIndicator size="small" color="#fff" />
-                      ) : (
-                        <Text style={styles.confirmDeleteText}>Izbriši</Text>
-                      )}
-                    </LinearGradient>
-                  </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Cancel Subscription Modal */}
-      {showCancelModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={["rgba(251, 191, 36, 0.2)", "rgba(180, 83, 9, 0.4)"]}
-              style={styles.modalGradient}
-            >
-              <TouchableOpacity
-                style={styles.modalClose}
-                onPress={() => setShowCancelModal(false)}
-              >
-                <Ionicons name="close" size={24} color="#9ca3af" />
-              </TouchableOpacity>
-
-              <View style={styles.cancelIconContainer}>
-                <LinearGradient
-                  colors={["#fbbf24", "#f59e0b"]}
-                  style={styles.cancelIconBg}
-                >
-                  <Ionicons name="star" size={32} color="#000" />
-                </LinearGradient>
-              </View>
-
-              <Text style={styles.cancelTitle}>Prekliči Premium?</Text>
-              <Text style={styles.cancelDescription}>
-                Ob preklicu boš izgubil dostop do:{"\n"}
-                -  Neomejenega iskanja{"\n"}
-                -  Vseh trgovin{"\n"}
-                -  Ekskluzivnih kuponov
-              </Text>
-
-              <View style={styles.deleteButtons}>
-                <TouchableOpacity 
-                  style={styles.keepPremiumButton}
-                  onPress={() => setShowCancelModal(false)}
-                >
-                  <LinearGradient
-                    colors={["#fbbf24", "#f59e0b"]}
-                    style={styles.keepPremiumGradient}
-                  >
-                    <Text style={styles.keepPremiumText}>Obdrži Premium</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.confirmCancelButton}
-                  onPress={handleCancelSubscription}
-                >
-                  <Text style={styles.confirmCancelText}>Prekliči naročnino</Text>
-                               </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {showCancelSuccessModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={["rgba(16, 185, 129, 0.25)", "rgba(15, 23, 42, 0.75)"]}
-              style={styles.modalGradient}
-            >
-              <TouchableOpacity
-                style={styles.modalClose}
-                onPress={() => setShowCancelSuccessModal(false)}
-              >
-                <Ionicons name="close" size={24} color="#9ca3af" />
-              </TouchableOpacity>
-
-              <View style={styles.cancelIconContainer}>
-                <LinearGradient
-                  colors={["#34d399", "#10b981"]}
-                  style={styles.cancelIconBg}
-                >
-                  <Ionicons name="checkmark" size={32} color="#000" />
-                </LinearGradient>
-              </View>
-
-              <Text style={styles.cancelTitle}>Naročnina preklicana</Text>
-              <Text style={styles.cancelDescription}>{premiumUntilMessage}</Text>
-
-              <TouchableOpacity
-                style={styles.keepPremiumButton}
-                onPress={() => setShowCancelSuccessModal(false)}
-              >
-                <LinearGradient
-                  colors={["#34d399", "#10b981"]}
-                  style={styles.keepPremiumGradient}
-                >
-                  <Text style={styles.keepPremiumText}>Zapri</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Family Invite Modal */}
-      {showFamilyModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={["rgba(139, 92, 246, 0.2)", "rgba(59, 7, 100, 0.3)"]}
-              style={styles.modalGradient}
-            >
-              <TouchableOpacity
-                style={styles.modalClose}
-                onPress={() => {
-                  setShowFamilyModal(false);
-                  setFamilyInviteEmail("");
-                  setFamilyError("");
-                  setFamilySuccess("");
-                }}
-              >
-                <Ionicons name="close" size={24} color="#9ca3af" />
-              </TouchableOpacity>
-
-              <View style={styles.familyModalIcon}>
-                <LinearGradient
-                  colors={["#fbbf24", "#f59e0b"]}
-                  style={styles.familyModalIconBg}
-                >
-                  <Ionicons name="people" size={32} color="#0b0814" />
-                </LinearGradient>
-              </View>
-
-              <Text style={styles.modalTitle}>Povabi v Family Plan</Text>
-              <Text style={styles.modalSubtitle}>
-                Vnesi e-naslov osebe, ki jo želiš dodati v svojo družino.
-              </Text>
-
-              <TextInput
-                style={styles.familyInput}
-                placeholder="email@example.com"
-                placeholderTextColor="#6b7280"
-                value={familyInviteEmail}
-                onChangeText={setFamilyInviteEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-
-              {familyError ? (
-                <Text style={styles.familyErrorText}>{familyError}</Text>
-              ) : null}
-              {familySuccess ? (
-                <Text style={styles.familySuccessText}>{familySuccess}</Text>
-              ) : null}
-
-              <TouchableOpacity
-                style={styles.familyInviteButton}
-                onPress={handleInviteFamilyMember}
-                disabled={familyInviting}
-              >
-                <LinearGradient
-                  colors={["#fbbf24", "#f59e0b"]}
-                  style={styles.familyInviteGradient}
-                >
-                  {familyInviting ? (
-                    <ActivityIndicator size="small" color="#0b0814" />
-                  ) : (
-                    <>
-                      <Ionicons name="send" size={18} color="#0b0814" />
-                      <Text style={styles.familyInviteText}>Pošlji vabilo</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* Admin modals temporarily removed */}
-
-      {/* AI Suggestions Modal */}
-      {showAISuggestionsModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={[styles.modalContent, { maxHeight: "85%" }]}>
-            <LinearGradient
-              colors={["rgba(236, 72, 153, 0.2)", "rgba(147, 51, 234, 0.3)"]}
-              style={[styles.modalGradient, { height: "100%" }]}
-            >
-              <View style={styles.adminModalHeader}>
-                <View>
-                  <Text style={styles.modalTitle}>AI Predlogi za Izboljšave</Text>
-                  <Text style={styles.modalSubtitle}>
-                    {aiSuggestions?.length || 0} {aiSuggestions?.length === 1 ? "predlog" : "predlogov"}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.modalClose}
-                  onPress={() => setShowAISuggestionsModal(false)}
-                >
-                  <Ionicons name="close" size={24} color="#9ca3af" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={styles.adminUsersList} showsVerticalScrollIndicator={false}>
-                {aiSuggestions && aiSuggestions.length > 0 ? (
-                  aiSuggestions.map((suggestion: {
-                    type: string;
-                    priority: string;
-                    searchQuery: string;
-                    suggestion: string;
-                    metrics: {
-                      searchCount: number;
-                      averageResults: number;
-                      clickRate: number;
-                    };
-                  }, index: number) => (
-                    <View key={index} style={styles.aiSuggestionCard}>
-                      {/* Priority Badge */}
-                      <View style={[
-                        styles.aiPriorityBadge,
-                        suggestion.priority === "high"
-                          ? styles.aiPriorityHigh
-                          : suggestion.priority === "medium"
-                          ? styles.aiPriorityMedium
-                          : styles.aiPriorityLow
-                      ]}>
-                        <Text style={styles.aiPriorityText}>
-                          {suggestion.priority === "high" ? "🔴 Visoka" :
-                           suggestion.priority === "medium" ? "🟡 Srednja" : "🟢 Nizka"}
-                        </Text>
-                      </View>
-
-                      {/* Type Badge */}
-                      <View style={styles.aiTypeBadge}>
-                        <Text style={styles.aiTypeText}>
-                          {suggestion.type === "missing_product" ? "📦 Manjka izdelek" :
-                           suggestion.type === "poor_results" ? "🔍 Slabi rezultati" :
-                           suggestion.type === "poor_relevance" ? "❌ Slaba relevantnost" :
-                           "✅ Popularno iskanje"}
-                        </Text>
-                      </View>
-
-                      {/* Search Query */}
-                      <View style={styles.aiQueryContainer}>
-                        <Ionicons name="search" size={16} color="#cbd5e1" />
-                        <Text style={styles.aiQueryText}>"{suggestion.searchQuery}"</Text>
-                      </View>
-
-                      {/* Suggestion */}
-                      <Text style={styles.aiSuggestionText}>{suggestion.suggestion}</Text>
-
-                      {/* Metrics */}
-                      <View style={styles.aiMetricsContainer}>
-                        <View style={styles.aiMetric}>
-                          <Ionicons name="search-outline" size={14} color="#6b7280" />
-                          <Text style={styles.aiMetricText}>
-                            {suggestion.metrics.searchCount} iskanj
-                          </Text>
-                        </View>
-                        <View style={styles.aiMetric}>
-                          <Ionicons name="list-outline" size={14} color="#6b7280" />
-                          <Text style={styles.aiMetricText}>
-                            Avg {suggestion.metrics.averageResults.toFixed(1)} rezultatov
-                          </Text>
-                        </View>
-                        <View style={styles.aiMetric}>
-                          <Ionicons name="hand-left-outline" size={14} color="#6b7280" />
-                          <Text style={styles.aiMetricText}>
-                            {suggestion.metrics.clickRate.toFixed(1)}% click rate
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))
-                ) : (
-                  <View style={styles.emptyAdminUsers}>
-                    <Ionicons name="bulb-outline" size={48} color="#6b7280" />
-                    <Text style={styles.emptyAdminUsersText}>Ni predlogov</Text>
-                    <Text style={[styles.emptyAdminUsersText, { fontSize: 14, marginTop: 8 }]}>
-                      AI bo analiziral iskanja v naslednjih 7 dneh
-                    </Text>
-                  </View>
-                )}
-              </ScrollView>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
-
-      {/* User Suggestions Modal */}
-      {showUserSuggestionsModal && (
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={[styles.modalContent, { maxHeight: "85%" }]}>
-            <LinearGradient
-              colors={["rgba(236, 72, 153, 0.2)", "rgba(59, 7, 100, 0.35)"]}
-              style={[styles.modalGradient, { height: "100%" }]}
-            >
-              <View style={styles.adminModalHeader}>
-                <View>
-                  <Text style={styles.modalTitle}>Predlogi uporabnikov</Text>
-                  <Text style={styles.modalSubtitle}>
-                    {suggestionsList.length} {suggestionsList.length === 1 ? "predlog" : "predlogov"}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.modalClose}
-                  onPress={() => setShowUserSuggestionsModal(false)}
-                >
-                  <Ionicons name="close" size={24} color="#9ca3af" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={styles.adminUsersList} showsVerticalScrollIndicator={false}>
-                {suggestionsList.length > 0 ? (
-                  suggestionsList.map((suggestion: {
-                    _id: string;
-                    title: string;
-                    description: string;
-                    suggestionType: string;
-                    status: string;
-                    submittedAt: number;
-                    userNickname?: string;
-                  }) => (
-                    <View key={suggestion._id} style={styles.userSuggestionCard}>
-                      <View style={styles.userSuggestionHeader}>
-                        <Text style={styles.userSuggestionTitle}>{suggestion.title}</Text>
-                        <View style={[styles.userSuggestionStatus, getSuggestionStatusStyle(suggestion.status)]}>
-                          <Text style={styles.userSuggestionStatusText}>
-                            {suggestionStatusLabels[suggestion.status] ?? suggestion.status}
-                          </Text>
-                        </View>
-                      </View>
-                      <View style={styles.userSuggestionMetaRow}>
-                        <Text style={styles.userSuggestionMeta}>
-                          {suggestion.userNickname || "Anonimen"}
-                        </Text>
-                        <Text style={styles.userSuggestionMeta}>•</Text>
-                        <Text style={styles.userSuggestionMeta}>
-                          {suggestionTypeLabels[suggestion.suggestionType] ?? suggestion.suggestionType}
-                        </Text>
-                        <Text style={styles.userSuggestionMeta}>•</Text>
-                        <Text style={styles.userSuggestionMeta}>
-                          {formatDateShort(suggestion.submittedAt) ?? "--"}
-                        </Text>
-                      </View>
-                      <Text style={styles.userSuggestionDescription}>{suggestion.description}</Text>
-                    </View>
-                  ))
-                ) : (
-                  <View style={styles.emptyAdminUsers}>
-                    <Ionicons name="chatbubbles-outline" size={48} color="#6b7280" />
-                    <Text style={styles.emptyAdminUsersText}>Ni predlogov</Text>
-                  </View>
-                )}
-              </ScrollView>
-            </LinearGradient>
-          </View>
-        </View>
-      )}
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
+// ============================================================================
+// STYLES
+// ============================================================================
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0f0a1e",
+    backgroundColor: "#f8fafc",
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: Platform.OS === "ios" ? 120 : Platform.OS === "android" ? 100 : 60,
-    width: "100%",
-    maxWidth: 720,
-    alignSelf: "center",
   },
-  glowOrb: {
-    position: "absolute",
-    borderRadius: 999,
-  },
-  glowOrb1: {
-    width: 250,
-    height: 250,
-    backgroundColor: "#8b5cf6",
-    top: -80,
-    left: -80,
-    opacity: 0.15,
-  },
-  glowOrb2: {
-    width: 200,
-    height: 200,
-    backgroundColor: "#fbbf24",
-    bottom: 150,
-    right: -60,
-    opacity: 0.08,
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  logo: {
-    width: 51,
-    height: 102,
-    marginBottom: 8,
-  },
-  profilePictureContainer: {
-    position: "relative",
-    width: 102,
-    height: 102,
-    marginBottom: 16,
-  },
-  profilePicture: {
-    width: 102,
-    height: 102,
-    borderRadius: 51,
-    borderWidth: 3,
-    borderColor: "rgba(168, 85, 247, 0.4)",
-  },
-  profilePicturePlaceholder: {
-    width: 102,
-    height: 102,
-    borderRadius: 51,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "rgba(168, 85, 247, 0.4)",
-  },
-  uploadingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 51,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  profilePictureEditBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#a855f7",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "#0a0a12",
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: -0.5,
-  },
-  nicknameRow: {
-    marginTop: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  nicknameText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#a78bfa",
-  },
-  nicknameEditButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
-  },
-  nicknameEditButtonDisabled: {
-    backgroundColor: "rgba(148, 163, 184, 0.2)",
-  },
-  nicknameHint: {
-    fontSize: 12,
-    color: "#9ca3af",
-    marginTop: 4,
-  },
-  authPrompt: {
+  centerContent: {
     flex: 1,
     alignItems: "center",
-    paddingHorizontal: 40,
+    justifyContent: "center",
+    paddingHorizontal: 32,
   },
-  authLogo: {
-    width: 200,
-    height: 200,
+  logo: {
+    width: 80,
+    height: 80,
     marginBottom: 24,
   },
   authTitle: {
     fontSize: 24,
-    fontWeight: "800",
-    color: "#fff",
-    marginBottom: 12,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 8,
   },
-  authText: {
-    fontSize: 14,
-    color: "#9ca3af",
-    textAlign: "center",
-    lineHeight: 22,
+  authSubtitle: {
+    fontSize: 16,
+    color: "#64748b",
     marginBottom: 32,
+    textAlign: "center",
   },
-  authButton: {
-    width: "100%",
-    borderRadius: 14,
+  loadingText: {
+    fontSize: 16,
+    color: "#64748b",
+    marginTop: 16,
+  },
+  primaryButton: {
+    borderRadius: 16,
     overflow: "hidden",
+    width: "100%",
+    maxWidth: 280,
   },
-  authButtonGradient: {
-    paddingVertical: 16,
+  secondaryButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    color: "#8b5cf6",
+    fontWeight: "600",
+  },
+  buttonGradient: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
   },
-  authButtonText: {
+  buttonText: {
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
   },
-  planCard: {
-    marginBottom: 28,
-    borderRadius: 24,
-    overflow: "hidden",
-  },
-  planGradient: {
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
-  },
-  planGradientPremium: {
-    borderColor: "rgba(251, 191, 36, 0.3)",
-  },
-  planPremiumShadow: {
-    ...createShadow("#fbbf24", 0, 10, 0.35, 18, 10),
-  },
-  planHeader: {
+
+  // Header
+  header: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 20,
+    marginBottom: 24,
   },
-  planInfo: {},
-  planBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  planBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#a78bfa",
-    marginLeft: 6,
-    letterSpacing: 0.5,
-  },
-  planBadgeTextPremium: {
-    color: "#fbbf24",
-  },
-  planPrice: {
-    fontSize: 14,
-    color: "#9ca3af",
-  },
-  planExpiry: {
-    fontSize: 12,
-    color: "#a7f3d0",
-    marginTop: 4,
-    fontWeight: "600",
-  },
-  upgradeButton: {
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  upgradeGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  upgradeText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#000",
-    marginLeft: 6,
-  },
-  searchProgress: {
-    marginBottom: 20,
-  },
-  searchProgressHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  searchProgressLabel: {
-    fontSize: 13,
-    color: "#9ca3b8",
-  },
-  searchProgressValue: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#8b5cf6",
-    borderRadius: 4,
-  },
-  progressFillPremium: {
-    backgroundColor: "#fbbf24",
-  },
-  searchWarning: {
-    fontSize: 12,
-    color: "#fbbf24",
-    marginTop: 8,
-  },
-  searchTimer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  searchTimerText: {
-    fontSize: 12,
-    color: "#fbbf24",
-    marginLeft: 6,
-  },
-  planFeatures: {
-    gap: 10,
-  },
-  planFeature: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  planFeatureText: {
-    fontSize: 14,
-    color: "#fff",
-    marginLeft: 10,
-  },
-  planFeatureTextDisabled: {
-    color: "#6b7280",
-  },
-  section: {
-    marginBottom: 32,
-    paddingHorizontal: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: "#9ca3b8",
-    marginBottom: 16,
-  },
-  adminHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 16,
-  },
-  liveIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
-  },
-  liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#10b981",
-  },
-  liveText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#10b981",
-    letterSpacing: 0.8,
-  },
-  adminCard: {
-    padding: 20,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.4)",
-    ...createShadow("#8b5cf6", 0, 4, 0.2),
-  },
-  adminRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  adminStat: {
-    flex: 1,
-    minWidth: 90,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    backgroundColor: "rgba(15, 23, 42, 0.55)",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.25)",
-    alignItems: "center",
-    gap: 6,
-  },
-  adminStatLabel: {
-    fontSize: 11,
-    color: "#cbd5e1",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginTop: 2,
-  },
-  adminStatValue: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#fff",
-  },
-  geoSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(139, 92, 246, 0.2)",
-  },
-  geoHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  geoTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#cbd5e1",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  geoList: {
-    gap: 8,
-  },
-  geoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: "rgba(15, 23, 42, 0.4)",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.15)",
-  },
-  geoRank: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "rgba(139, 92, 246, 0.25)",
+  backButton: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
   },
-  geoRankText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#a78bfa",
-  },
-  geoCountry: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#e2e8f0",
-  },
-  geoCount: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#8b5cf6",
-  },
-  emptyAwards: {
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: "rgba(139, 92, 246, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
-    alignItems: "center",
-    gap: 10,
-  },
-  emptyAwardsText: {
-    fontSize: 13,
-    color: "#cbd5e1",
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  awardYearCard: {
-    padding: 18,
-    borderRadius: 20,
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.25)",
-    marginBottom: 16,
-    ...createShadow("#8b5cf6", 0, 4, 0.15),
-  },
-  awardYearTitle: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#fff",
-    marginBottom: 10,
-  },
-  awardList: {
-    gap: 8,
-  },
-  awardBadgeCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: "rgba(139, 92, 246, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-    ...createShadow("#8b5cf6", 0, 2, 0.1),
-  },
-  awardBadgeImage: {
-    width: 64,
-    height: 64,
-    resizeMode: "contain",
-  },
-  awardBadgeInfo: {
-    flex: 1,
-    gap: 4,
-  },
-  awardBadgeTitle: {
-    fontSize: 14,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: "700",
-    color: "#fff",
+    color: "#1e293b",
   },
-  awardBadgeMeta: {
-    fontSize: 12,
-    color: "#cbd5e1",
+
+  // Profiles Section
+  profilesSection: {
+    marginBottom: 24,
   },
-  receiptCard: {
-    padding: 18,
-    borderRadius: 20,
-    backgroundColor: "rgba(34, 197, 94, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.3)",
-    marginBottom: 18,
-    ...createShadow("#22c55e", 0, 3, 0.12),
-  },
-  receiptHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  receiptTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  receiptMeta: {
-    fontSize: 12,
-    color: "#9ca3af",
-    marginTop: 2,
-  },
-  receiptButton: {
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  receiptButtonDisabled: {
-    opacity: 0.7,
-  },
-  receiptButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-  },
-  receiptButtonText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  receiptHint: {
-    fontSize: 12,
-    color: "#d1fae5",
-    lineHeight: 18,
-  },
-  receiptList: {
-    gap: 10,
-  },
-  receiptItem: {
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
-    gap: 6,
-  },
-  receiptItemRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  receiptStore: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  receiptDate: {
-    fontSize: 12,
-    color: "#9ca3af",
-  },
-  receiptTotal: {
-    fontSize: 12,
-    color: "#e5e7eb",
-  },
-  receiptSaved: {
-    fontSize: 12,
-    color: "#10b981",
-    fontWeight: "700",
-  },
-  receiptInvalid: {
-    fontSize: 11,
-    color: "#fca5a5",
-  },
-  receiptEmpty: {
-    fontSize: 12,
-    color: "#9ca3b8",
-    textAlign: "center",
+  profilesScroll: {
     paddingVertical: 8,
+    gap: 16,
   },
-  storesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+  profileItem: {
+    alignItems: "center",
+    marginRight: 16,
   },
-  storeCard: {
-    width: "31%",
-    borderRadius: 16,
+  profileAvatarContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginBottom: 8,
     overflow: "hidden",
   },
-  storeCardActive: {},
-  storeCardLocked: {
-    opacity: 0.6,
+  profileAvatarSelected: {
+    borderWidth: 3,
+    borderColor: "#8b5cf6",
   },
-  storeCardGradient: {
+  profileAvatar: {
+    width: "100%",
+    height: "100%",
+  },
+  profileAvatarPlaceholder: {
+    width: "100%",
+    height: "100%",
     alignItems: "center",
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.15)",
+    justifyContent: "center",
   },
-  storeEmoji: {
-    fontSize: 24,
-    marginBottom: 6,
+  profileAvatarInitial: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#fff",
   },
-  storeName: {
-    fontSize: 12,
+  profileName: {
+    fontSize: 14,
     fontWeight: "600",
-    color: "#9ca3b8",
+    color: "#1e293b",
+    maxWidth: 72,
+    textAlign: "center",
   },
-  lockBadge: {
+  ownerBadge: {
     position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "rgba(251, 191, 36, 0.2)",
-    borderRadius: 8,
-    padding: 4,
+    top: 0,
+    right: 4,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 2,
   },
-  checkBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    borderRadius: 8,
-    padding: 4,
+  pendingAvatar: {
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "#cbd5e1",
+    backgroundColor: "#f1f5f9",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  settingsList: {
-    backgroundColor: "rgba(139, 92, 246, 0.08)",
+  addProfileAvatar: {
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "#cbd5e1",
+    backgroundColor: "#f8fafc",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Quick Actions
+  quickActions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  quickActionItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
-    overflow: "hidden",
+    backgroundColor: "#f3e8ff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
   },
-  settingItem: {
+  quickActionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1e293b",
+  },
+
+  // Menu Section
+  menuSection: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 18,
+    justifyContent: "space-between",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(139, 92, 246, 0.15)",
+    borderBottomColor: "#f1f5f9",
   },
-  settingIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
+  menuItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
-  settingText: {
-    flex: 1,
-    fontSize: 15,
-    color: "#fff",
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#1e293b",
   },
-  signOutButton: {
-    flexDirection: "row",
+
+  // Logout
+  logoutButton: {
     alignItems: "center",
-    justifyContent: "center",
     paddingVertical: 16,
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.2)",
   },
-  toastOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 30,
-    alignItems: "center",
-  },
-  toastContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.35)",
-    backgroundColor: "rgba(2, 44, 34, 0.6)",
-  },
-  toastText: {
-    color: "#d1fae5",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  signOutText: {
-    fontSize: 15,
+  logoutText: {
+    fontSize: 16,
     fontWeight: "600",
     color: "#ef4444",
-    marginLeft: 8,
   },
-  settingItemDanger: {
-    borderBottomWidth: 0,
-  },
-  settingTextDanger: {
-    flex: 1,
-    fontSize: 15,
-    color: "#ef4444",
-  },
-  deleteIconContainer: {
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-  deleteIconBg: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deleteTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#fff",
+
+  // Version
+  versionText: {
     textAlign: "center",
-    marginBottom: 12,
-  },
-  deleteDescription: {
-    fontSize: 14,
-    color: "#9ca3af",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  deleteButtons: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  cancelDeleteButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    alignItems: "center",
-  },
-  cancelDeleteText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  confirmDeleteButton: {
-    flex: 1,
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  confirmDeleteGradient: {
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  confirmDeleteText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  cancelIconContainer: {
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-  cancelIconBg: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  cancelDescription: {
-    fontSize: 14,
-    color: "#9ca3af",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  keepPremiumButton: {
-    flex: 1,
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  keepPremiumGradient: {
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  keepPremiumText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#000",
-  },
-  confirmCancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    alignItems: "center",
-  },
-  confirmCancelText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#9ca3af",
-  },
-  receiptModal: {
-    width: "100%",
-    maxWidth: 380,
-    borderRadius: 24,
-    overflow: "hidden",
-  },
-  receiptModalGradient: {
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.3)",
-  },
-  receiptModalTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  receiptPreview: {
-    width: "100%",
-    height: 220,
-    borderRadius: 16,
-    marginBottom: 16,
-  },
-  receiptPlaceholder: {
-    width: "100%",
-    height: 220,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 16,
-  },
-  receiptPlaceholderText: {
-    fontSize: 13,
-    color: "#cbd5e1",
-  },
-  receiptCheckRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
-  },
-  receiptCheckBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: "#22c55e",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  receiptCheckBoxChecked: {
-    backgroundColor: "#22c55e",
-  },
-  receiptCheckText: {
-    fontSize: 13,
-    color: "#d1fae5",
-    flex: 1,
-    lineHeight: 18,
-  },
-  receiptErrorText: {
     fontSize: 12,
-    color: "#fca5a5",
-    marginBottom: 8,
+    color: "#94a3b8",
+    marginTop: 8,
   },
-  receiptSuccessText: {
-    fontSize: 12,
-    color: "#86efac",
-    marginBottom: 8,
-  },
-  receiptModalActions: {
-    gap: 10,
-  },
-  receiptActionButton: {
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  receiptActionDisabled: {
-    opacity: 0.7,
-  },
-  receiptActionGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-  },
-  receiptActionText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  receiptActionSecondary: {
-    marginTop: 2,
-  },
-  nicknameModal: {
-    width: "100%",
-    maxWidth: 360,
-    borderRadius: 24,
-    overflow: "hidden",
-  },
-  nicknameModalGradient: {
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-  },
-  nicknameModalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  nicknameInputContainer: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.4)",
-    backgroundColor: "rgba(15, 23, 42, 0.7)",
-    marginBottom: 10,
-  },
-  nicknameInput: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    color: "#fff",
-    fontSize: 15,
-  },
-  nicknameAvailabilityText: {
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  nicknameAvailable: {
-    color: "#10b981",
-  },
-  nicknameUnavailable: {
-    color: "#f87171",
-  },
-  nicknameErrorText: {
-    fontSize: 12,
-    color: "#fca5a5",
-    marginBottom: 8,
-  },
-  nicknameActionRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 6,
-  },
-  nicknameCancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "rgba(148, 163, 184, 0.2)",
-  },
-  nicknameCancelText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#cbd5e1",
-  },
-  nicknameSaveButton: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  nicknameSaveGradient: {
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  nicknameSaveText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#fff",
-  },
+
+  // Modal
   modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
   },
   modalContent: {
-    width: "100%",
-    maxWidth: 360,
-    borderRadius: 24,
-    overflow: "hidden",
-  },
-  modalGradient: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 24,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    maxHeight: "80%",
   },
-  modalClose: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    zIndex: 1,
-  },
-  modalLogo: {
-    width: 174,
-    height: 174,
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#fff",
-    textAlign: "center",
-  },
-  modalPrice: {
-    fontSize: 16,
-    color: "#fbbf24",
-    textAlign: "center",
-    marginTop: 4,
-    marginBottom: 24,
-  },
-  modalFeatures: {
-    marginBottom: 24,
-  },
-  modalFeatureRow: {
-    flexDirection: "row",
-  },
-  modalFeatureCol: {
-    flex: 1,
-  },
-  modalFeatureDivider: {
-    width: 1,
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
-    marginHorizontal: 16,
-  },
-  modalFeatureLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#9ca3b8",
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
-  modalFeatureLabelPremium: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#fbbf24",
-    marginBottom: 12,
-    letterSpacing: 0.5,
-  },
-  modalFeature: {
+  modalHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
-  },
-  modalFeatureText: {
-    fontSize: 13,
-    color: "#fff",
-    marginLeft: 8,
-  },
-  modalFeatureTextDisabled: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginLeft: 8,
-  },
-  modalButton: {
-    borderRadius: 14,
-    overflow: "hidden",
-    marginBottom: 12,
-  },
-  modalButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#000",
-    marginLeft: 8,
-  },
-  modalDisclaimer: {
-    fontSize: 12,
-    color: "#6b7280",
-    textAlign: "center",
-  },
-  familyHeader: {
-    flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  addMemberButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "rgba(251, 191, 36, 0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.3)",
-  },
-  addMemberText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#fbbf24",
-  },
-  familyList: {
-    gap: 12,
-  },
-  familyMemberCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
-    ...createShadow("#10b981", 0, 2, 0.1),
-  },
-  familyPendingCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "rgba(245, 158, 11, 0.1)",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.25)",
-    ...createShadow("#f59e0b", 0, 2, 0.1),
-  },
-  familyMemberIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(139, 92, 246, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  familyMemberInfo: {
-    flex: 1,
-  },
-  familyMemberName: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#fff",
-    marginBottom: 2,
-  },
-  familyMemberEmail: {
-    fontSize: 13,
-    color: "#9ca3af",
-  },
-  familyPendingText: {
-    fontSize: 12,
-    color: "#f59e0b",
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  removeMemberButton: {
-    padding: 4,
-  },
-  familyEmpty: {
-    alignItems: "center",
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  familyEmptyText: {
-    fontSize: 14,
-    color: "#9ca3af",
-    textAlign: "center",
-    marginTop: 12,
-    lineHeight: 20,
-  },
-  familyModalIcon: {
-    alignSelf: "center",
     marginBottom: 20,
   },
-  familyModalIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1e293b",
+  },
+
+  // Member Detail
+  memberDetail: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  memberDetailAvatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  memberDetailImage: {
+    width: "100%",
+    height: "100%",
+  },
+  memberDetailPlaceholder: {
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
-  modalSubtitle: {
-    fontSize: 14,
-    color: "#9ca3b8",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  familyInput: {
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
+  memberDetailInitial: {
+    fontSize: 40,
+    fontWeight: "700",
     color: "#fff",
-    marginBottom: 16,
   },
-  familyErrorText: {
-    fontSize: 13,
+  memberDetailName: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 4,
+  },
+  memberDetailEmail: {
+    fontSize: 16,
+    color: "#64748b",
+    marginBottom: 24,
+  },
+  removeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: "#fef2f2",
+    borderRadius: 12,
+  },
+  removeButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ef4444",
+    marginLeft: 8,
+  },
+
+  // Invite Modal
+  inviteModal: {
+    paddingBottom: 40,
+  },
+  inviteDescription: {
+    fontSize: 15,
+    color: "#64748b",
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  inviteInput: {
+    backgroundColor: "#f1f5f9",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: "#1e293b",
+    marginBottom: 12,
+  },
+  inviteError: {
+    fontSize: 14,
     color: "#ef4444",
     marginBottom: 12,
-    textAlign: "center",
   },
-  familySuccessText: {
-    fontSize: 13,
-    color: "#10b981",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  familyInviteButton: {
-    borderRadius: 14,
-    overflow: "hidden",
-  },
-  familyInviteGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    gap: 8,
-  },
-  familyInviteText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0b0814",
-  },
-  // Admin Detailed Stats
-  detailedStatsSection: {
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(139, 92, 246, 0.2)",
-  },
-  detailedStatsTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#e5e7eb",
-    marginBottom: 12,
-  },
-  detailedStatsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 16,
-  },
-  detailedStatItem: {
-    flex: 1,
-    minWidth: "45%",
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
+  inviteButton: {
     borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
+    overflow: "hidden",
+    marginTop: 8,
   },
-  detailedStatValue: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#fff",
-    marginBottom: 4,
-  },
-  detailedStatLabel: {
-    fontSize: 11,
-    color: "#9ca3b8",
+  inviteNote: {
+    fontSize: 13,
+    color: "#94a3b8",
     textAlign: "center",
-  },
-  savingsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.2)",
-  },
-  savingsText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#10b981",
-  },
-  // Admin Users Modal
-  adminModalHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(139, 92, 246, 0.2)",
-    marginBottom: 16,
-  },
-  adminUsersList: {
-    flex: 1,
-  },
-  adminUserCard: {
-    backgroundColor: "rgba(139, 92, 246, 0.08)",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.2)",
-  },
-  adminUserHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  adminUserAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  adminUserAvatarText: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#fff",
-  },
-  adminUserInfo: {
-    flex: 1,
-  },
-  adminUserNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 2,
-  },
-  adminUserName: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#fff",
-  },
-  adminUserEmail: {
-    fontSize: 13,
-    color: "#9ca3b8",
-  },
-  adminUserStats: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 8,
-  },
-  adminUserStatItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-  },
-  adminUserStatText: {
-    fontSize: 12,
-    color: "#cbd5e1",
-  },
-  adminUserMeta: {
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(139, 92, 246, 0.15)",
-  },
-  adminUserMetaText: {
-    fontSize: 11,
-    color: "#6b7280",
-    marginBottom: 2,
-  },
-  emptyAdminUsers: {
-    alignItems: "center",
-    paddingVertical: 60,
-  },
-  emptyAdminUsersText: {
-    fontSize: 14,
-    color: "#6b7280",
-    marginTop: 12,
-  },
-  premiumBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fbbf24",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 3,
-  },
-  premiumBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#0b0814",
-  },
-  // AI Suggestions Styles
-  aiSuggestionsCard: {
     marginTop: 16,
-    borderRadius: 20,
-    overflow: "hidden",
   },
-  aiSuggestionsGradient: {
-    padding: 20,
+
+  // Settings Modal
+  settingsModal: {
+    paddingBottom: 40,
   },
-  aiSuggestionsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 8,
+  settingsSection: {
+    marginBottom: 24,
   },
-  aiSuggestionsTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#f3f4f6",
-  },
-  aiSuggestionsCount: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#ec4899",
-    marginBottom: 4,
-  },
-  aiSuggestionsSubtitle: {
-    fontSize: 13,
-    color: "#9ca3b8",
-  },
-  aiSuggestionCard: {
-    backgroundColor: "rgba(15, 10, 30, 0.5)",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(236, 72, 153, 0.2)",
-  },
-  aiPriorityBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  aiPriorityHigh: {
-    backgroundColor: "rgba(239, 68, 68, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.4)",
-  },
-  aiPriorityMedium: {
-    backgroundColor: "rgba(251, 191, 36, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(251, 191, 36, 0.4)",
-  },
-  aiPriorityLow: {
-    backgroundColor: "rgba(16, 185, 129, 0.2)",
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.4)",
-  },
-  aiPriorityText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#f3f4f6",
-  },
-  aiTypeBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  aiTypeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#c4b5fd",
-  },
-  aiQueryContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
-    borderRadius: 10,
-  },
-  aiQueryText: {
+  settingsSectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#e9d5ff",
-    flex: 1,
-  },
-  aiSuggestionText: {
-    fontSize: 14,
-    color: "#d1d5db",
-    lineHeight: 20,
+    color: "#8b5cf6",
     marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  aiMetricsContainer: {
+  settingsItem: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(236, 72, 153, 0.15)",
-  },
-  aiMetric: {
-    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 4,
-  },
-  aiMetricText: {
-    fontSize: 12,
-    color: "#9ca3b8",
-  },
-  // Scraper Monitoring Styles
-  scraperMonitoringCard: {
-    backgroundColor: "rgba(15, 10, 30, 0.4)",
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "rgba(59, 130, 246, 0.3)",
-  },
-  scraperHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  scraperTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#f3f4f6",
-  },
-  scraperRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  scraperItem: {
-    flex: 1,
-    backgroundColor: "rgba(15, 10, 30, 0.6)",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(59, 130, 246, 0.2)",
-  },
-  scraperLabel: {
-    fontSize: 12,
-    color: "#9ca3b8",
-    marginBottom: 6,
-  },
-  scraperStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  scraperTime: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#e2e8f0",
-  },
-  // User Suggestions Styles
-  suggestionsCard: {
-    backgroundColor: "rgba(15, 10, 30, 0.4)",
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "rgba(236, 72, 153, 0.3)",
-  },
-  suggestionsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  suggestionsTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#f3f4f6",
-    flex: 1,
-  },
-  suggestionsBadge: {
-    backgroundColor: "#fbbf24",
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    minWidth: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  suggestionsBadgeText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#0b0814",
-  },
-  suggestionsRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  suggestionStat: {
-    flex: 1,
-    alignItems: "center",
-    backgroundColor: "rgba(15, 10, 30, 0.6)",
-    borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: "rgba(236, 72, 153, 0.2)",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
   },
-  suggestionStatValue: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#f3f4f6",
-    marginBottom: 4,
-  },
-  suggestionStatLabel: {
-    fontSize: 11,
-    color: "#9ca3b8",
-    textAlign: "center",
-  },
-  suggestionsFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(236, 72, 153, 0.15)",
-  },
-  suggestionsFooterText: {
-    fontSize: 12,
-    color: "#fbcfe8",
-    fontWeight: "600",
-  },
-  userSuggestionCard: {
-    backgroundColor: "rgba(15, 10, 30, 0.5)",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(236, 72, 153, 0.2)",
-  },
-  userSuggestionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 6,
-  },
-  userSuggestionTitle: {
-    flex: 1,
+  settingsLabel: {
     fontSize: 15,
-    fontWeight: "700",
-    color: "#f8fafc",
+    color: "#64748b",
   },
-  userSuggestionStatus: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1,
-  },
-  userSuggestionStatusText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#f8fafc",
-  },
-  userSuggestionStatusPending: {
-    backgroundColor: "rgba(251, 191, 36, 0.18)",
-    borderColor: "rgba(251, 191, 36, 0.5)",
-  },
-  userSuggestionStatusReviewing: {
-    backgroundColor: "rgba(59, 130, 246, 0.18)",
-    borderColor: "rgba(59, 130, 246, 0.5)",
-  },
-  userSuggestionStatusApproved: {
-    backgroundColor: "rgba(16, 185, 129, 0.18)",
-    borderColor: "rgba(16, 185, 129, 0.5)",
-  },
-  userSuggestionStatusRejected: {
-    backgroundColor: "rgba(248, 113, 113, 0.2)",
-    borderColor: "rgba(248, 113, 113, 0.5)",
-  },
-  userSuggestionStatusDuplicate: {
-    backgroundColor: "rgba(148, 163, 184, 0.18)",
-    borderColor: "rgba(148, 163, 184, 0.4)",
-  },
-  userSuggestionMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 8,
-  },
-  userSuggestionMeta: {
-    fontSize: 11,
-    color: "#cbd5e1",
-  },
-  userSuggestionDescription: {
-    fontSize: 13,
-    color: "#e2e8f0",
-    lineHeight: 18,
-  },
-  // Feedback Button Styles
-  feedbackButton: {
-    borderRadius: 16,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(236, 72, 153, 0.3)",
-  },
-  feedbackButtonGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    gap: 12,
-  },
-  feedbackButtonContent: {
-    flex: 1,
-  },
-  feedbackButtonHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  feedbackButtonTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#f3f4f6",
-  },
-  feedbackButtonSubtitle: {
-    fontSize: 13,
-    color: "#9ca3b8",
-    lineHeight: 18,
-  },
-  feedbackModal: {
-    width: "100%",
-    maxWidth: 360,
-    borderRadius: 24,
-    overflow: "hidden",
-  },
-  feedbackModalGradient: {
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: "rgba(236, 72, 153, 0.3)",
-  },
-  feedbackModalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#fff",
-    textAlign: "center",
-    marginBottom: 6,
-  },
-  feedbackModalSubtitle: {
-    fontSize: 12,
-    color: "#cbd5e1",
-    textAlign: "center",
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  feedbackTypeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  feedbackTypeChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: "rgba(148, 163, 184, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(148, 163, 184, 0.3)",
-  },
-  feedbackTypeChipActive: {
-    backgroundColor: "rgba(236, 72, 153, 0.2)",
-    borderColor: "rgba(236, 72, 153, 0.4)",
-  },
-  feedbackTypeText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#cbd5e1",
-  },
-  feedbackTypeTextActive: {
-    color: "#fce7f3",
-  },
-  feedbackInputContainer: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.25)",
-    backgroundColor: "rgba(15, 23, 42, 0.7)",
-    marginBottom: 10,
-  },
-  feedbackInput: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    color: "#fff",
-    fontSize: 14,
-  },
-  feedbackInputMultiline: {
-    minHeight: 90,
-    textAlignVertical: "top",
-  },
-  feedbackError: {
-    fontSize: 12,
-    color: "#fca5a5",
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  feedbackSuccess: {
-    fontSize: 12,
-    color: "#6ee7b7",
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  feedbackActions: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
-  },
-  feedbackCancel: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "rgba(148, 163, 184, 0.2)",
-  },
-  feedbackCancelText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#e2e8f0",
-  },
-  feedbackSubmit: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  feedbackSubmitDisabled: {
-    opacity: 0.7,
-  },
-  feedbackSubmitGradient: {
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  feedbackSubmitText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: 0.4,
+  settingsValue: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1e293b",
   },
 });
-
-export default function ProfileScreen() {
-  return (
-    <ProfileErrorBoundary>
-      <ProfileScreenInner />
-    </ProfileErrorBoundary>
-  );
-}
 
