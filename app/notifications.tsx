@@ -153,7 +153,7 @@ export default function NotificationsScreen() {
           </View>
 
           <View style={styles.noteContainer}>
-            <Ionicons name="information-circle" size={18} color="#6b7280" />
+            <Ionicons name="help-circle" size={18} color="#6b7280" />
             <Text style={styles.noteText}>
               Obvestila lahko kadarkoli izklopis. Tvoji podatki so varni in jih ne delimo s tretjimi osebami.
             </Text>
