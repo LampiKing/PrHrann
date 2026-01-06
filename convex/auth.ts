@@ -75,6 +75,15 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
 export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 
 const normalizeUrl = (value?: string) => value?.trim().replace(/\/$/, "");
+const ensureProtocol = (value: string) => {
+    if (/^https?:\/\//i.test(value)) {
+        return value;
+    }
+    if (/^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(value)) {
+        return `http://${value}`;
+    }
+    return `https://${value}`;
+};
 const isString = (value?: string | null): value is string => Boolean(value);
 const fallbackSiteUrl = "https://www.prhran.com";
 const rawSiteUrl = normalizeUrl(
@@ -82,9 +91,10 @@ const rawSiteUrl = normalizeUrl(
     process.env.EXPO_PUBLIC_SITE_URL ||
     fallbackSiteUrl
 ) || fallbackSiteUrl;
-const siteUrl = rawSiteUrl.includes(".convex.cloud")
-    ? rawSiteUrl.replace(".convex.cloud", ".convex.site")
-    : rawSiteUrl;
+const baseSiteUrl = ensureProtocol(rawSiteUrl);
+const siteUrl = baseSiteUrl.includes(".convex.cloud")
+    ? baseSiteUrl.replace(".convex.cloud", ".convex.site")
+    : baseSiteUrl;
 const isDev = process.env.NODE_ENV !== "production";
 const localhostOrigins = [
     ...Array.from({ length: 100 }, (_, i) => `http://localhost:${8000 + i}`),

@@ -256,7 +256,9 @@ export default function AuthScreen() {
 
   const getResetRedirectUrl = () => {
     if (Platform.OS === "web" && typeof window !== "undefined") {
-      const baseUrl = process.env.EXPO_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") || window.location.origin;
+      const rawEnvUrl = process.env.EXPO_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+      const envUrl = rawEnvUrl && /^https?:\/\//i.test(rawEnvUrl) ? rawEnvUrl : undefined;
+      const baseUrl = envUrl || window.location.origin;
       return `${baseUrl}/reset`;
     }
     return "myapp://reset";

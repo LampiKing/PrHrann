@@ -594,16 +594,7 @@ export default function ProfileScreen() {
     },
   ];
 
-  if (hasFamilyPlan) {
-    highlightItems.push({
-      key: "family-slots",
-      icon: "people",
-      label: "Prosta mesta",
-      value: familyData ? `${availableSlots}` : "...",
-      colors: ["rgba(168, 85, 247, 0.18)", "rgba(124, 58, 237, 0.06)"],
-      iconColor: "#c084fc",
-    });
-  } else if (profile.isPremium) {
+  if (!hasFamilyPlan && profile.isPremium) {
     highlightItems.push({
       key: "validity",
       icon: "calendar",

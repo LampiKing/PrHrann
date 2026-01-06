@@ -1,11 +1,11 @@
-# PrHran Premium - Funkcionalnosti
+﻿# PrHran Premium - Funkcionalnosti
 
-## 💎 Premium Plani
+## đź’Ž Premium Plani
 
-### Premium Solo - 1,99€/mesec
+### Premium Solo - 1,99â‚¬/mesec
 **Vse premium funkcije za eno osebo**
 
-✅ **Vključeno:**
+âś… **VkljuÄŤeno:**
 - Neomejeno iskanje izdelkov
 - Nakupovalni seznami
 - Obvestila o cenah (price alerts)
@@ -13,38 +13,38 @@
 - Ekskluzivni kuponi (do 30% popust)
 - Prednostna podpora 24/7
 
-**Najboljše za:** Posamezniki in študenti
+**NajboljĹˇe za:** Posamezniki in Ĺˇtudenti
 
 ---
 
-### Premium Family - 2,99€/mesec
-**Vse Premium Solo funkcije + družinsko deljenje**
+### Premium Family - 2,99â‚¬/mesec
+**Vse Premium Solo funkcije + druĹľinsko deljenje**
 
-✅ **Vključeno vse iz Solo +:**
+âś… **VkljuÄŤeno vse iz Solo +:**
 - **Do 3 uporabniki skupaj**
 - Sinhronizacija nakupovalnih seznamov
 - GEO-lock varnost (IP tracking)
 - Skupni prihranki in statistika
 - Varnostni nadzor vseh sej
 
-**Najboljše za:** Družine in gospodinjstva
+**NajboljĹˇe za:** DruĹľine in gospodinjstva
 
-**Prihranek:** 3 × 1,99€ = 5,97€ → 2,99€ = **Prihraniš 2,98€/mesec!**
+**Prihranek:** 3 Ă— 1,99â‚¬ = 5,97â‚¬ â†’ 2,99â‚¬ = **PrihraniĹˇ 2,98â‚¬/mesec!**
 
 ---
 
-## 📋 Nove funkcije (Premium)
+## đź“‹ Nove funkcije (Premium)
 
 ### 1. Nakupovalni Seznami
 
-**Kaj omogoča:**
-- Ustvari neomejeno seznamov (npr. "Tedenski nakup", "Za žur")
+**Kaj omogoÄŤa:**
+- Ustvari neomejeno seznamov (npr. "Tedenski nakup", "Za Ĺľur")
 - Dodaj izdelke z iskanja ali iz rezultatov
-- App **izračuna najcenejšo trgovino** za celoten seznam
+- App **izraÄŤuna najcenejĹˇo trgovino** za celoten seznam
 - Obkljukaj kupljene izdelke
 
 **Family deljenje:**
-- Deli sezname z družinskimi člani (Premium Family)
+- Deli sezname z druĹľinskimi ÄŤlani (Premium Family)
 - Vsi vidijo real-time spremembe
 - Vsak lahko dodaja/odstranja izdelke
 
@@ -54,34 +54,34 @@ Seznam: "Tedenski nakup"
 - Mleko (1L)
 - Kruh (500g)
 - Jajca (10 kom)
-- Paradižnik (1kg)
+- ParadiĹľnik (1kg)
 
-App pove: "Najceneje v Sparu - 12,45€"
-          (V Mercatorju bi bilo 14,80€)
+App pove: "Najceneje v Sparu - 12,45â‚¬"
+          (V Mercatorju bi bilo 14,80â‚¬)
 ```
 
 ---
 
 ### 2. Price Alerts (Obvestila o Cenah)
 
-**Kaj omogoča:**
+**Kaj omogoÄŤa:**
 - Nastavi ciljno ceno za izdelek
-- Ko cena pade → **push notification**
+- Ko cena pade â†’ **push notification**
 - Spremljaj do 50 izdelkov hkrati
 
 **Primer:**
 ```
 Izdelek: Kava Lavazza
-Trenutna cena: 6,99€
-Cilja cena: 4,99€
+Trenutna cena: 6,99â‚¬
+Cilja cena: 4,99â‚¬
 
-Ko pade pod 5€ → 
-"🎉 Kava Lavazza zdaj 4,89€ v Sparu! (prej 6,99€)"
+Ko pade pod 5â‚¬ â†’ 
+"đźŽ‰ Kava Lavazza zdaj 4,89â‚¬ v Sparu! (prej 6,99â‚¬)"
 ```
 
 **Koristno za:**
-- Izdelke ki jih kupiš redno
-- Drage izdelke (čakaj akcijo)
+- Izdelke ki jih kupiĹˇ redno
+- Drage izdelke (ÄŤakaj akcijo)
 - Planiranje nakupov
 
 ---
@@ -91,182 +91,183 @@ Ko pade pod 5€ →
 **Statistika prihrankov:**
 - **Ta mesec:** Koliko si prihranil
 - **Letos:** Skupni prihranki
-- **Top prihranek:** Najboljši deal meseca
-- **Trgovina meseca:** Kje si največ prihranil
+- **Top prihranek:** NajboljĹˇi deal meseca
+- **Trgovina meseca:** Kje si najveÄŤ prihranil
 
 **Primer prikaza:**
 ```
-💰 Tega meseca: 48,50€
-💸 Letos skupaj: 584€
+đź’° Tega meseca: 48,50â‚¬
+đź’¸ Letos skupaj: 584â‚¬
 
-🏆 Top prihranek:
-    Kava v Sparu (-40%) → 4,20€ prihraneno
+đźŹ† Top prihranek:
+    Kava v Sparu (-40%) â†’ 4,20â‚¬ prihraneno
 
-🏪 Trgovina meseca: Spar
-    15 nakupov → 89,30€ prihrankov
+đźŹŞ Trgovina meseca: Spar
+    15 nakupov â†’ 89,30â‚¬ prihrankov
 ```
 
 **Graf zadnjih 6 mesecev:**
-- Vidiš trend prihrankov
-- Spodbuda za več uporabe app-a
+- VidiĹˇ trend prihrankov
+- Spodbuda za veÄŤ uporabe app-a
 
 ---
 
 ### 4. Store Locator (Zemljevid Trgovin)
 
-**Kaj prikaže:**
+**Kaj prikaĹľe:**
 - Vse trgovine v okolici (Google Maps)
-- Filter po trgovini (Spar, Mercator, Tuš...)
-- **Priporočilo:** Najboljša trgovina za tvoj seznam
+- Filter po trgovini (Spar, Mercator, TuĹˇ...)
+- **PriporoÄŤilo:** NajboljĹˇa trgovina za tvoj seznam
 - Navigation do trgovine
-- Odpiralni čas
+- Odpiralni ÄŤas
 
 **Integracija z nakupovalnim seznamom:**
 ```
 Tvoj seznam: "Vikend"
 
-Zemljevid prikaže:
-🟢 Spar (1,2 km) - 18,90€ ⭐ NAJCENEJE
-🔵 Mercator (0,8 km) - 22,40€
-🟡 Tuš (2,1 km) - 21,10€
+Zemljevid prikaĹľe:
+đźź˘ Spar (1,2 km) - 18,90â‚¬ â­ NAJCENEJE
+đź”µ Mercator (0,8 km) - 22,40â‚¬
+đźźˇ TuĹˇ (2,1 km) - 21,10â‚¬
 
-Klikneš Spar → Navigation
+KlikneĹˇ Spar â†’ Navigation
 ```
 
 ---
 
-## 🎯 Premium vs. Brezplačno
+## đźŽŻ Premium vs. BrezplaÄŤno
 
-| Funkcija | Brezplačno | Premium Solo | Premium Family |
+| Funkcija | BrezplaÄŤno | Premium Solo | Premium Family |
 |----------|------------|--------------|----------------|
-| **Iskanje** | 3/dan | ♾️ Neomejeno | ♾️ Neomejeno |
-| **Nakupovalni seznami** | ❌ | ✅ | ✅ + Deljenje |
-| **Price alerts** | ❌ | ✅ | ✅ |
-| **Savings tracker** | ❌ | ✅ | ✅ + Skupna stat. |
-| **Store locator** | ❌ | ✅ | ✅ |
-| **Ekskluzivni kuponi** | ❌ | ✅ | ✅ |
+| **Iskanje** | 3/dan | â™ľď¸Ź Neomejeno | â™ľď¸Ź Neomejeno |
+| **Nakupovalni seznami** | âťŚ | âś… | âś… + Deljenje |
+| **Price alerts** | âťŚ | âś… | âś… |
+| **Savings tracker** | âťŚ | âś… | âś… + Skupna stat. |
+| **Store locator** | âťŚ | âś… | âś… |
+| **Ekskluzivni kuponi** | âťŚ | âś… | âś… |
 | **Uporabniki** | 1 | 1 | 3 |
-| **Deljenje seznamov** | ❌ | ❌ | ✅ |
+| **Deljenje seznamov** | âťŚ | âťŚ | âś… |
 | **Varnostni nadzor** | Osnoven | Osnoven | Napreden (GEO) |
-| **Cena** | **0€** | **1,99€/mesec** | **2,99€/mesec** |
+| **Cena** | **0â‚¬** | **1,99â‚¬/mesec** | **2,99â‚¬/mesec** |
 
 ---
 
-## 🔄 Kako deluje Family Sharing
+## đź”„ Kako deluje Family Sharing
 
 ### Lastnik Premium Family lahko:
-1. **Povabi do 2 člana** (skupaj 3 osebe)
-2. **Deli nakupovalne sezname** z družino
+1. **Povabi do 2 ÄŤlana** (skupaj 3 osebe)
+2. **Deli nakupovalne sezname** z druĹľino
 3. **Spremlja vse aktivnosti** (varnostni nadzor)
-4. **Upravlja člane** (odstrani/dodaj)
+4. **Upravlja ÄŤlane** (odstrani/dodaj)
 
-### Družinski člani dobijo:
+### DruĹľinski ÄŤlani dobijo:
 - Vse Premium Solo funkcije
 - Dostop do deljenih seznamov
 - Real-time sinhronizacija
 - Skupna statistika prihrankov
 
 ### Varnostne omejitve:
-- **GEO-lock:** Vsi morajo biti v Sloveniji (preprečuje deljenje s tujino)
+- **GEO-lock:** Vsi morajo biti v Sloveniji (prepreÄŤuje deljenje s tujino)
 - **IP tracking:** Zazna sumljive prijave
 - **Max 2 aktivni seji** na osebo
 
 ---
 
-## 💳 Plačilne Metode
+## đź’ł PlaÄŤilne Metode
 
 ### Podprte:
-- 🍎 **Apple Pay** (iOS)
-- 🤖 **Google Pay** (Android)
-- 💳 **Kreditna kartica** (Visa, Mastercard, Maestro)
+- đźŤŽ **Apple Pay** (iOS)
+- đź¤– **Google Pay** (Android)
+- đź’ł **Kreditna kartica** (Visa, Mastercard, Maestro)
 
 ### Podrobnosti:
-- **Auto-renewal:** Mesečno samodejno podaljšanje
-- **Prekliči kadarkoli:** Brez skritih stroškov
-- **Varno plačilo:** Stripe Payment Processing
-- **7-dni brezplačno:** Preizkusi brez obveznosti (TODO - implementiraj)
+- **Auto-renewal:** MeseÄŤno samodejno podaljĹˇanje
+- **PrekliÄŤi kadarkoli:** Brez skritih stroĹˇkov
+- **Varno plaÄŤilo:** Stripe Payment Processing
+- **7-dni brezplaÄŤno:** Preizkusi brez obveznosti (TODO - implementiraj)
 
 ---
 
-## 📱 Kako nadgraditi?
+## đź“± Kako nadgraditi?
 
 ### Na aplikaciji:
 1. Pojdi v **Profil** (zavihek)
 2. Klikni **"Nadgradi na Premium"**
-3. Izberi plan: **Solo (1,99€)** ali **Family (2,99€)**
-4. Izberi plačilno metodo
-5. Potrdi plačilo
+3. Izberi plan: **Solo (1,99â‚¬)** ali **Family (2,99â‚¬)**
+4. Izberi plaÄŤilno metodo
+5. Potrdi plaÄŤilo
 
 ### Confirmation email:
-Prejmeš email z:
-- Račun za plačilo
+PrejmeĹˇ email z:
+- RaÄŤun za plaÄŤilo
 - Aktivacijo Premium
-- Navodila za Family sharing (če Family plan)
+- Navodila za Family sharing (ÄŤe Family plan)
 
 ---
 
-## ❓ Pogosta vprašanja
+## âť“ Pogosta vpraĹˇanja
 
-**Q: Ali lahko prekličem kadarkoli?**
-A: Da, brez stroškov. Dostop do premium funkcij ostane do konca plačanega obdobja.
+**Q: Ali lahko prekliÄŤem kadarkoli?**
+A: Da, brez stroĹˇkov. Dostop do premium funkcij ostane do konca plaÄŤanega obdobja.
 
-**Q: Kaj se zgodi če prekličem Family plan?**
-A: Vsi člani izgubijo premium dostop. Deljeni seznami ostanejo, ampak brez sync-a.
+**Q: Kaj se zgodi ÄŤe prekliÄŤem Family plan?**
+A: Vsi ÄŤlani izgubijo premium dostop. Deljeni seznami ostanejo, ampak brez sync-a.
 
 **Q: Ali lahko preklopim med Solo in Family?**
-A: Da, kadarkoli v nastavitvah. Razlika v ceni se proporcionalno obračuna.
+A: Da, kadarkoli v nastavitvah. Razlika v ceni se proporcionalno obraÄŤuna.
 
-**Q: Kje vidim svoje račune?**
-A: Profil → Nastavitve → Zgodovina plačil
+**Q: Kje vidim svoje raÄŤune?**
+A: Profil â†’ Nastavitve â†’ Zgodovina plaÄŤil
 
 **Q: Ali so cene z DDV?**
-A: Da, vse cene vključujejo 22% DDV.
+A: Da, vse cene vkljuÄŤujejo 22% DDV.
 
 ---
 
-## 🚀 Kaj prihaja (Roadmap)
+## đźš€ Kaj prihaja (Roadmap)
 
 ### Q1 2026:
-- ✅ Shopping lists
-- ✅ Price alerts  
-- ✅ Savings tracker
-- ✅ Store locator
-- ⏳ Barcode scanner (v trgovini)
+- âś… Shopping lists
+- âś… Price alerts  
+- âś… Savings tracker
+- âś… Store locator
+- âŹł Barcode scanner (v trgovini)
 
 ### Q2 2026:
-- ⏳ Weekly deals dashboard
-- ⏳ Cenovna zgodovina (grafi 30/60/90 dni)
-- ⏳ Smart suggestions (AI priporočila)
+- âŹł Weekly deals dashboard
+- âŹł Cenovna zgodovina (grafi 30/60/90 dni)
+- âŹł Smart suggestions (AI priporoÄŤila)
 
 ### Q3 2026:
-- ⏳ Recipe integration (recepti z akcijskimi izdelki)
-- ⏳ Loyalty cards digitalizacija
-- ⏳ Family budget planner
+- âŹł Recipe integration (recepti z akcijskimi izdelki)
+- âŹł Loyalty cards digitalizacija
+- âŹł Family budget planner
 
 ---
 
-## 💡 Priporočila za maksimalne prihranke
+## đź’ˇ PriporoÄŤila za maksimalne prihranke
 
-### Za Brezplačne uporabnike:
-1. Uporabljaj 3 iskanja pametno (načrtuj vnaprej)
-2. Dodaj izdelke v košarico (tracking cen)
+### Za BrezplaÄŤne uporabnike:
+1. Uporabljaj 3 iskanja pametno (naÄŤrtuj vnaprej)
+2. Dodaj izdelke v koĹˇarico (tracking cen)
 3. Spremljaj kupone (brez premium omejitev)
 
 ### Za Premium Solo:
-1. Nastavi price alerts za izdelke ki jih kupiš redno
-2. Ustvari sezname po kategorijah ("Tedensko", "Mesečno")
+1. Nastavi price alerts za izdelke ki jih kupiĹˇ redno
+2. Ustvari sezname po kategorijah ("Tedensko", "MeseÄŤno")
 3. Preveri savings tracker vsak teden
 4. Uporabljaj store locator za optimalno pot
 
 ### Za Premium Family:
 1. Deli "Gospodinjstvo" seznam z vsemi
-2. Vsak doda kar potrebuje → 1 nakup/teden
-3. Primerjajte prihranke med člani (gamification)
+2. Vsak doda kar potrebuje â†’ 1 nakup/teden
+3. Primerjajte prihranke med ÄŤlani (gamification)
 4. Nastavite family budget goal
 
 ---
 
-**Vprašanja ali težave?**
-📧 podpora@prhran.si
-📱 +386 XX XXX XXX
-🌐 www.prhran.si/pomoc
+**VpraĹˇanja ali teĹľave?**
+đź“§ podpora@prhran.com
+đź“± +386 XX XXX XXX
+đźŚ www.prhran.com/pomoc
+
