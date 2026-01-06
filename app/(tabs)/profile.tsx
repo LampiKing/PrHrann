@@ -14,6 +14,7 @@ import {
   Modal,
   TextInput,
   Dimensions,
+  Pressable,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
@@ -21,6 +22,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { authClient } from "@/lib/auth-client";
@@ -73,6 +75,10 @@ export default function ProfileScreen() {
   const [inviteError, setInviteError] = useState("");
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [sendingFeedback, setSendingFeedback] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -99,6 +105,7 @@ export default function ProfileScreen() {
   const inviteFamilyMember = useAction(api.familyPlan.inviteFamilyMember);
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
+  const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
 
   // ============================================================================
   // EFFECTS
@@ -242,6 +249,98 @@ export default function ProfileScreen() {
     }
   }, [router]);
 
+  // Handle profile picture change
+  const handleChangeProfilePicture = useCallback(async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Dovoljenje potrebno", "Za izbiro slike potrebujemo dostop do galerije.");
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      
+      setUploadingImage(true);
+
+      // Convert to data URI (base64)
+      const dataUri = `data:image/jpeg;base64,${asset.base64}`;
+      
+      // Save to Convex
+      const response = await updateProfilePicture({ profilePictureUrl: dataUri });
+      
+      if (response.success) {
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        Alert.alert("Uspešno", "Profilna slika je bila posodobljena!");
+      } else {
+        Alert.alert("Napaka", response.error || "Slike ni bilo mogoče shraniti.");
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      Alert.alert("Napaka", "Pri nalaganju slike je prišlo do napake.");
+    } finally {
+      setUploadingImage(false);
+    }
+  }, [updateProfilePicture]);
+
+  // Handle feedback submission
+  const handleSendFeedback = useCallback(async () => {
+    if (!feedbackMessage.trim()) {
+      Alert.alert("Napaka", "Prosim vnesite vaše sporočilo.");
+      return;
+    }
+
+    setSendingFeedback(true);
+    
+    try {
+      // Send email via simple mailto or fetch to backend
+      const subject = encodeURIComponent("PrHran - Predlog za izboljšavo");
+      const body = encodeURIComponent(
+        `Od: ${profile?.email || "Neznan uporabnik"}\n\n${feedbackMessage.trim()}`
+      );
+      
+      // For now, use Linking to open email client
+      const { Linking } = require("react-native");
+      const mailtoUrl = `mailto:prrhran@gmail.com?subject=${subject}&body=${body}`;
+      
+      const canOpen = await Linking.canOpenURL(mailtoUrl);
+      if (canOpen) {
+        await Linking.openURL(mailtoUrl);
+        setShowFeedbackModal(false);
+        setFeedbackMessage("");
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } else {
+        Alert.alert("Napaka", "Ni mogoče odpreti email aplikacije.");
+      }
+    } catch (error) {
+      console.error("Feedback error:", error);
+      Alert.alert("Napaka", "Sporočila ni bilo mogoče poslati.");
+    } finally {
+      setSendingFeedback(false);
+    }
+  }, [feedbackMessage, profile?.email]);
+
   // ============================================================================
   // RENDER HELPERS
   // ============================================================================
@@ -373,13 +472,16 @@ export default function ProfileScreen() {
             {/* Current User (Owner) */}
             <TouchableOpacity 
               style={styles.profileItem}
-              onPress={() => {
-                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
+              onPress={handleChangeProfilePicture}
               activeOpacity={0.8}
+              disabled={uploadingImage}
             >
               <View style={[styles.profileAvatarContainer, styles.profileAvatarSelected]}>
-                {profile.profilePictureUrl ? (
+                {uploadingImage ? (
+                  <View style={styles.profileAvatarPlaceholder}>
+                    <ActivityIndicator size="small" color="#fff" />
+                  </View>
+                ) : profile.profilePictureUrl ? (
                   <Image source={{ uri: profile.profilePictureUrl }} style={styles.profileAvatar} />
                 ) : (
                   <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.profileAvatarPlaceholder}>
@@ -388,6 +490,10 @@ export default function ProfileScreen() {
                     </Text>
                   </LinearGradient>
                 )}
+                {/* Camera icon overlay */}
+                <View style={styles.cameraIconOverlay}>
+                  <Ionicons name="camera" size={14} color="#fff" />
+                </View>
               </View>
               <Text style={styles.profileName} numberOfLines={1}>
                 {profile.nickname || profile.name || "Ti"}
@@ -474,12 +580,12 @@ export default function ProfileScreen() {
         <View style={styles.quickActions}>
           <TouchableOpacity 
             style={styles.quickActionItem}
-            onPress={() => router.push("/shopping-lists")}
+            onPress={() => setShowFeedbackModal(true)}
           >
             <View style={styles.quickActionIcon}>
-              <Ionicons name="list" size={24} color="#a855f7" />
+              <Ionicons name="chatbubble-ellipses" size={24} color="#a855f7" />
             </View>
-            <Text style={styles.quickActionText}>Seznami</Text>
+            <Text style={styles.quickActionText}>Predlogi</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -666,12 +772,11 @@ export default function ProfileScreen() {
         onRequestClose={() => setShowInviteModal(false)}
       >
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
-          <TouchableOpacity 
+          <Pressable 
             style={styles.modalOverlay} 
-            activeOpacity={1} 
             onPress={() => setShowInviteModal(false)}
           >
-            <View style={[styles.modalContent, styles.inviteModal]} onStartShouldSetResponder={() => true}>
+            <Pressable style={[styles.modalContent, styles.inviteModal]} onPress={(e) => e.stopPropagation()}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Povabi člana</Text>
                 <TouchableOpacity onPress={() => setShowInviteModal(false)}>
@@ -713,8 +818,8 @@ export default function ProfileScreen() {
               <Text style={styles.inviteNote}>
                 Preostala mesta: {availableSlots}
               </Text>
-            </View>
-          </TouchableOpacity>
+            </Pressable>
+          </Pressable>
         </BlurView>
       </Modal>
 
@@ -786,6 +891,65 @@ export default function ProfileScreen() {
               </View>
             </View>
           </TouchableOpacity>
+        </BlurView>
+      </Modal>
+
+      {/* ================================================================== */}
+      {/* FEEDBACK MODAL */}
+      {/* ================================================================== */}
+      
+      <Modal
+        visible={showFeedbackModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFeedbackModal(false)}
+      >
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <Pressable 
+            style={styles.modalOverlay} 
+            onPress={() => setShowFeedbackModal(false)}
+          >
+            <Pressable style={[styles.modalContent, styles.inviteModal]} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Predlogi za izboljšave</Text>
+                <TouchableOpacity onPress={() => setShowFeedbackModal(false)}>
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.inviteDescription}>
+                Imate idejo kako izboljšati aplikacijo? Pošljite nam vaše predloge!
+              </Text>
+              
+              <TextInput
+                style={[styles.inviteInput, styles.feedbackInput]}
+                placeholder="Opišite vašo idejo ali predlog..."
+                placeholderTextColor="#6b7280"
+                value={feedbackMessage}
+                onChangeText={setFeedbackMessage}
+                multiline
+                numberOfLines={5}
+                textAlignVertical="top"
+              />
+              
+              <TouchableOpacity
+                style={[styles.inviteButton, { opacity: sendingFeedback ? 0.6 : 1 }]}
+                onPress={handleSendFeedback}
+                disabled={sendingFeedback}
+              >
+                <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.buttonGradient}>
+                  <Ionicons name="mail" size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.buttonText}>
+                    {sendingFeedback ? "Odpiranje..." : "Pošlji po emailu"}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              
+              <Text style={[styles.inviteNote, { textAlign: "center" }]}>
+                Odprla se bo vaša email aplikacija
+              </Text>
+            </Pressable>
+          </Pressable>
         </BlurView>
       </Modal>
     </View>
@@ -912,6 +1076,16 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     color: "#fff",
+  },
+  cameraIconOverlay: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "#a855f7",
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 2,
+    borderColor: "#0a0a0f",
   },
   profileName: {
     fontSize: 14,
@@ -1131,6 +1305,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#374151",
+  },
+  feedbackInput: {
+    minHeight: 120,
+    paddingTop: 14,
   },
   inviteError: {
     fontSize: 14,
