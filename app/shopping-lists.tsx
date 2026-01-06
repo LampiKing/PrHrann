@@ -20,6 +20,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { createShadow } from "@/lib/shadow-helper";
 import Logo from "@/lib/Logo";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 const ICONS: Array<keyof typeof Ionicons.glyphMap> = [
   "cart",
@@ -99,6 +100,7 @@ export default function ShoppingListsScreen() {
         colors={["#0f0a1e", "#1a0a2e", "#270a3a"]}
         style={StyleSheet.absoluteFill}
       />
+      <FloatingBackground variant="sparse" />
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>

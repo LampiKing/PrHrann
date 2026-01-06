@@ -7,6 +7,7 @@ import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 export default function VerifyEmailScreen() {
   const [code, setCode] = useState("");
@@ -89,6 +90,7 @@ export default function VerifyEmailScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#0a0a12", "#12081f", "#1a0a2e", "#270a3a", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
+      <FloatingBackground variant="sparse" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
           {/* Logo */}

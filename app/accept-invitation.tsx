@@ -11,6 +11,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useConvexAuth, useMutation } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 export default function AcceptInvitationScreen() {
   const router = useRouter();
@@ -75,6 +76,7 @@ export default function AcceptInvitationScreen() {
         colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
         style={StyleSheet.absoluteFill}
       />
+      <FloatingBackground variant="minimal" />
       <View style={styles.card}>
         <View style={styles.iconCircle}>
           <Ionicons name="people" size={30} color="#fbbf24" />

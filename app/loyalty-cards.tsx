@@ -20,6 +20,7 @@ import { createShadow } from "@/lib/shadow-helper";
 import Logo from "@/lib/Logo";
 import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 // Map between card ID and store name in database
 const CARD_TO_STORE_NAME: Record<string, string> = {
@@ -431,6 +432,7 @@ export default function LoyaltyCardsScreen() {
         colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
         style={StyleSheet.absoluteFill}
       />
+      <FloatingBackground variant="sparse" />
 
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}

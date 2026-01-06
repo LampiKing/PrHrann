@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { authClient } from "@/lib/auth-client";
 import { createShadow } from "@/lib/shadow-helper";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 export default function ResetScreen() {
   const params = useLocalSearchParams<{ token?: string; error?: string }>();
@@ -166,6 +167,7 @@ export default function ResetScreen() {
         colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
         style={StyleSheet.absoluteFill}
       />
+      <FloatingBackground variant="sparse" />
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView

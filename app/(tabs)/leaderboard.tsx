@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { getSeasonalLogoSource } from "@/lib/Logo";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 const formatCurrency = (value: number) => {
   if (!Number.isFinite(value)) return "0.00 EUR";
@@ -117,6 +118,7 @@ export default function LeaderboardScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
+      <FloatingBackground variant="sparse" />
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
         showsVerticalScrollIndicator={false}

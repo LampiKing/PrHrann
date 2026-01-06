@@ -28,6 +28,7 @@ import { useRouter } from "expo-router";
 import { authClient } from "@/lib/auth-client";
 import { useConvexAuth } from "convex/react";
 import { getSeasonalLogoSource } from "@/lib/Logo";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 88 : 72;
@@ -451,6 +452,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#0a0a0f", "#1a1025", "#0a0a0f"]} style={StyleSheet.absoluteFill} />
+      <FloatingBackground variant="sparse" />
       
       <Animated.ScrollView
         style={[styles.scrollView, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
@@ -548,8 +550,9 @@ export default function ProfileScreen() {
                 <TouchableOpacity 
                   onPress={() => setShowInfoTooltip(showInfoTooltip === "family" ? null : "family")}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={styles.helpButton}
                 >
-                  <Ionicons name="information-circle-outline" size={18} color="#6b7280" />
+                  <Ionicons name="help-circle" size={20} color="#a855f7" />
                 </TouchableOpacity>
               </View>
               {showInfoTooltip === "family" && (
@@ -1599,6 +1602,11 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     textAlign: "center",
     marginTop: 12,
+  },
+  helpButton: {
+    backgroundColor: "rgba(168, 85, 247, 0.15)",
+    borderRadius: 14,
+    padding: 4,
   },
   tooltipBox: {
     backgroundColor: "rgba(168, 85, 247, 0.15)",

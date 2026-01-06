@@ -28,6 +28,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { PLAN_PLUS } from "@/lib/branding";
 import { createShadow, createTextShadow } from "@/lib/shadow-helper";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 
 interface PriceInfo {
@@ -1622,10 +1623,7 @@ export default function SearchScreen() {
         colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]}
         style={StyleSheet.absoluteFill}
       />
-
-      {/* Ambient Glow Effects */}
-      <View style={[styles.glowOrb, styles.glowOrb1]} />
-      <View style={[styles.glowOrb, styles.glowOrb2]} />
+      <FloatingBackground variant="sparse" />
 
       {!isPremium && (
         <RNAnimated.View
@@ -2603,29 +2601,6 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 720,
     alignSelf: "center",
-  },
-  glowOrb: {
-    position: "absolute",
-    borderRadius: 999,
-    opacity: 0.5,
-  },
-  glowOrb1: {
-    width: 350,
-    height: 350,
-    backgroundColor: "#8b5cf6",
-    top: -120,
-    left: -120,
-    opacity: 0.2,
-    ...createShadow("#8b5cf6", 0, 0, 0.5, 50, 10),
-  },
-  glowOrb2: {
-    width: 300,
-    height: 300,
-    backgroundColor: "#d946ef",
-    bottom: 80,
-    right: -100,
-    opacity: 0.15,
-    ...createShadow("#d946ef", 0, 0, 0.4, 40, 8),
   },
   header: {
     alignItems: "center",

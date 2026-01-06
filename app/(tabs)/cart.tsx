@@ -20,6 +20,7 @@ import { Image } from "react-native";
 import { getSeasonalLogoSource } from "@/lib/Logo";
 import { createShadow } from "@/lib/shadow-helper";
 import { useRouter } from "expo-router";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 interface CartItemType {
   _id: Id<"cartItems">;
@@ -283,10 +284,7 @@ export default function CartScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
-      
-      {/* Ambient Glow */}
-      <View style={[styles.glowOrb, styles.glowOrb1]} />
-      <View style={[styles.glowOrb, styles.glowOrb2]} />
+      <FloatingBackground variant="sparse" />
 
       <ScrollView
         style={styles.scrollView}
@@ -680,26 +678,6 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 720,
     alignSelf: "center",
-  },
-  glowOrb: {
-    position: "absolute",
-    borderRadius: 999,
-  },
-  glowOrb1: {
-    width: 300,
-    height: 300,
-    backgroundColor: "#8b5cf6",
-    top: -100,
-    right: -100,
-    opacity: 0.15,
-  },
-  glowOrb2: {
-    width: 200,
-    height: 200,
-    backgroundColor: "#d946ef",
-    bottom: 200,
-    left: -80,
-    opacity: 0.1,
   },
   loadingContainer: {
     flex: 1,

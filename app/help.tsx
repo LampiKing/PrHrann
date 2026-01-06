@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useAction, useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 const FAQ_ITEMS = [
   {
@@ -116,6 +117,7 @@ export default function HelpScreen() {
         colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
         style={StyleSheet.absoluteFill}
       />
+      <FloatingBackground variant="sparse" />
 
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}

@@ -19,6 +19,7 @@ import { useMutation, useQuery, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PLAN_FREE, PLAN_PLUS, PLAN_FAMILY, MARKETING } from "@/lib/branding";
 import { createShadow } from "@/lib/shadow-helper";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -205,8 +206,8 @@ export default function PremiumScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Static glow (no pulsing) */}
-      <View style={styles.glowOrb} />
+      {/* Floating background icons */}
+      <FloatingBackground variant="sparse" />
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
@@ -627,16 +628,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-  },
-  glowOrb: {
-    position: "absolute",
-    width: SCREEN_WIDTH * 1.5,
-    height: SCREEN_WIDTH * 1.5,
-    backgroundColor: "#fbbf24",
-    borderRadius: SCREEN_WIDTH,
-    top: -SCREEN_WIDTH * 0.7,
-    left: SCREEN_WIDTH * 0.1,
-    opacity: 0.2,
   },
   header: {
     flexDirection: "row",

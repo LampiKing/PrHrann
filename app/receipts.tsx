@@ -17,6 +17,7 @@ import * as FileSystem from "expo-file-system";
 import { useAction, useQuery, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import * as Haptics from "expo-haptics";
+import FloatingBackground from "@/lib/FloatingBackground";
 
 export default function ReceiptsScreen() {
   const router = useRouter();
@@ -153,6 +154,7 @@ export default function ReceiptsScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
+      <FloatingBackground variant="sparse" />
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
