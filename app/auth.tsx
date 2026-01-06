@@ -515,6 +515,7 @@ export default function AuthScreen() {
         method: "POST",
         body: {
           email: trimmedEmail,
+          redirectURL: resetRedirectUrl,
           redirectTo: resetRedirectUrl,
         },
       });

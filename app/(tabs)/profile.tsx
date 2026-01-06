@@ -95,6 +95,7 @@ export default function ProfileScreen() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackCategory, setFeedbackCategory] = useState("improvement");
   const [sendingFeedback, setSendingFeedback] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showInfoTooltip, setShowInfoTooltip] = useState<string | null>(null);
 
@@ -419,7 +420,7 @@ export default function ProfileScreen() {
   // Handle feedback submission
   const handleSendFeedback = useCallback(async () => {
     if (!feedbackMessage.trim()) {
-      Alert.alert("Napaka", "Prosim vnesite vaše sporočilo.");
+      setFeedbackError("Prosim vnesite vaše sporočilo.");
       return;
     }
 
@@ -427,6 +428,7 @@ export default function ProfileScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
+    setFeedbackError("");
     setSendingFeedback(true);
     
     try {
@@ -455,11 +457,11 @@ export default function ProfileScreen() {
         }
       } else {
         console.error("Feedback error:", result.error);
-        Alert.alert("Napaka", result.error || "Sporočila ni bilo mogoče poslati.");
+        setFeedbackError(result.error || "Sporočila ni bilo mogoče poslati.");
       }
     } catch (error) {
       console.error("Feedback error:", error);
-      Alert.alert("Napaka", "Sporočila ni bilo mogoče poslati. Preverite internetno povezavo.");
+      setFeedbackError("Sporočila ni bilo mogoče poslati. Preverite internetno povezavo.");
     } finally {
       setSendingFeedback(false);
     }
@@ -1130,7 +1132,7 @@ export default function ProfileScreen() {
                 </View>
               )}
             </View>
-          </TouchableOpacity>
+          </View>
         </BlurView>
       </Modal>
 
@@ -1326,7 +1328,10 @@ export default function ProfileScreen() {
           <View style={styles.centeredModalOverlay}>
             <Pressable
               style={StyleSheet.absoluteFill}
-              onPress={() => setShowFeedbackModal(false)}
+              onPress={() => {
+                setFeedbackError("");
+                setShowFeedbackModal(false);
+              }}
             />
             <View style={styles.feedbackModalContent} onStartShouldSetResponder={() => true}>
               {/* Header */}
@@ -1338,7 +1343,13 @@ export default function ProfileScreen() {
                   <Ionicons name="chatbubble-ellipses" size={28} color="#a855f7" />
                   <Text style={styles.feedbackTitle}>Predlogi & Povratne informacije</Text>
                 </View>
-                <TouchableOpacity onPress={() => setShowFeedbackModal(false)} style={styles.feedbackClose}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setFeedbackError("");
+                    setShowFeedbackModal(false);
+                  }}
+                  style={styles.feedbackClose}
+                >
                   <Ionicons name="close" size={24} color="#9ca3af" />
                 </TouchableOpacity>
               </LinearGradient>
@@ -1382,7 +1393,12 @@ export default function ProfileScreen() {
                   placeholder="Opišite vašo idejo, napako ali predlog..."
                   placeholderTextColor="#6b7280"
                   value={feedbackMessage}
-                  onChangeText={setFeedbackMessage}
+                  onChangeText={(text) => {
+                    setFeedbackMessage(text);
+                    if (feedbackError) {
+                      setFeedbackError("");
+                    }
+                  }}
                   multiline
                   numberOfLines={5}
                   textAlignVertical="top"
@@ -1405,6 +1421,10 @@ export default function ProfileScreen() {
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
+
+                {feedbackError ? (
+                  <Text style={styles.feedbackErrorText}>{feedbackError}</Text>
+                ) : null}
                 
                 <Text style={styles.feedbackNote}>
                   Sporočilo bo poslano direktno razvijalcu
@@ -1454,7 +1474,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </BlurView>
       </Modal>
     </View>
@@ -2357,6 +2377,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
+  },
+  feedbackErrorText: {
+    fontSize: 12,
+    color: "#fca5a5",
+    textAlign: "center",
+    marginBottom: 10,
   },
   feedbackNote: {
     fontSize: 13,

@@ -107,6 +107,7 @@ export default function ResetScreen() {
         method: "POST",
         body: {
           email: trimmedEmail,
+          redirectURL: resetRedirectUrl,
           redirectTo: resetRedirectUrl,
         },
       });
