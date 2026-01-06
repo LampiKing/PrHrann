@@ -119,61 +119,58 @@ function ProfileScreenInner() {
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
   const [feedbackSuccess, setFeedbackSuccess] = useState("");
+  const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
+  // Helper function to format date
+  const formatDateShort = (timestamp?: number): string | null => {
+    if (!timestamp) return null;
+    const date = new Date(timestamp);
+    return date.toLocaleDateString("sl-SI", { day: "numeric", month: "short", year: "numeric" });
+  };
+
   // --- Core Data Loading ---
   // 1. Load profile - undefined while loading, null if not found, object if found.
-  // Bypass problematic query after timeout
-  const [forceShowProfile, setForceShowProfile] = useState(false);
+  const [profileLoadingTimedOut, setProfileLoadingTimedOut] = useState(false);
   const profile = useQuery(api.userProfiles.getProfile, isAuthenticated ? {} : "skip");
-  const isProfileLoading = profile === undefined && !forceShowProfile;
-
-  // Force show profile after short timeout to prevent infinite loading
+  
+  // Single timeout mechanism to prevent infinite loading
   useEffect(() => {
-    if (isAuthenticated && profile === undefined && !forceShowProfile) {
-      const timeout = setTimeout(() => {
-        console.warn("Profile query stuck - forcing profile display");
-        setForceShowProfile(true);
-      }, 3000); // 3 second timeout
-      return () => clearTimeout(timeout);
+    // Reset timeout state when profile loads or auth changes
+    if (profile !== undefined || !isAuthenticated) {
+      setProfileLoadingTimedOut(false);
+      return;
     }
-  }, [isAuthenticated, profile, forceShowProfile]);
+    
+    // Set timeout only when authenticated and profile is still loading
+    const timeout = setTimeout(() => {
+      if (profile === undefined && isAuthenticated) {
+        console.warn("Profile loading timeout - showing fallback UI");
+        setProfileLoadingTimedOut(true);
+      }
+    }, 5000); // 5 second timeout
+    
+    return () => clearTimeout(timeout);
+  }, [isAuthenticated, profile]);
 
-  // Debug logging for troubleshooting (throttled to prevent spam)
+  // Profile is considered loading only if: authenticated, profile is undefined, AND timeout hasn't occurred
+  const isProfileLoading = isAuthenticated && profile === undefined && !profileLoadingTimedOut;
+
+  // Debug logging (throttled)
   const debugLoggedRef = useRef(false);
   useEffect(() => {
-    if (!debugLoggedRef.current) {
-      console.log("Profile loading state:", {
-        isAuthenticated,
-        isAuthLoading,
-        profile: profile === undefined ? "undefined" : profile === null ? "null" : "object", 
-        isProfileLoading
+    if (!debugLoggedRef.current && isAuthenticated) {
+      console.log("Profile state:", {
+        profileStatus: profile === undefined ? "loading" : profile === null ? "not-found" : "loaded",
+        timedOut: profileLoadingTimedOut
       });
       debugLoggedRef.current = true;
-      
-      // Reset debug flag after 5 seconds
-      setTimeout(() => {
-        debugLoggedRef.current = false;
-      }, 5000);
+      setTimeout(() => { debugLoggedRef.current = false; }, 10000);
     }
-  }, [isAuthenticated, isAuthLoading, profile, isProfileLoading]);
-
-  // Add timeout fallback to prevent infinite loading
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-  useEffect(() => {
-    if (isAuthenticated && profile === undefined) {
-      const timeout = setTimeout(() => {
-        console.warn("Profile loading timeout - forcing fallback");
-        setLoadingTimeout(true);
-      }, 8000); // 8 second timeout
-      return () => clearTimeout(timeout);
-    } else {
-      setLoadingTimeout(false);
-    }
-  }, [isAuthenticated, profile]);
+  }, [isAuthenticated, profile, profileLoadingTimedOut]);
 
   // 2. Admin functionality temporarily removed for debugging
 
@@ -206,6 +203,18 @@ function ProfileScreenInner() {
   const maxSearches = profile?.isPremium ? 999 : (profile?.isAnonymous ? 1 : 3);
   const searchProgress = profile?.isPremium ? 1 : Math.max(0, Math.min(1, searchesRemaining / maxSearches));
   const searchResetTime = profile?.searchResetTime;
+  
+  // Calculate receipts for today
+  const today = new Date().toISOString().split("T")[0];
+  const receiptsToday = (receipts ?? []).filter((r) => r.purchaseDateKey === today);
+  const receiptLimit = profile?.premiumType === "family" ? 4 : 2;
+  const receiptsRemaining = Math.max(0, receiptLimit - receiptsToday.length);
+  
+  // Check if suggestions API is available
+  const hasSuggestionsAPI = typeof submitSuggestion === "function";
+  
+  // Track if profile has resolved (not undefined)
+  const hasResolvedProfile = profile !== undefined;
 
   // --- Effects ---
   useEffect(() => {
@@ -571,23 +580,6 @@ function ProfileScreenInner() {
     }
   };
 
-  useEffect(() => {
-    // Auto-retry refresh if profile stays undefined while authenticated
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    if (isAuthenticated && profile === undefined && !hasResolvedProfile) {
-      retry = setTimeout(() => {
-        if (Platform.OS === "web" && typeof window !== "undefined") {
-          window.location.reload();
-        } else {
-          router.replace("/(tabs)/profile");
-        }
-      }, 5000);
-    }
-    return () => {
-      if (retry) clearTimeout(retry);
-    };
-  }, [isAuthenticated, profile, hasResolvedProfile, router]);
-
   // Show loading state while auth is initializing
   if (isAuthLoading) {
     return (
@@ -639,8 +631,8 @@ function ProfileScreenInner() {
     );
   }
 
-  // 3. If authenticated, but profile is still loading, show profile loader with timeout fallback
-  if (isAuthenticated && isProfileLoading && !loadingTimeout) {
+  // 3. If authenticated, but profile is still loading, show profile loader
+  if (isProfileLoading) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={["#0f0a1e", "#1a0a2e", "#0f0a1e"]} style={StyleSheet.absoluteFill} />
@@ -652,16 +644,13 @@ function ProfileScreenInner() {
           />
           <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 24 }} />
           <Text style={styles.authText}>Nalaganje profila...</Text>
-          <Text style={[styles.authText, { fontSize: 12, marginTop: 8, opacity: 0.7 }]}>
-            Če se nalaganje ne konča v 10s, se bo prikazal osnovni profil
-          </Text>
         </View>
       </View>
     );
   }
 
   // If loading timed out or profile is null, show basic fallback interface
-  if (isAuthenticated && (loadingTimeout || profile === null || forceShowProfile)) {
+  if (isAuthenticated && (profileLoadingTimedOut || profile === null)) {
     // Create fallback profile data
     const fallbackProfile = profile || {
       _id: "fallback",
@@ -697,11 +686,9 @@ function ProfileScreenInner() {
               {profile?.nickname || "Uporabnik"} profil
             </Text>
             <Text style={[styles.authText, { marginTop: 8 }]}>
-              {forceShowProfile 
-                ? "Osnovni profil (podatki se nalagajo v ozadju)"
-                : loadingTimeout
-                ? "Osnovni profil (nalaganje je preseglo časovni limit)"
-                : "Osnovni profil (profil ni bil najden)"}
+              {profileLoadingTimedOut
+                ? "Profil se ni uspel naložiti. Poskusi osvežiti."
+                : "Profil ni bil najden."}
             </Text>
           </View>
 
@@ -731,7 +718,7 @@ function ProfileScreenInner() {
     profile.nickname ??
     profile.name ??
     (profile.email ? profile.email.split("@")[0] : "Uporabnik");
-  const receiptLimit = profile.premiumType === "family" ? 4 : 2;
+  // receiptLimit is already defined above
   const premiumUntilLabel = formatDateShort(profile.premiumUntil);
   const premiumUntilMessage = premiumUntilLabel
     ? `Premium velja do ${premiumUntilLabel}.`
