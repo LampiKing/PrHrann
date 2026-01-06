@@ -77,8 +77,10 @@ export default function ProfileScreen() {
   const [signingOut, setSigningOut] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackCategory, setFeedbackCategory] = useState("improvement");
   const [sendingFeedback, setSendingFeedback] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showInfoTooltip, setShowInfoTooltip] = useState<string | null>(null);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -106,6 +108,16 @@ export default function ProfileScreen() {
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
+  const sendFeedback = useAction(api.feedback.sendFeedback);
+
+  // Feedback categories
+  const FEEDBACK_CATEGORIES = [
+    { id: "bug", label: "Napaka / Bug", icon: "bug" as const },
+    { id: "feature", label: "Nova funkcija", icon: "bulb" as const },
+    { id: "improvement", label: "Izboljšava", icon: "trending-up" as const },
+    { id: "design", label: "Dizajn / Izgled", icon: "color-palette" as const },
+    { id: "other", label: "Drugo", icon: "chatbubble" as const },
+  ];
 
   // ============================================================================
   // EFFECTS
@@ -312,26 +324,23 @@ export default function ProfileScreen() {
     setSendingFeedback(true);
     
     try {
-      // Send email via simple mailto or fetch to backend
-      const subject = encodeURIComponent("PrHran - Predlog za izboljšavo");
-      const body = encodeURIComponent(
-        `Od: ${profile?.email || "Neznan uporabnik"}\n\n${feedbackMessage.trim()}`
-      );
+      const result = await sendFeedback({
+        category: feedbackCategory,
+        message: feedbackMessage.trim(),
+        userEmail: profile?.email || undefined,
+        userName: profile?.nickname || profile?.name || undefined,
+      });
       
-      // For now, use Linking to open email client
-      const { Linking } = require("react-native");
-      const mailtoUrl = `mailto:prrhran@gmail.com?subject=${subject}&body=${body}`;
-      
-      const canOpen = await Linking.canOpenURL(mailtoUrl);
-      if (canOpen) {
-        await Linking.openURL(mailtoUrl);
+      if (result.success) {
         setShowFeedbackModal(false);
         setFeedbackMessage("");
+        setFeedbackCategory("improvement");
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
+        Alert.alert("Hvala! 💜", "Vaše sporočilo je bilo uspešno poslano. Hvala za vaš prispevek k izboljšavi aplikacije!");
       } else {
-        Alert.alert("Napaka", "Ni mogoče odpreti email aplikacije.");
+        Alert.alert("Napaka", result.error || "Sporočila ni bilo mogoče poslati.");
       }
     } catch (error) {
       console.error("Feedback error:", error);
@@ -339,7 +348,7 @@ export default function ProfileScreen() {
     } finally {
       setSendingFeedback(false);
     }
-  }, [feedbackMessage, profile?.email]);
+  }, [feedbackMessage, feedbackCategory, profile?.email, profile?.nickname, profile?.name, sendFeedback]);
 
   // ============================================================================
   // RENDER HELPERS
@@ -454,158 +463,227 @@ export default function ProfileScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profil</Text>
-        </View>
-
         {/* ================================================================== */}
-        {/* FAMILY MEMBERS SECTION */}
+        {/* PREMIUM HERO PROFILE CARD */}
         {/* ================================================================== */}
         
-        <View style={styles.profilesSection}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.profilesScroll}
+        <View style={styles.heroCard}>
+          <LinearGradient
+            colors={["rgba(168, 85, 247, 0.15)", "rgba(124, 58, 237, 0.05)"]}
+            style={styles.heroCardGradient}
+          />
+          
+          {/* Profile Avatar with Edit */}
+          <TouchableOpacity 
+            onPress={handleChangeProfilePicture}
+            activeOpacity={0.8}
+            disabled={uploadingImage}
+            style={styles.heroAvatarWrapper}
           >
-            {/* Current User (Owner) */}
+            <View style={styles.heroAvatarContainer}>
+              {uploadingImage ? (
+                <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.heroAvatarGradient}>
+                  <ActivityIndicator size="large" color="#fff" />
+                </LinearGradient>
+              ) : profile.profilePictureUrl ? (
+                <Image source={{ uri: profile.profilePictureUrl }} style={styles.heroAvatar} />
+              ) : (
+                <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.heroAvatarGradient}>
+                  <Text style={styles.heroAvatarInitial}>
+                    {(profile.nickname || profile.name || "U").charAt(0).toUpperCase()}
+                  </Text>
+                </LinearGradient>
+              )}
+              {/* Animated ring for premium */}
+              {profile.isPremium && (
+                <View style={styles.premiumRing} />
+              )}
+            </View>
+            {/* Camera badge */}
+            <View style={styles.cameraEditBadge}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </View>
+          </TouchableOpacity>
+          
+          {/* Name & Email */}
+          <Text style={styles.heroName}>
+            {profile.nickname || profile.name || "Uporabnik"}
+          </Text>
+          <Text style={styles.heroEmail}>{profile.email}</Text>
+          
+          {/* Premium Badge */}
+          {profile.isPremium ? (
+            <View style={styles.premiumBadgeContainer}>
+              <LinearGradient
+                colors={["#fbbf24", "#f59e0b"]}
+                style={styles.premiumBadge}
+              >
+                <Ionicons name="star" size={14} color="#0a0a0f" />
+                <Text style={styles.premiumBadgeText}>
+                  {profile.premiumType === "family" ? "Family Premium" : "Premium Plus"}
+                </Text>
+              </LinearGradient>
+            </View>
+          ) : (
             <TouchableOpacity 
-              style={styles.profileItem}
-              onPress={handleChangeProfilePicture}
-              activeOpacity={0.8}
-              disabled={uploadingImage}
+              style={styles.upgradeBadge}
+              onPress={() => router.push("/premium")}
             >
-              <View style={[styles.profileAvatarContainer, styles.profileAvatarSelected]}>
-                {uploadingImage ? (
-                  <View style={styles.profileAvatarPlaceholder}>
-                    <ActivityIndicator size="small" color="#fff" />
-                  </View>
-                ) : profile.profilePictureUrl ? (
-                  <Image source={{ uri: profile.profilePictureUrl }} style={styles.profileAvatar} />
-                ) : (
-                  <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.profileAvatarPlaceholder}>
-                    <Text style={styles.profileAvatarInitial}>
-                      {(profile.nickname || profile.name || "U").charAt(0).toUpperCase()}
-                    </Text>
-                  </LinearGradient>
-                )}
-                {/* Camera icon overlay */}
-                <View style={styles.cameraIconOverlay}>
-                  <Ionicons name="camera" size={14} color="#fff" />
-                </View>
+              <Ionicons name="sparkles" size={14} color="#a855f7" />
+              <Text style={styles.upgradeBadgeText}>Nadgradi na Premium</Text>
+              <Ionicons name="chevron-forward" size={14} color="#a855f7" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* ================================================================== */}
+        {/* FAMILY MEMBERS (if family plan) */}
+        {/* ================================================================== */}
+        
+        {hasFamilyPlan && (
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>👨‍👩‍👧‍👦 Družinski člani</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowInfoTooltip(showInfoTooltip === "family" ? null : "family")}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="information-circle-outline" size={18} color="#6b7280" />
+                </TouchableOpacity>
               </View>
-              <Text style={styles.profileName} numberOfLines={1}>
-                {profile.nickname || profile.name || "Ti"}
-              </Text>
-              {hasFamilyPlan && isOwner && (
-                <View style={styles.ownerBadge}>
-                  <Ionicons name="star" size={10} color="#fbbf24" />
+              {showInfoTooltip === "family" && (
+                <View style={styles.tooltipBox}>
+                  <Text style={styles.tooltipText}>
+                    Z Family Premium lahko povabite do 5 članov, ki bodo imeli dostop do vseh premium funkcij. 
+                    Vsi člani si delijo ugodnosti, vsak pa ima svoj profil.
+                  </Text>
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.familyScroll}
+            >
+              {/* Family Members */}
+              {familyMembers.map((member) => (
+                <TouchableOpacity
+                  key={member.userId}
+                  style={styles.familyMemberItem}
+                  onPress={() => handleMemberPress(member)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.familyAvatarContainer}>
+                    {member.profilePictureUrl ? (
+                      <Image source={{ uri: member.profilePictureUrl }} style={styles.familyAvatar} />
+                    ) : (
+                      <LinearGradient colors={["#6366f1", "#4f46e5"]} style={styles.familyAvatarGradient}>
+                        <Text style={styles.familyAvatarInitial}>
+                          {(member.nickname || "?").charAt(0).toUpperCase()}
+                        </Text>
+                      </LinearGradient>
+                    )}
+                  </View>
+                  <Text style={styles.familyMemberName} numberOfLines={1}>{member.nickname}</Text>
+                </TouchableOpacity>
+              ))}
 
-            {/* Family Members */}
-            {hasFamilyPlan && familyMembers.map((member) => (
-              <TouchableOpacity
-                key={member.userId}
-                style={styles.profileItem}
-                onPress={() => handleMemberPress(member)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.profileAvatarContainer}>
-                  {member.profilePictureUrl ? (
-                    <Image source={{ uri: member.profilePictureUrl }} style={styles.profileAvatar} />
-                  ) : (
-                    <LinearGradient colors={["#6366f1", "#4f46e5"]} style={styles.profileAvatarPlaceholder}>
-                      <Text style={styles.profileAvatarInitial}>
-                        {(member.nickname || "?").charAt(0).toUpperCase()}
-                      </Text>
-                    </LinearGradient>
-                  )}
-                </View>
-                <Text style={styles.profileName} numberOfLines={1}>{member.nickname}</Text>
-              </TouchableOpacity>
-            ))}
+              {/* Pending Invites */}
+              {pendingInvitations.map((invite) => (
+                <TouchableOpacity
+                  key={invite.id}
+                  style={styles.familyMemberItem}
+                  onPress={() => {
+                    Alert.alert(
+                      "Čakajoče vabilo",
+                      `Email: ${invite.email}\n\nŽeliš preklicati vabilo?`,
+                      [
+                        { text: "Prekliči vabilo", style: "destructive", onPress: () => handleCancelInvite(invite.id) },
+                        { text: "Zapri", style: "cancel" },
+                      ]
+                    );
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.familyAvatarContainer, styles.pendingAvatarStyle]}>
+                    <Ionicons name="hourglass-outline" size={24} color="#6b7280" />
+                  </View>
+                  <Text style={[styles.familyMemberName, { color: "#6b7280" }]} numberOfLines={1}>
+                    Čaka...
+                  </Text>
+                </TouchableOpacity>
+              ))}
 
-            {/* Pending Invites */}
-            {hasFamilyPlan && pendingInvitations.map((invite) => (
-              <TouchableOpacity
-                key={invite.id}
-                style={styles.profileItem}
-                onPress={() => {
-                  Alert.alert(
-                    "Čakajoče vabilo",
-                    `Email: ${invite.email}\n\nŽeliš preklicati vabilo?`,
-                    [
-                      { text: "Prekliči vabilo", style: "destructive", onPress: () => handleCancelInvite(invite.id) },
-                      { text: "Zapri", style: "cancel" },
-                    ]
-                  );
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.profileAvatarContainer, styles.pendingAvatar]}>
-                  <Ionicons name="hourglass-outline" size={28} color="#6b7280" />
-                </View>
-                <Text style={[styles.profileName, { color: "#6b7280" }]} numberOfLines={1}>
-                  Čaka...
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-            {/* Add Profile Button */}
-            {hasFamilyPlan && canInvite && (
-              <TouchableOpacity
-                style={styles.profileItem}
-                onPress={() => {
-                  if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowInviteModal(true);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.profileAvatarContainer, styles.addProfileAvatar]}>
-                  <Ionicons name="add" size={32} color="#6b7280" />
-                </View>
-                <Text style={[styles.profileName, { color: "#6b7280" }]}>Dodaj</Text>
-              </TouchableOpacity>
-            )}
-          </ScrollView>
-        </View>
+              {/* Add Member Button */}
+              {canInvite && (
+                <TouchableOpacity
+                  style={styles.familyMemberItem}
+                  onPress={() => {
+                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowInviteModal(true);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.familyAvatarContainer, styles.addMemberAvatar]}>
+                    <Ionicons name="person-add" size={24} color="#a855f7" />
+                  </View>
+                  <Text style={[styles.familyMemberName, { color: "#a855f7" }]}>Povabi</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+            
+            <Text style={styles.sectionSubtext}>
+              {availableSlots > 0 
+                ? `Še ${availableSlots} prost${availableSlots === 1 ? "o" : "a"} mest${availableSlots === 1 ? "o" : "a"}`
+                : "Vsa mesta so zasedena"}
+            </Text>
+          </View>
+        )}
 
         {/* ================================================================== */}
         {/* QUICK ACTIONS */}
         {/* ================================================================== */}
         
-        <View style={styles.quickActions}>
+        <View style={styles.quickActionsCard}>
           <TouchableOpacity 
-            style={styles.quickActionItem}
+            style={styles.quickActionButton}
             onPress={() => setShowFeedbackModal(true)}
           >
-            <View style={styles.quickActionIcon}>
-              <Ionicons name="chatbubble-ellipses" size={24} color="#a855f7" />
-            </View>
-            <Text style={styles.quickActionText}>Predlogi</Text>
+            <LinearGradient
+              colors={["rgba(168, 85, 247, 0.2)", "rgba(124, 58, 237, 0.1)"]}
+              style={styles.quickActionGradient}
+            >
+              <Ionicons name="chatbubble-ellipses" size={26} color="#a855f7" />
+            </LinearGradient>
+            <Text style={styles.quickActionLabel}>Predlogi</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.quickActionItem}
+            style={styles.quickActionButton}
             onPress={() => router.push("/receipts")}
           >
-            <View style={styles.quickActionIcon}>
-              <Ionicons name="receipt" size={24} color="#a855f7" />
-            </View>
-            <Text style={styles.quickActionText}>Računi</Text>
+            <LinearGradient
+              colors={["rgba(59, 130, 246, 0.2)", "rgba(37, 99, 235, 0.1)"]}
+              style={styles.quickActionGradient}
+            >
+              <Ionicons name="receipt" size={26} color="#3b82f6" />
+            </LinearGradient>
+            <Text style={styles.quickActionLabel}>Računi</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.quickActionItem}
+            style={styles.quickActionButton}
             onPress={() => setShowSettingsModal(true)}
           >
-            <View style={styles.quickActionIcon}>
-              <Ionicons name="settings" size={24} color="#a855f7" />
-            </View>
-            <Text style={styles.quickActionText}>Nastavitve</Text>
+            <LinearGradient
+              colors={["rgba(99, 102, 241, 0.2)", "rgba(79, 70, 229, 0.1)"]}
+              style={styles.quickActionGradient}
+            >
+              <Ionicons name="settings" size={26} color="#6366f1" />
+            </LinearGradient>
+            <Text style={styles.quickActionLabel}>Nastavitve</Text>
           </TouchableOpacity>
         </View>
 
@@ -613,84 +691,66 @@ export default function ProfileScreen() {
         {/* MENU ITEMS */}
         {/* ================================================================== */}
         
-        <View style={styles.menuSection}>
-          {/* Premium Status */}
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/premium")}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: profile.isPremium ? "rgba(251, 191, 36, 0.15)" : "rgba(168, 85, 247, 0.15)" }]}>
-                <Ionicons 
-                  name={profile.isPremium ? "star" : "star-outline"} 
-                  size={20} 
-                  color={profile.isPremium ? "#fbbf24" : "#a855f7"} 
-                />
-              </View>
-              <Text style={styles.menuItemText}>
-                {profile.isPremium 
-                  ? (profile.premiumType === "family" ? "Family Premium" : "Premium Plus")
-                  : "Nadgradi na Premium"}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-          </TouchableOpacity>
-
+        <View style={styles.menuCard}>
           {/* Loyalty Cards */}
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/loyalty-cards")}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: "rgba(59, 130, 246, 0.15)" }]}>
+          <TouchableOpacity style={styles.menuItemNew} onPress={() => router.push("/loyalty-cards")}>
+            <View style={styles.menuItemNewLeft}>
+              <LinearGradient colors={["rgba(59, 130, 246, 0.2)", "rgba(37, 99, 235, 0.1)"]} style={styles.menuIconNew}>
                 <Ionicons name="card" size={20} color="#3b82f6" />
-              </View>
-              <Text style={styles.menuItemText}>Kartice zvestobe</Text>
+              </LinearGradient>
+              <Text style={styles.menuItemTextNew}>Kartice zvestobe</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+            <Ionicons name="chevron-forward" size={18} color="#4b5563" />
           </TouchableOpacity>
 
           {/* Notifications */}
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/notifications")}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: "rgba(236, 72, 153, 0.15)" }]}>
+          <TouchableOpacity style={styles.menuItemNew} onPress={() => router.push("/notifications")}>
+            <View style={styles.menuItemNewLeft}>
+              <LinearGradient colors={["rgba(236, 72, 153, 0.2)", "rgba(219, 39, 119, 0.1)"]} style={styles.menuIconNew}>
                 <Ionicons name="notifications" size={20} color="#ec4899" />
-              </View>
-              <Text style={styles.menuItemText}>Obvestila</Text>
+              </LinearGradient>
+              <Text style={styles.menuItemTextNew}>Obvestila</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+            <Ionicons name="chevron-forward" size={18} color="#4b5563" />
           </TouchableOpacity>
 
           {/* Help */}
-          <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/help")}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: "rgba(16, 185, 129, 0.15)" }]}>
+          <TouchableOpacity style={styles.menuItemNew} onPress={() => router.push("/help")}>
+            <View style={styles.menuItemNewLeft}>
+              <LinearGradient colors={["rgba(16, 185, 129, 0.2)", "rgba(5, 150, 105, 0.1)"]} style={styles.menuIconNew}>
                 <Ionicons name="help-circle" size={20} color="#10b981" />
-              </View>
-              <Text style={styles.menuItemText}>Pomoč</Text>
+              </LinearGradient>
+              <Text style={styles.menuItemTextNew}>Pomoč</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+            <Ionicons name="chevron-forward" size={18} color="#4b5563" />
           </TouchableOpacity>
 
           {/* Privacy */}
-          <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={() => router.push("/privacy")}>
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIcon, { backgroundColor: "rgba(99, 102, 241, 0.15)" }]}>
+          <TouchableOpacity style={[styles.menuItemNew, { borderBottomWidth: 0 }]} onPress={() => router.push("/privacy")}>
+            <View style={styles.menuItemNewLeft}>
+              <LinearGradient colors={["rgba(99, 102, 241, 0.2)", "rgba(79, 70, 229, 0.1)"]} style={styles.menuIconNew}>
                 <Ionicons name="shield-checkmark" size={20} color="#6366f1" />
-              </View>
-              <Text style={styles.menuItemText}>Zasebnost</Text>
+              </LinearGradient>
+              <Text style={styles.menuItemTextNew}>Zasebnost</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+            <Ionicons name="chevron-forward" size={18} color="#4b5563" />
           </TouchableOpacity>
         </View>
 
         {/* Logout */}
         <TouchableOpacity 
-          style={styles.logoutButton} 
+          style={styles.logoutButtonNew} 
           onPress={handleSignOut}
           disabled={signingOut}
         >
-          <Text style={styles.logoutText}>
+          <Ionicons name="log-out-outline" size={20} color="#ef4444" style={{ marginRight: 8 }} />
+          <Text style={styles.logoutTextNew}>
             {signingOut ? "Odjavljam..." : "Odjava"}
           </Text>
         </TouchableOpacity>
 
         {/* Version */}
-        <Text style={styles.versionText}>Pr'Hran v2.0.0</Text>
+        <Text style={styles.versionTextNew}>Pr'Hran v2.0.0</Text>
 
       </Animated.ScrollView>
 
@@ -909,45 +969,88 @@ export default function ProfileScreen() {
             style={styles.modalOverlay} 
             onPress={() => setShowFeedbackModal(false)}
           >
-            <Pressable style={[styles.modalContent, styles.inviteModal]} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Predlogi za izboljšave</Text>
-                <TouchableOpacity onPress={() => setShowFeedbackModal(false)}>
+            <Pressable style={styles.feedbackModalContent} onPress={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <LinearGradient
+                colors={["rgba(168, 85, 247, 0.3)", "rgba(124, 58, 237, 0.1)"]}
+                style={styles.feedbackHeader}
+              >
+                <View style={styles.feedbackHeaderContent}>
+                  <Ionicons name="chatbubble-ellipses" size={28} color="#a855f7" />
+                  <Text style={styles.feedbackTitle}>Predlogi & Povratne informacije</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowFeedbackModal(false)} style={styles.feedbackClose}>
                   <Ionicons name="close" size={24} color="#9ca3af" />
                 </TouchableOpacity>
+              </LinearGradient>
+              
+              <View style={styles.feedbackBody}>
+                <Text style={styles.feedbackSubtitle}>
+                  Vaše mnenje nam pomaga izboljšati aplikacijo! 💜
+                </Text>
+                
+                {/* Category Selector */}
+                <Text style={styles.feedbackLabel}>Kategorija</Text>
+                <View style={styles.categoryGrid}>
+                  {FEEDBACK_CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryChip,
+                        feedbackCategory === cat.id && styles.categoryChipActive
+                      ]}
+                      onPress={() => setFeedbackCategory(cat.id)}
+                    >
+                      <Ionicons 
+                        name={cat.icon} 
+                        size={16} 
+                        color={feedbackCategory === cat.id ? "#fff" : "#9ca3af"} 
+                      />
+                      <Text style={[
+                        styles.categoryChipText,
+                        feedbackCategory === cat.id && styles.categoryChipTextActive
+                      ]}>
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                
+                {/* Message Input */}
+                <Text style={styles.feedbackLabel}>Vaše sporočilo</Text>
+                <TextInput
+                  style={styles.feedbackTextInput}
+                  placeholder="Opišite vašo idejo, napako ali predlog..."
+                  placeholderTextColor="#6b7280"
+                  value={feedbackMessage}
+                  onChangeText={setFeedbackMessage}
+                  multiline
+                  numberOfLines={5}
+                  textAlignVertical="top"
+                />
+                
+                {/* Submit Button */}
+                <TouchableOpacity
+                  style={[styles.feedbackSubmitButton, { opacity: sendingFeedback ? 0.6 : 1 }]}
+                  onPress={handleSendFeedback}
+                  disabled={sendingFeedback}
+                >
+                  <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.feedbackSubmitGradient}>
+                    {sendingFeedback ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="send" size={18} color="#fff" style={{ marginRight: 8 }} />
+                        <Text style={styles.feedbackSubmitText}>Pošlji sporočilo</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+                
+                <Text style={styles.feedbackNote}>
+                  Sporočilo bo poslano direktno razvijalcu
+                </Text>
               </View>
-              
-              <Text style={styles.inviteDescription}>
-                Imate idejo kako izboljšati aplikacijo? Pošljite nam vaše predloge!
-              </Text>
-              
-              <TextInput
-                style={[styles.inviteInput, styles.feedbackInput]}
-                placeholder="Opišite vašo idejo ali predlog..."
-                placeholderTextColor="#6b7280"
-                value={feedbackMessage}
-                onChangeText={setFeedbackMessage}
-                multiline
-                numberOfLines={5}
-                textAlignVertical="top"
-              />
-              
-              <TouchableOpacity
-                style={[styles.inviteButton, { opacity: sendingFeedback ? 0.6 : 1 }]}
-                onPress={handleSendFeedback}
-                disabled={sendingFeedback}
-              >
-                <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.buttonGradient}>
-                  <Ionicons name="mail" size={18} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.buttonText}>
-                    {sendingFeedback ? "Odpiranje..." : "Pošlji po emailu"}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              
-              <Text style={[styles.inviteNote, { textAlign: "center" }]}>
-                Odprla se bo vaša email aplikacija
-              </Text>
             </Pressable>
           </Pressable>
         </BlurView>
@@ -1358,6 +1461,411 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#f1f5f9",
+  },
+
+  // ============================================================================
+  // NEW PREMIUM STYLES
+  // ============================================================================
+
+  // Hero Card
+  heroCard: {
+    backgroundColor: "rgba(17, 24, 39, 0.8)",
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(168, 85, 247, 0.2)",
+    overflow: "hidden",
+  },
+  heroCardGradient: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 24,
+  },
+  heroAvatarWrapper: {
+    marginBottom: 16,
+  },
+  heroAvatarContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: "hidden",
+    borderWidth: 3,
+    borderColor: "rgba(168, 85, 247, 0.5)",
+  },
+  heroAvatar: {
+    width: "100%",
+    height: "100%",
+  },
+  heroAvatarGradient: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroAvatarInitial: {
+    fontSize: 40,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  premiumRing: {
+    position: "absolute",
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: 54,
+    borderWidth: 2,
+    borderColor: "#fbbf24",
+  },
+  cameraEditBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "#a855f7",
+    borderRadius: 16,
+    padding: 8,
+    borderWidth: 3,
+    borderColor: "#0a0a0f",
+  },
+  heroName: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#f1f5f9",
+    marginBottom: 4,
+  },
+  heroEmail: {
+    fontSize: 14,
+    color: "#9ca3af",
+    marginBottom: 16,
+  },
+  premiumBadgeContainer: {
+    marginTop: 4,
+  },
+  premiumBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    gap: 6,
+  },
+  premiumBadgeText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0a0a0f",
+  },
+  upgradeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "rgba(168, 85, 247, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(168, 85, 247, 0.3)",
+    gap: 6,
+  },
+  upgradeBadgeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#a855f7",
+  },
+
+  // Section Card
+  sectionCard: {
+    backgroundColor: "rgba(17, 24, 39, 0.6)",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(55, 65, 81, 0.5)",
+  },
+  sectionHeader: {
+    marginBottom: 16,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#f1f5f9",
+  },
+  sectionSubtext: {
+    fontSize: 13,
+    color: "#6b7280",
+    textAlign: "center",
+    marginTop: 12,
+  },
+  tooltipBox: {
+    backgroundColor: "rgba(168, 85, 247, 0.15)",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "rgba(168, 85, 247, 0.3)",
+  },
+  tooltipText: {
+    fontSize: 13,
+    color: "#d1d5db",
+    lineHeight: 20,
+  },
+
+  // Family Members
+  familyScroll: {
+    paddingVertical: 4,
+  },
+  familyMemberItem: {
+    alignItems: "center",
+    marginRight: 20,
+    width: 70,
+  },
+  familyAvatarContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: "hidden",
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: "rgba(99, 102, 241, 0.3)",
+  },
+  familyAvatar: {
+    width: "100%",
+    height: "100%",
+  },
+  familyAvatarGradient: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  familyAvatarInitial: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  familyMemberName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#e5e7eb",
+    textAlign: "center",
+  },
+  pendingAvatarStyle: {
+    borderStyle: "dashed",
+    borderColor: "#374151",
+    backgroundColor: "rgba(55, 65, 81, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addMemberAvatar: {
+    borderStyle: "dashed",
+    borderColor: "rgba(168, 85, 247, 0.5)",
+    backgroundColor: "rgba(168, 85, 247, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Quick Actions Card
+  quickActionsCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+    gap: 12,
+  },
+  quickActionButton: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: "rgba(17, 24, 39, 0.6)",
+    borderRadius: 16,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: "rgba(55, 65, 81, 0.5)",
+  },
+  quickActionGradient: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  quickActionLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#d1d5db",
+  },
+
+  // Menu Card
+  menuCard: {
+    backgroundColor: "rgba(17, 24, 39, 0.6)",
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(55, 65, 81, 0.5)",
+  },
+  menuItemNew: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(55, 65, 81, 0.5)",
+  },
+  menuItemNewLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  menuIconNew: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  menuItemTextNew: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#e5e7eb",
+  },
+
+  // Logout Button
+  logoutButtonNew: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.3)",
+    marginBottom: 16,
+  },
+  logoutTextNew: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ef4444",
+  },
+  versionTextNew: {
+    fontSize: 12,
+    color: "#4b5563",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+
+  // Feedback Modal
+  feedbackModalContent: {
+    backgroundColor: "#111827",
+    borderRadius: 24,
+    overflow: "hidden",
+    maxWidth: 400,
+    width: "100%",
+    maxHeight: "85%",
+  },
+  feedbackHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+  },
+  feedbackHeaderContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  feedbackClose: {
+    padding: 4,
+  },
+  feedbackTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#f1f5f9",
+  },
+  feedbackBody: {
+    padding: 20,
+  },
+  feedbackSubtitle: {
+    fontSize: 15,
+    color: "#9ca3af",
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  feedbackLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#d1d5db",
+    marginBottom: 10,
+  },
+  categoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 20,
+  },
+  categoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "rgba(55, 65, 81, 0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(55, 65, 81, 0.8)",
+    gap: 6,
+  },
+  categoryChipActive: {
+    backgroundColor: "rgba(168, 85, 247, 0.3)",
+    borderColor: "#a855f7",
+  },
+  categoryChipText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#9ca3af",
+  },
+  categoryChipTextActive: {
+    color: "#fff",
+  },
+  feedbackTextInput: {
+    backgroundColor: "rgba(17, 24, 39, 0.8)",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    color: "#f1f5f9",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(55, 65, 81, 0.8)",
+    minHeight: 120,
+    textAlignVertical: "top",
+  },
+  feedbackSubmitButton: {
+    borderRadius: 14,
+    overflow: "hidden",
+    marginBottom: 12,
+  },
+  feedbackSubmitGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  feedbackSubmitText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  feedbackNote: {
+    fontSize: 13,
+    color: "#6b7280",
+    textAlign: "center",
   },
 });
 

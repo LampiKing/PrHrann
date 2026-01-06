@@ -20,6 +20,7 @@ import type * as crons from "../crons.js";
 import type * as deviceManagement from "../deviceManagement.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as familyPlan from "../familyPlan.js";
+import type * as feedback from "../feedback.js";
 import type * as functions from "../functions.js";
 import type * as groceryImport from "../groceryImport.js";
 import type * as http from "../http.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   deviceManagement: typeof deviceManagement;
   emailVerification: typeof emailVerification;
   familyPlan: typeof familyPlan;
+  feedback: typeof feedback;
   functions: typeof functions;
   groceryImport: typeof groceryImport;
   http: typeof http;
