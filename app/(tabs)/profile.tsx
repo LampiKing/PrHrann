@@ -294,10 +294,24 @@ export default function ProfileScreen() {
       setUploadingImage(true);
 
       // Convert to data URI (base64)
-      const dataUri = `data:image/jpeg;base64,${asset.base64}`;
+      let base64Image = "";
+      if (Platform.OS === "web" && asset.uri) {
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        base64Image = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } else if (asset.base64) {
+        base64Image = `data:image/jpeg;base64,${asset.base64}`;
+      } else {
+        Alert.alert("Napaka", "Slike ni bilo mogoče prebrati.");
+        return;
+      }
       
       // Save to Convex
-      const response = await updateProfilePicture({ profilePictureUrl: dataUri });
+      const response = await updateProfilePicture({ profilePictureUrl: base64Image });
       
       if (response.success) {
         if (Platform.OS !== "web") {
@@ -322,15 +336,27 @@ export default function ProfileScreen() {
       return;
     }
 
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
     setSendingFeedback(true);
     
     try {
+      console.log("Sending feedback:", {
+        category: feedbackCategory,
+        userEmail: profile?.email,
+        userName: profile?.nickname || profile?.name,
+      });
+      
       const result = await sendFeedback({
         category: feedbackCategory,
         message: feedbackMessage.trim(),
         userEmail: profile?.email || undefined,
         userName: profile?.nickname || profile?.name || undefined,
       });
+      
+      console.log("Feedback result:", result);
       
       if (result.success) {
         setShowFeedbackModal(false);
@@ -341,11 +367,12 @@ export default function ProfileScreen() {
         }
         Alert.alert("Hvala! 💜", "Vaše sporočilo je bilo uspešno poslano. Hvala za vaš prispevek k izboljšavi aplikacije!");
       } else {
+        console.error("Feedback error:", result.error);
         Alert.alert("Napaka", result.error || "Sporočila ni bilo mogoče poslati.");
       }
     } catch (error) {
       console.error("Feedback error:", error);
-      Alert.alert("Napaka", "Sporočila ni bilo mogoče poslati.");
+      Alert.alert("Napaka", "Sporočila ni bilo mogoče poslati. Preverite internetno povezavo.");
     } finally {
       setSendingFeedback(false);
     }
@@ -536,6 +563,31 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-forward" size={14} color="#a855f7" />
             </TouchableOpacity>
           )}
+          
+          {/* Savings Stats */}
+          <View style={styles.savingsStatsContainer}>
+            <View style={styles.savingsStat}>
+              <Ionicons name="trending-down" size={20} color="#10b981" />
+              <View style={styles.savingsStatText}>
+                <Text style={styles.savingsStatValue}>
+                  {profile.totalSavings ? `€${profile.totalSavings.toFixed(2)}` : "€0.00"}
+                </Text>
+                <Text style={styles.savingsStatLabel}>Prihranki</Text>
+              </View>
+            </View>
+            <View style={styles.savingsStatDivider} />
+            <View style={styles.savingsStat}>
+              <Ionicons name="search" size={20} color="#3b82f6" />
+              <View style={styles.savingsStatText}>
+                <Text style={styles.savingsStatValue}>
+                  {profile.isPremium ? "∞" : `${profile.searchesRemaining}`}
+                </Text>
+                <Text style={styles.savingsStatLabel}>
+                  {profile.isPremium ? "Iskanj" : "Danes"}
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* ================================================================== */}
@@ -546,7 +598,8 @@ export default function ProfileScreen() {
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>👨‍👩‍👧‍👦 Družinski člani</Text>
+                <Ionicons name="people" size={22} color="#fbbf24" style={{ marginRight: 8 }} />
+                <Text style={styles.sectionTitle}>Družinski člani</Text>
                 <TouchableOpacity 
                   onPress={() => setShowInfoTooltip(showInfoTooltip === "family" ? null : "family")}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -684,9 +737,9 @@ export default function ProfileScreen() {
               colors={["rgba(99, 102, 241, 0.2)", "rgba(79, 70, 229, 0.1)"]}
               style={styles.quickActionGradient}
             >
-              <Ionicons name="settings" size={26} color="#6366f1" />
+              <Ionicons name="person-circle" size={26} color="#6366f1" />
             </LinearGradient>
-            <Text style={styles.quickActionLabel}>Nastavitve</Text>
+            <Text style={styles.quickActionLabel}>Osebni podatki</Text>
           </TouchableOpacity>
         </View>
 
@@ -904,7 +957,7 @@ export default function ProfileScreen() {
           >
             <View style={[styles.modalContent, styles.settingsModal]} onStartShouldSetResponder={() => true}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Nastavitve</Text>
+                <Text style={styles.modalTitle}>Osebni podatki</Text>
                 <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
                   <Ionicons name="close" size={24} color="#9ca3af" />
                 </TouchableOpacity>
@@ -1573,6 +1626,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#a855f7",
+  },
+  
+  // Savings Stats
+  savingsStatsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(55, 65, 81, 0.5)",
+  },
+  savingsStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  savingsStatText: {
+    alignItems: "flex-start",
+  },
+  savingsStatValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#f1f5f9",
+  },
+  savingsStatLabel: {
+    fontSize: 12,
+    color: "#9ca3af",
+    marginTop: 2,
+  },
+  savingsStatDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "rgba(55, 65, 81, 0.5)",
   },
 
   // Section Card

@@ -195,8 +195,18 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(10, 10, 15, 0.98)",
     borderTopWidth: 2,
     borderTopColor: "rgba(139, 92, 246, 0.3)",
-    height: Platform.OS === "ios" ? 88 : 72,
-    paddingBottom: Platform.OS === "ios" ? 28 : 10,
+    height: Platform.select({
+      ios: 88,
+      android: 72,
+      web: 65,
+      default: 72,
+    }),
+    paddingBottom: Platform.select({
+      ios: 28,
+      android: 10,
+      web: 8,
+      default: 10,
+    }),
     paddingTop: 8,
     elevation: 20,
     shadowColor: "#a855f7",
@@ -205,11 +215,18 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   tabBarLabel: {
-    fontSize: 12,
+    fontSize: Platform.select({
+      ios: 12,
+      android: 12,
+      web: 11,
+      default: 12,
+    }),
     fontWeight: "600",
+    marginTop: Platform.OS === "web" ? 2 : 0,
   },
   tabBarItem: {
     paddingTop: 2,
+    paddingVertical: Platform.OS === "web" ? 4 : 2,
   },
 });
 
