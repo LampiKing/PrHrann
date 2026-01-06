@@ -105,6 +105,10 @@ export function getSeasonWindow(year: number, timeZone = DEFAULT_TIMEZONE): {
   return { startAt, endAt };
 }
 
+export function getSeasonAwardsAt(year: number, timeZone = DEFAULT_TIMEZONE): number {
+  return getZonedTimestamp(year, 12, 25, 0, 0, 0, timeZone);
+}
+
 export function getSeasonYear(timestamp: number, timeZone = DEFAULT_TIMEZONE): number {
   const parts = getZonedParts(timestamp, timeZone);
   const { startAt } = getSeasonWindow(parts.year, timeZone);

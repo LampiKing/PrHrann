@@ -317,7 +317,7 @@ export default function SearchScreen() {
   const fabHorizontal = isCompact ? 10 : 16;
   const premiumIconSize = isCompact ? 16 : 18;
   const authIconSize = isCompact ? 16 : 18;
-  const premiumFabLabel = isCompact ? "Premium" : "Kupi Premium";
+  const premiumFabLabel = isCompact ? PLAN_PLUS : `Kupi ${PLAN_PLUS}`;
   const authFabLabel = isCompact ? "Prijava" : "Prijava / Registracija";
   const fabScaleMin = isCompact ? 0.92 : 0.98;
   const fabScaleMax = isCompact ? 1.02 : 1.04;
@@ -640,7 +640,7 @@ export default function SearchScreen() {
           openGuestModal("search");
         } else if (isPremiumLimit) {
           // TODO: Show premium upgrade modal
-          alert(recordResult.error || "Daily search limit reached. Upgrade to PrHran Plus for unlimited search.");
+          alert(recordResult.error || `Daily search limit reached. Upgrade to ${PLAN_PLUS} for unlimited search.`);
         } else if (needsEmailVerification) {
           setEmailVerificationPrompt(
             "Za nadaljevanje moraš potrditi svoj e-naslov. Preveri pošto ali potrdi z novim emailom."
@@ -1857,7 +1857,7 @@ export default function SearchScreen() {
               <Text style={styles.searchLimitTextEmpty}>
                 {isGuestMode
                   ? "Registracija odklene še 2 iskanji danes + Košarica + Profil."
-                  : "Dosegel si dnevni limit iskanj. Nadgradi na PrHran Plus za neomejeno iskanje."}
+                  : `Dosegel si dnevni limit iskanj. Nadgradi na ${PLAN_PLUS} za neomejeno iskanje.`}
               </Text>
             )}
           </View>
@@ -2430,9 +2430,9 @@ export default function SearchScreen() {
                 </LinearGradient>
               </View>
 
-              <Text style={styles.premiumModalTitle}>📸 PrHran Plus – odkleni kamero</Text>
+              <Text style={styles.premiumModalTitle}>📸 {PLAN_PLUS} – odkleni kamero</Text>
               <Text style={styles.premiumModalSubtitle}>
-                Slikanje izdelkov je del Premium Plus. Z nadgradnjo dobiš neomejeno iskanje,
+                Slikanje izdelkov je del {PLAN_PLUS}. Z nadgradnjo dobiš neomejeno iskanje,
                 pametne kupone in pregled prihrankov.
               </Text>
 
@@ -2457,7 +2457,7 @@ export default function SearchScreen() {
 
               <View style={styles.premiumPriceContainer}>
                 <Text style={styles.premiumPriceLabel}>{PLAN_PLUS}</Text>
-                <Text style={styles.premiumPrice}>1.99 EUR</Text>
+                <Text style={styles.premiumPrice}>1,99 EUR</Text>
                 <Text style={styles.premiumPricePeriod}>/ mesec</Text>
               </View>
 

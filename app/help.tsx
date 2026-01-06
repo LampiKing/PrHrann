@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { useAction, useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import FloatingBackground from "@/lib/FloatingBackground";
+import { PLAN_FAMILY, PLAN_PLUS } from "@/lib/branding";
 
 const FAQ_ITEMS = [
   {
@@ -30,9 +31,9 @@ const FAQ_ITEMS = [
       "Sistem upošteva aktivne kupone in akcije v trgovinah. Pri izračunu končne cene ti pokažemo, koliko lahko prihraniš z uporabo kuponov. Premium uporabniki imajo dostop do ekskluzivnih kuponov.",
   },
   {
-    question: "Kaj vključujeta Premium Plus in Family?",
+    question: `Kaj vključujeta ${PLAN_PLUS} in ${PLAN_FAMILY}?`,
     answer:
-      "Premium Plus vključuje: neomejeno iskanje, slikanje izdelkov, pametne kupone, pregled prihrankov in lestvice. Family vključuje vse iz Plus + možnost povabila do 2 članov (skupaj 3 profili) in družinsko mini ligo.",
+      `${PLAN_PLUS} vključuje: neomejeno iskanje, slikanje izdelkov, pametne kupone, pregled prihrankov in lestvice. ${PLAN_FAMILY} vključuje vse iz Plus + možnost povabila do 2 članov (skupaj 3 profili) in družinsko mini ligo.`,
   },
   {
     question: "Kako dodam izdelek v košarico?",
@@ -378,5 +379,4 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
 });
-
 

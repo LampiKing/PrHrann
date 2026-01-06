@@ -84,7 +84,7 @@ export default function TermsScreen() {
               razen če jo ne prekličeš. Preklic je mogoč kadarkoli in velja do konca
               obračunskega obdobja. {"\n\n"}
               <Text style={styles.boldText}>POMEMBNO:</Text> Vračila plačanih naročnin niso mogoča.
-              Ko kupiš Premium ali Family naročnino, je plačilo dokončno in ne moraš dobiti vračila.
+              Ko kupiš {PLAN_PLUS} ali {PLAN_FAMILY} naročnino, je plačilo dokončno in ne moraš dobiti vračila.
               {"\n\n"}
               Naročnina se avtomatsko podaljšuje vsak mesec, dokler je ne prekličeš v nastavitvah profila.
               Če prekličeš naročnino, ostane aktivna do konca obračunskega obdobja.
@@ -132,7 +132,7 @@ export default function TermsScreen() {
               <Text style={styles.boldText}>IZBRIS PODATKOV:</Text> Po izbrisu računa bodo vsi vaši osebni podatki (e-naslov, vzdevek, računi, prihranki) trajno odstranjeni iz naših sistemov v 30 dneh.
               Anonimni podatki o uporabi (brez osebnih podatkov) se lahko ohranijo za statistične namene.
               {"\n\n"}
-              <Text style={styles.boldText}>PREKINITEV NAROČNINE:</Text> Če imate aktivno Premium ali Family naročnino, se ta ob izbrisu računa avtomatsko prekliče. Vračilo plačanih zneskov ni mogoče.
+              <Text style={styles.boldText}>PREKINITEV NAROČNINE:</Text> Če imate aktivno {PLAN_PLUS} ali {PLAN_FAMILY} naročnino, se ta ob izbrisu računa avtomatsko prekliče. Vračilo plačanih zneskov ni mogoče.
               {"\n\n"}
               Pridržujemo si pravico do prekinitve računa ali dostopa do aplikacije v primeru kršenja teh pogojev, zlorabe funkcionalnosti ali nezakonitih dejanj.
             </Text>

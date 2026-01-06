@@ -19,7 +19,9 @@ export const createAlert = mutation({
       .first();
 
     if (!profile?.isPremium) {
-      throw new Error("Price Alerts so na voljo samo za Premium uporabnike (1,99€/mesec)");
+      throw new Error(
+        "Price Alerts so na voljo samo za Pr'Hran Plus ali Pr'Hran Family uporabnike (od 1,99 EUR/mesec)."
+      );
     }
 
     // Pridobi trenutno najnižjo ceno

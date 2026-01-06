@@ -106,7 +106,7 @@ export default defineSchema({
     ),
     isPremium: v.boolean(),
     premiumUntil: v.optional(v.number()),
-    premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))), // solo: 1.99€, family: 2.99€
+    premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))), // solo: 1,99€, family: 3,99€
     familyOwnerId: v.optional(v.string()), // Če je član family plana
     familyMembers: v.optional(v.array(v.string())), // Max 3 osebe za family plan
     dailySearches: v.number(),
@@ -532,4 +532,3 @@ export default defineSchema({
     .index("by_type", ["suggestionType"])
     .index("by_submitted_at", ["submittedAt"]),
 });
-

@@ -292,7 +292,7 @@ export const recordSearch = authMutation({
       const guestError =
         "Daily guest limit reached. Register to unlock 3 searches per day and access Cart + Profile.";
       const premiumError =
-        "Daily search limit reached. Upgrade to PrHran Plus for unlimited search.";
+        "Daily search limit reached. Upgrade to Pr'Hran Plus for unlimited search.";
       if (!profile.searchResetTime) {
         const resetTime = getNextMidnightTimestamp(now);
         await ctx.db.patch(profile._id, {
@@ -569,7 +569,7 @@ export const upgradeToPremium = authMutation({
 
     const email = profile.email || "-";
     const nickname = profile.nickname || "-";
-    const planLabel = planType === "family" ? "Family" : "Plus";
+    const planLabel = planType === "family" ? "Pr'Hran Family" : "Pr'Hran Plus";
     const subject = "Nova Premium naročnina v Pr'Hran";
     const html = `
       <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">

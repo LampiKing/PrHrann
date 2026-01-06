@@ -12,6 +12,7 @@ import { useConvexAuth, useMutation } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/convex/_generated/api";
 import FloatingBackground from "@/lib/FloatingBackground";
+import { PLAN_FAMILY } from "@/lib/branding";
 
 export default function AcceptInvitationScreen() {
   const router = useRouter();
@@ -81,9 +82,9 @@ export default function AcceptInvitationScreen() {
         <View style={styles.iconCircle}>
           <Ionicons name="people" size={30} color="#fbbf24" />
         </View>
-        <Text style={styles.title}>Family vabilo</Text>
+        <Text style={styles.title}>{PLAN_FAMILY} vabilo</Text>
         <Text style={styles.subtitle}>
-          Povabljen si v Pr'Hran Family. Sprejmi ali zavrni vabilo.
+          Povabljen si v {PLAN_FAMILY}. Sprejmi ali zavrni vabilo.
         </Text>
 
         {!inviteToken ? (

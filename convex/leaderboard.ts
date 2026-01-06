@@ -1,11 +1,19 @@
 import { v } from "convex/values";
 import { authQuery, authMutation } from "./functions";
 import { internalMutation } from "./_generated/server";
-import { getSeasonWindow, getSeasonYear } from "./time";
+import { getSeasonAwardsAt, getSeasonWindow, getSeasonYear } from "./time";
 
 type LeaderboardType = "standard" | "family";
 
 const LEADERBOARD_LIMIT = 100;
+const AWARDS_START_YEAR = 2026;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const PREMIUM_REWARDS_BY_RANK: Record<number, { label: string; durationMs: number }> = {
+  1: { label: "Pr'Hran Plus 1 leto", durationMs: 365 * DAY_IN_MS },
+  2: { label: "Pr'Hran Plus 6 mesecev", durationMs: 180 * DAY_IN_MS },
+  3: { label: "Pr'Hran Plus 1 mesec", durationMs: 30 * DAY_IN_MS },
+};
 
 type AwardCtx = {
   db: any;
@@ -38,6 +46,40 @@ const buildAwardTitles = (year: number, rank: number) => {
   return awards;
 };
 
+const getPremiumReward = (rank: number) => PREMIUM_REWARDS_BY_RANK[rank];
+
+const grantPremiumReward = async (
+  ctx: AwardCtx,
+  userId: string,
+  reward: { label: string; durationMs: number },
+  profile?: any
+) => {
+  const targetProfile = profile
+    ?? await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q: any) => q.eq("userId", userId))
+      .first();
+
+  if (!targetProfile) return;
+
+  const now = Date.now();
+  const baseUntil = targetProfile.premiumUntil && targetProfile.premiumUntil > now
+    ? targetProfile.premiumUntil
+    : now;
+  const premiumUntil = baseUntil + reward.durationMs;
+
+  const update: Record<string, unknown> = {
+    isPremium: true,
+    premiumUntil,
+  };
+
+  if (!targetProfile.familyOwnerId && targetProfile.premiumType !== "family") {
+    update.premiumType = targetProfile.premiumType ?? "solo";
+  }
+
+  await ctx.db.patch(targetProfile._id, update);
+};
+
 const assignSeasonAwards = async (ctx: AwardCtx, now: number) => {
   const year = getSeasonYear(now);
   const season = getSeasonWindow(year);
@@ -65,6 +107,19 @@ const assignSeasonAwards = async (ctx: AwardCtx, now: number) => {
   }
 
   if (now <= season.endAt) {
+    return { success: true, assigned: false };
+  }
+
+  const awardsUnlockAt = getSeasonAwardsAt(year);
+  if (now < awardsUnlockAt) {
+    return { success: true, assigned: false };
+  }
+
+  if (year < AWARDS_START_YEAR) {
+    await ctx.db.patch(seasonState._id, {
+      lockedAt: now,
+      awardsAssignedAt: now,
+    });
     return { success: true, assigned: false };
   }
 
@@ -110,6 +165,19 @@ const assignSeasonAwards = async (ctx: AwardCtx, now: number) => {
           leaderboard: type,
           rank,
           award,
+          assignedAt: nowTs,
+        });
+      }
+
+      const reward = getPremiumReward(rank);
+      if (reward) {
+        await grantPremiumReward(ctx, filtered[i].entry.userId, reward, filtered[i].profile);
+        await ctx.db.insert("seasonAwards", {
+          userId: filtered[i].entry.userId,
+          year,
+          leaderboard: type,
+          rank,
+          award: reward.label,
           assignedAt: nowTs,
         });
       }

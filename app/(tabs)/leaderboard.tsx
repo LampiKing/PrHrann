@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { getSeasonalLogoSource } from "@/lib/Logo";
 import FloatingBackground from "@/lib/FloatingBackground";
+import { PLAN_FAMILY, PLAN_PLUS } from "@/lib/branding";
 
 const formatCurrency = (value: number) => {
   if (!Number.isFinite(value)) return "0.00 EUR";
@@ -31,6 +32,10 @@ export default function LeaderboardScreen() {
   const leaderboard = useQuery(
     api.leaderboard.getLeaderboard,
     isAuthenticated ? { limit: 100 } : "skip"
+  );
+  const awards = useQuery(
+    api.awards.getMyAwards,
+    isAuthenticated ? {} : "skip"
   );
 
   // Show loading during auth initialization
@@ -81,13 +86,16 @@ export default function LeaderboardScreen() {
   }
 
   const leaderboardTypeLabel =
-    summary?.leaderboardType === "family" ? "Family lestvica" : "Free + Plus lestvica";
+    summary?.leaderboardType === "family"
+      ? `${PLAN_FAMILY} lestvica`
+      : `Free + ${PLAN_PLUS} lestvica`;
   const currentYear = new Date().getFullYear();
   const displaySeasonYear = summary?.year && summary.year >= currentYear
     ? summary.year
     : currentYear;
   const leaderboardEntries = leaderboard?.entries ?? [];
   const topThree = leaderboardEntries.slice(0, 3);
+  const awardItems = awards ?? [];
   const podiumSlots = [
     {
       rank: 2,
@@ -190,15 +198,15 @@ export default function LeaderboardScreen() {
           </View>
           <View style={styles.rewardRow}>
             <Text style={styles.rewardRank}>🥇 1. mesto</Text>
-            <Text style={styles.rewardPrize}>Premium 1 leto 🎉</Text>
+            <Text style={styles.rewardPrize}>{PLAN_PLUS} 1 leto 🎉</Text>
           </View>
           <View style={styles.rewardRow}>
             <Text style={styles.rewardRank}>🥈 2. mesto</Text>
-            <Text style={styles.rewardPrize}>Premium 6 mesecev ⭐</Text>
+            <Text style={styles.rewardPrize}>{PLAN_PLUS} 6 mesecev ⭐</Text>
           </View>
           <View style={styles.rewardRow}>
             <Text style={styles.rewardRank}>🥉 3. mesto</Text>
-            <Text style={styles.rewardPrize}>Premium 1 mesec 💫</Text>
+            <Text style={styles.rewardPrize}>{PLAN_PLUS} 1 mesec 💫</Text>
           </View>
 
           <Text style={[styles.podiumTitle, { marginTop: 24 }]}>Top 3 varčevalci</Text>
@@ -243,6 +251,48 @@ export default function LeaderboardScreen() {
             })}
           </View>
           <View style={styles.podiumBaseLine} />
+        </View>
+
+        <View style={styles.awardsCard}>
+          <View style={styles.awardsHeader}>
+            <View style={styles.awardsTitleRow}>
+              <Ionicons name="ribbon" size={20} color="#fbbf24" />
+              <Text style={styles.awardsTitle}>Tvoje nagrade in značke</Text>
+            </View>
+            <Text style={styles.awardsSubtitle}>
+              Nagrade se podelijo 25. decembra (od sezone 2026 naprej).
+            </Text>
+          </View>
+          {awardItems.length > 0 ? (
+            <View style={styles.awardsList}>
+              {awardItems.map((award) => {
+                const isReward = award.award.startsWith(PLAN_PLUS);
+                const iconName = isReward ? "star" : "ribbon";
+                const iconColor = isReward ? "#fbbf24" : "#a855f7";
+                const leagueLabel = award.leaderboard === "family"
+                  ? PLAN_FAMILY
+                  : `Free + ${PLAN_PLUS}`;
+                return (
+                  <View
+                    key={`${award.year}-${award.rank}-${award.award}-${award.leaderboard}`}
+                    style={styles.awardRow}
+                  >
+                    <View style={[styles.awardIcon, { borderColor: iconColor }]}>
+                      <Ionicons name={iconName} size={14} color={iconColor} />
+                    </View>
+                    <View style={styles.awardInfo}>
+                      <Text style={styles.awardName}>{award.award}</Text>
+                      <Text style={styles.awardMeta}>
+                        {award.year} · {leagueLabel}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.awardsEmpty}>Še nimaš nagrad ali značk. Začni s tekmovanjem!</Text>
+          )}
         </View>
 
         <View style={styles.listCard}>
@@ -333,9 +383,9 @@ export default function LeaderboardScreen() {
               {"\n\n"}
               🎯 <Text style={styles.infoBold}>Kaj NE šteje?</Text> Košarica in primerjava cen brez nakupa ne vplivata na lestvico. Samo POTRJENI računi štejejo.
               {"\n\n"}
-              🏅 <Text style={styles.infoBold}>Nagrade</Text> - Top 10 prejme značke (Zlati, Srebrni, Bronasti). Top 100 dobi special badge. Osvežitev vsakih 10 minut.
+              🏅 <Text style={styles.infoBold}>Nagrade</Text> - Top 10 prejme značke (Zlati, Srebrni, Bronasti). Top 100 dobi special badge. Nagrade se podelijo 25. decembra (od sezone 2026 naprej).
               {"\n\n"}
-              👨‍👩‍👧 <Text style={styles.infoBold}>Family Plan</Text> - Tekmujte skupaj! Do 3 člane. Skupni prihranki = močnejša ekipa na lestvici.
+              👨‍👩‍👧 <Text style={styles.infoBold}>{PLAN_FAMILY}</Text> - Tekmujte skupaj! Do 3 člane. Skupni prihranki = močnejša ekipa na lestvici.
             </Text>
             <TouchableOpacity
               style={styles.infoCloseButton}
@@ -657,6 +707,70 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "rgba(148, 163, 184, 0.25)",
   },
+  awardsCard: {
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.2)",
+    marginBottom: 16,
+  },
+  awardsHeader: {
+    marginBottom: 12,
+  },
+  awardsTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  awardsTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  awardsSubtitle: {
+    fontSize: 12,
+    color: "#94a3b8",
+    lineHeight: 16,
+  },
+  awardsList: {
+    gap: 10,
+  },
+  awardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(55, 65, 81, 0.4)",
+  },
+  awardIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.9)",
+  },
+  awardInfo: {
+    flex: 1,
+  },
+  awardName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#f8fafc",
+  },
+  awardMeta: {
+    fontSize: 12,
+    color: "#94a3b8",
+    marginTop: 2,
+  },
+  awardsEmpty: {
+    fontSize: 13,
+    color: "#94a3b8",
+  },
   listCard: {
     padding: 16,
     borderRadius: 20,
@@ -838,4 +952,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-

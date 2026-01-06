@@ -29,6 +29,7 @@ import { authClient } from "@/lib/auth-client";
 import { useConvexAuth } from "convex/react";
 import { getSeasonalLogoSource } from "@/lib/Logo";
 import FloatingBackground from "@/lib/FloatingBackground";
+import { PLAN_FAMILY, PLAN_PLUS } from "@/lib/branding";
 
 const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 88 : 72;
 
@@ -104,6 +105,7 @@ export default function ProfileScreen() {
 
   const profile = useQuery(api.userProfiles.getProfile, isAuthenticated ? {} : "skip");
   const ensureProfile = useMutation(api.userProfiles.ensureProfile);
+  const awards = useQuery(api.awards.getMyAwards, isAuthenticated ? {} : "skip");
   
   // Family data - only fetch if user has family plan
   const familyData = useQuery(
@@ -546,7 +548,7 @@ export default function ProfileScreen() {
 
   const hasFamilyPlan = profile.premiumType === "family";
   const planLabel = profile.isPremium
-    ? (profile.premiumType === "family" ? "Family Premium" : "Premium Plus")
+    ? (profile.premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS)
     : "Brezplačno";
   const searchesLabel = profile.isPremium ? "Iskanja" : "Iskanja danes";
   const searchesValue = profile.isPremium ? "Neomejeno" : `${profile.searchesRemaining}`;
@@ -569,6 +571,7 @@ export default function ProfileScreen() {
       ].sort((a, b) => b.totalSavings - a.totalSavings)
     : [];
   const showFamilyLeaderboard = hasFamilyPlan && familyLeaderboardEntries.length > 0;
+  const awardItems = awards ?? [];
   const highlightItems: Array<{
     key: string;
     icon: IoniconName;
@@ -689,7 +692,7 @@ export default function ProfileScreen() {
               onPress={() => router.push("/premium")}
             >
               <Ionicons name="sparkles" size={14} color="#a855f7" />
-              <Text style={styles.upgradeBadgeText}>Nadgradi na Premium</Text>
+              <Text style={styles.upgradeBadgeText}>Nadgradi na {PLAN_PLUS}</Text>
               <Ionicons name="chevron-forward" size={14} color="#a855f7" />
             </TouchableOpacity>
           )}
@@ -731,7 +734,7 @@ export default function ProfileScreen() {
               {showInfoTooltip === "family" && (
                 <View style={styles.tooltipBox}>
                   <Text style={styles.tooltipText}>
-                    Z Family Premium lahko povabite do 2 članov (skupaj 3).
+                    Z {PLAN_FAMILY} lahko povabite do 2 članov (skupaj 3).
                     Vsi člani si delijo ugodnosti, vsak pa ima svoj profil.
                   </Text>
                 </View>
@@ -890,6 +893,47 @@ export default function ProfileScreen() {
             </View>
           </View>
         )}
+
+        <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleGroup}>
+              <Ionicons name="ribbon" size={22} color="#fbbf24" />
+              <Text style={styles.sectionTitle}>Nagrade in značke</Text>
+            </View>
+          </View>
+          {awardItems.length > 0 ? (
+            <View style={styles.awardsList}>
+              {awardItems.map((award) => {
+                const isReward = award.award.startsWith(PLAN_PLUS);
+                const iconName: IoniconName = isReward ? "star" : "ribbon";
+                const iconColor = isReward ? "#fbbf24" : "#a855f7";
+                const leagueLabel = award.leaderboard === "family"
+                  ? PLAN_FAMILY
+                  : `Free + ${PLAN_PLUS}`;
+                return (
+                  <View
+                    key={`${award.year}-${award.rank}-${award.award}-${award.leaderboard}`}
+                    style={styles.awardRow}
+                  >
+                    <View style={[styles.awardIcon, { borderColor: iconColor }]}>
+                      <Ionicons name={iconName} size={14} color={iconColor} />
+                    </View>
+                    <View style={styles.awardInfo}>
+                      <Text style={styles.awardName}>{award.award}</Text>
+                      <Text style={styles.awardMeta}>
+                        {award.year} · {leagueLabel}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.sectionSubtext}>
+              Nagrade in značke se začnejo podeljevati 25. decembra (od sezone 2026 naprej).
+            </Text>
+          )}
+        </View>
 
         {/* ================================================================== */}
         {/* QUICK ACTIONS */}
@@ -1184,7 +1228,7 @@ export default function ProfileScreen() {
                   <Text style={styles.settingsLabel}>Načrt</Text>
                   <Text style={styles.settingsValue}>
                     {profile.isPremium 
-                      ? (profile.premiumType === "family" ? "Family" : "Plus")
+                      ? (profile.premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS)
                       : "Brezplačno"}
                   </Text>
                 </View>
@@ -1947,6 +1991,39 @@ const styles = StyleSheet.create({
     textAlign: "left",
     marginTop: 12,
     lineHeight: 18,
+  },
+  awardsList: {
+    gap: 12,
+  },
+  awardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(55, 65, 81, 0.4)",
+  },
+  awardIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(17, 24, 39, 0.8)",
+  },
+  awardInfo: {
+    flex: 1,
+  },
+  awardName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#f8fafc",
+  },
+  awardMeta: {
+    fontSize: 12,
+    color: "#94a3b8",
+    marginTop: 2,
   },
   helpButton: {
     backgroundColor: "rgba(168, 85, 247, 0.15)",

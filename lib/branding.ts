@@ -1,10 +1,10 @@
-﻿export const PLAN_FREE = "PrHran FREE";
-export const PLAN_PLUS = "PrHran Plus";
-export const PLAN_FAMILY = "PrHran Family";
+export const PLAN_FREE = "Pr'Hran FREE";
+export const PLAN_PLUS = "Pr'Hran Plus";
+export const PLAN_FAMILY = "Pr'Hran Family";
 
 export const PRICING = {
-  plusMonthly: "1.99 EUR",
-  familyMonthly: "3.99 EUR",
+  plusMonthly: "1,99 EUR",
+  familyMonthly: "3,99 EUR",
   currencySuffix: "/ mesec",
 };
 
@@ -25,4 +25,3 @@ export const MARKETING = {
     familyShort: "Vse iz Plus + do 2 povabljena člana (skupaj 3 profili).",
   },
 };
-

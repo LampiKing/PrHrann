@@ -21,6 +21,7 @@ import { getSeasonalLogoSource } from "@/lib/Logo";
 import { createShadow } from "@/lib/shadow-helper";
 import { useRouter } from "expo-router";
 import FloatingBackground from "@/lib/FloatingBackground";
+import { PLAN_FAMILY, PLAN_PLUS } from "@/lib/branding";
 
 interface CartItemType {
   _id: Id<"cartItems">;
@@ -353,7 +354,7 @@ export default function CartScreen() {
                 <View style={styles.premiumSummaryBadge}>
                   <Ionicons name="star" size={16} color="#fbbf24" />
                   <Text style={styles.premiumSummaryText}>
-                    {premiumType === "family" ? "Družinska naročnina" : "Plus naročnina"}
+                    {premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS}
                   </Text>
                   {cart.totalSavings > 0 && (
                     <Text style={styles.premiumSummaryExtra}>
@@ -1463,5 +1464,4 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 });
-
 

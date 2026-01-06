@@ -280,11 +280,11 @@ export const createFamilyInvitationInternal = mutation({
 
     // Preveri če je uporabnik Family owner
     if (profile.premiumType !== "family") {
-      throw new Error("Za vabilo članov potrebuješ Family naročnino");
+      throw new Error("Za vabilo članov potrebuješ Pr'Hran Family naročnino");
     }
 
     if (profile.familyOwnerId && profile.familyOwnerId !== userId) {
-      throw new Error("Samo lastnik Family načrta lahko vabi nove člane");
+      throw new Error("Samo lastnik Pr'Hran Family načrta lahko vabi nove člane");
     }
 
     // Preveri število članov
@@ -324,10 +324,10 @@ export const createFamilyInvitationInternal = mutation({
 
     if (inviteeProfile) {
       if (inviteeProfile.familyOwnerId) {
-        throw new Error("Ta uporabnik je že član drugega Family načrta");
+        throw new Error("Ta uporabnik je že član drugega Pr'Hran Family načrta");
       }
       if (currentMembers.includes(inviteeProfile.userId)) {
-        throw new Error("Ta uporabnik je že član tvojega Family načrta");
+        throw new Error("Ta uporabnik je že član tvojega Pr'Hran Family načrta");
       }
     }
 
@@ -400,18 +400,18 @@ export const acceptFamilyInvitation = authMutation({
 
     // Preveri če je invitee že v Family
     if (inviteeProfile.familyOwnerId) {
-      throw new Error("Že si član drugega Family načrta. Najprej ga zapusti.");
+      throw new Error("Že si član drugega Pr'Hran Family načrta. Najprej ga zapusti.");
     }
 
     // Preveri če je inviter še vedno Family owner
     if (inviterProfile.premiumType !== "family") {
-      throw new Error("Povabitelj več nima Family naročnine");
+      throw new Error("Povabitelj več nima Pr'Hran Family naročnine");
     }
 
     // Dodaj člana v Family
     const currentMembers = inviterProfile.familyMembers || [];
     if (currentMembers.length >= MAX_FAMILY_MEMBERS - 1) {
-      throw new Error("Family načrt je že poln");
+      throw new Error("Pr'Hran Family načrt je že poln");
     }
 
     // Posodobi invitee profil
@@ -434,7 +434,7 @@ export const acceptFamilyInvitation = authMutation({
 
     return {
       success: true,
-      message: `Uspešno si se pridružil Family načrtu uporabnika ${invitation.inviterNickname}!`,
+      message: `Uspešno si se pridružil Pr'Hran Family načrtu uporabnika ${invitation.inviterNickname}!`,
       ownerNickname: invitation.inviterNickname,
     };
   },
@@ -493,12 +493,12 @@ export const removeFamilyMember = authMutation({
     }
 
     if (ownerProfile.premiumType !== "family") {
-      throw new Error("Samo Family owner lahko odstranjuje člane");
+      throw new Error("Samo lastnik Pr'Hran Family lahko odstranjuje člane");
     }
 
     const currentMembers = ownerProfile.familyMembers || [];
     if (!currentMembers.includes(args.memberUserId)) {
-      throw new Error("Ta uporabnik ni član tvojega Family načrta");
+      throw new Error("Ta uporabnik ni član tvojega Pr'Hran Family načrta");
     }
 
     // Odstrani člana iz seznama
@@ -523,7 +523,7 @@ export const removeFamilyMember = authMutation({
 
     return {
       success: true,
-      message: "Član odstranjen iz Family načrta",
+      message: "Član odstranjen iz Pr'Hran Family načrta",
     };
   },
 });
@@ -546,11 +546,11 @@ export const leaveFamilyPlan = authMutation({
     }
 
     if (!profile.familyOwnerId) {
-      throw new Error("Nisi član nobenega Family načrta");
+      throw new Error("Nisi član nobenega Pr'Hran Family načrta");
     }
 
     if (profile.premiumType === "family") {
-      throw new Error("Kot owner Family načrta ga ne moreš zapustiti. Najprej razveljavi naročnino.");
+      throw new Error("Kot lastnik Pr'Hran Family načrta ga ne moreš zapustiti. Najprej razveljavi naročnino.");
     }
 
     const ownerId = profile.familyOwnerId;
@@ -576,7 +576,7 @@ export const leaveFamilyPlan = authMutation({
 
     return {
       success: true,
-      message: "Uspešno si zapustil Family načrt",
+      message: "Uspešno si zapustil Pr'Hran Family načrt",
     };
   },
 });

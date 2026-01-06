@@ -59,6 +59,7 @@ export default function PremiumScreen() {
   const [processing, setProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const selectedPlanLabel = selectedPlan === "family" ? PLAN_FAMILY : PLAN_PLUS;
 
   // Show loading during auth check
   if (isLoading) {
@@ -180,7 +181,7 @@ export default function PremiumScreen() {
             </LinearGradient>
             <Text style={styles.successTitle}>Čestitamo!</Text>
             <Text style={styles.successText}>
-              Zdaj ste {selectedPlan === "family" ? "PrHran Family" : "PrHran Plus"} uporabnik!
+              Zdaj ste {selectedPlanLabel} uporabnik!
             </Text>
             <Text style={styles.successSubtext}>
               Uživajte v vseh funkcijah brez omejitev.
@@ -237,12 +238,10 @@ export default function PremiumScreen() {
                 <Ionicons name="diamond" size={24} color="#000" />
                 <Text style={styles.premiumBadgeText}>PREMIUM</Text>
               </LinearGradient>
-              <Text style={styles.mainTitle}>
-                {isAlreadyPremium && currentPremiumType === "solo" ? "Nadgradi na Family" : "Nadgradi na Premium"}
-              </Text>
+              <Text style={styles.mainTitle}>Nadgradi na {selectedPlanLabel}</Text>
               <Text style={styles.subtitle}>
                 {isAlreadyPremium && currentPremiumType === "solo" 
-                  ? "Deli Premium z družino in prihrani še več"
+                  ? `Deli ${PLAN_FAMILY} z družino in prihrani še več`
                   : "Odkleni vse funkcije in varčuj več kot kdaj koli prej"
                 }
               </Text>
@@ -508,7 +507,7 @@ export default function PremiumScreen() {
                 ) : (
                   <>
                     <Text style={styles.ctaText}>
-                      Izbran paket: {selectedPlan === "family" ? "Family" : "Plus"} - {price} EUR/mesec
+                      Izbran paket: {selectedPlanLabel} - {price} EUR/mesec
                     </Text>
                     <Ionicons name="arrow-forward" size={24} color="#fff" />
                   </>

@@ -345,7 +345,7 @@ export const renameList = mutation({
   },
 });
 
-// Deli listo z družinskimi člani (samo za family premium)
+// Deli listo z družinskimi člani (samo za Pr'Hran Family)
 export const shareListWithFamily = mutation({
   args: {
     listId: v.id("shoppingLists"),
@@ -360,7 +360,7 @@ export const shareListWithFamily = mutation({
       .first();
 
     if (!profile?.isPremium || profile.premiumType !== "family") {
-      throw new Error("Za deljenje list potrebujete Premium Family paket (2,99€/mesec)");
+      throw new Error("Za deljenje list potrebujete Pr'Hran Family paket (3,99 EUR/mesec).");
     }
 
     const list = await ctx.db.get(args.listId);
