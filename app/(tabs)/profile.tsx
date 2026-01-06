@@ -114,10 +114,6 @@ export default function ProfileScreen() {
     api.familyPlan.getPendingInvitations,
     isAuthenticated && profile?.premiumType === "family" ? {} : "skip"
   );
-  const familyLeaderboard = useQuery(
-    api.familyPlan.getFamilyLeaderboard,
-    isAuthenticated ? {} : "skip"
-  );
 
   // Mutations
   const inviteFamilyMember = useAction(api.familyPlan.inviteFamilyMember);
@@ -183,8 +179,6 @@ export default function ProfileScreen() {
   const maxFamilyMembers = familyData?.maxMembers ?? 3;
   const availableSlots = Math.max(0, maxFamilyMembers - 1 - familyMembers.length - pendingCount);
   const canInvite = isOwner && availableSlots > 0;
-  const familyLeaderboardEntries: FamilyLeaderboardEntry[] =
-    (familyLeaderboard?.members ?? []) as FamilyLeaderboardEntry[];
 
   useEffect(() => {
     if (showInviteModal && !canInvite) {
@@ -550,13 +544,30 @@ export default function ProfileScreen() {
   // ============================================================================
 
   const hasFamilyPlan = profile.premiumType === "family";
-  const hasFamilyAccess = profile.premiumType === "family" || Boolean(profile.familyOwnerId);
-  const showFamilyLeaderboard = hasFamilyAccess && familyLeaderboardEntries.length > 0;
   const planLabel = profile.isPremium
     ? (profile.premiumType === "family" ? "Family Premium" : "Premium Plus")
     : "Brezplačno";
   const searchesLabel = profile.isPremium ? "Iskanja" : "Iskanja danes";
   const searchesValue = profile.isPremium ? "Neomejeno" : `${profile.searchesRemaining}`;
+  const familyLeaderboardEntries: FamilyLeaderboardEntry[] = hasFamilyPlan
+    ? [
+        {
+          userId: profile.userId,
+          nickname: profile.nickname || profile.name || "Uporabnik",
+          profilePictureUrl: profile.profilePictureUrl,
+          totalSavings: profile.totalSavings ?? 0,
+          isOwner: true,
+        },
+        ...familyMembers.map((member) => ({
+          userId: member.userId,
+          nickname: member.nickname || "Uporabnik",
+          profilePictureUrl: member.profilePictureUrl,
+          totalSavings: member.totalSavings ?? 0,
+          isOwner: false,
+        })),
+      ].sort((a, b) => b.totalSavings - a.totalSavings)
+    : [];
+  const showFamilyLeaderboard = hasFamilyPlan && familyLeaderboardEntries.length > 0;
   const highlightItems: Array<{
     key: string;
     icon: IoniconName;
