@@ -5,6 +5,8 @@ import { api } from "./_generated/api";
 
 const MAX_FAMILY_MEMBERS = 3; // Vključno z ownerjem
 const INVITATION_EXPIRY_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FAMILY_MEMBER_REMOVE_COOLDOWN_MS = 30 * DAY_MS;
 const normalizeUrl = (value?: string) => value?.trim().replace(/\/$/, "");
 const fallbackSiteUrl = "https://www.prhran.com";
 const rawSiteUrl = normalizeUrl(
@@ -496,6 +498,16 @@ export const removeFamilyMember = authMutation({
       throw new Error("Samo lastnik Pr'Hran Family lahko odstranjuje člane");
     }
 
+    const now = Date.now();
+    const lastRemovedAt = ownerProfile.lastFamilyMemberRemovedAt;
+    if (lastRemovedAt && now - lastRemovedAt < FAMILY_MEMBER_REMOVE_COOLDOWN_MS) {
+      const nextAllowedAt = new Date(lastRemovedAt + FAMILY_MEMBER_REMOVE_COOLDOWN_MS);
+      const nextDate = nextAllowedAt.toLocaleDateString("sl-SI");
+      throw new Error(
+        `Družinskega člana lahko odstraniš največ enkrat na mesec. Naslednja možnost je po ${nextDate}.`
+      );
+    }
+
     const currentMembers = ownerProfile.familyMembers || [];
     if (!currentMembers.includes(args.memberUserId)) {
       throw new Error("Ta uporabnik ni član tvojega Pr'Hran Family načrta");
@@ -506,6 +518,7 @@ export const removeFamilyMember = authMutation({
 
     await ctx.db.patch(ownerProfile._id, {
       familyMembers: updatedMembers,
+      lastFamilyMemberRemovedAt: now,
     });
 
     // Posodobi profil člana

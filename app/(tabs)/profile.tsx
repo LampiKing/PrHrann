@@ -81,6 +81,9 @@ export default function ProfileScreen() {
   const [retryingProfile, setRetryingProfile] = useState(false);
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
+  const [showRemoveMemberConfirm, setShowRemoveMemberConfirm] = useState(false);
+  const [removingMember, setRemovingMember] = useState(false);
+  const [removeMemberError, setRemoveMemberError] = useState("");
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
@@ -210,15 +213,20 @@ export default function ProfileScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    setRemoveMemberError("");
+    setShowRemoveMemberConfirm(false);
     setSelectedMember(member);
     setShowMemberModal(true);
   }, []);
 
   const handleRemoveMember = useCallback(async (member: FamilyMember) => {
-    if (!member?.userId) return;
+    if (!member?.userId || removingMember) return;
 
     try {
+      setRemovingMember(true);
+      setRemoveMemberError("");
       await removeFamilyMember({ memberUserId: member.userId });
+      setShowRemoveMemberConfirm(false);
       setShowMemberModal(false);
       setSelectedMember(null);
       if (Platform.OS !== "web") {
@@ -227,9 +235,16 @@ export default function ProfileScreen() {
       Alert.alert("Uspešno", "Član je bil odstranjen iz družine.");
     } catch (error) {
       console.error("Remove member error:", error);
-      Alert.alert("Napaka", "Člana ni bilo mogoče odstraniti.");
+      const message = error instanceof Error ? error.message : "Člana ni bilo mogoče odstraniti.";
+      setRemoveMemberError(message);
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     }
-  }, [removeFamilyMember]);
+    finally {
+      setRemovingMember(false);
+    }
+  }, [removeFamilyMember, removingMember]);
 
   const handleInvite = useCallback(async () => {
     if (!inviteEmail.trim()) {
@@ -1055,18 +1070,29 @@ export default function ProfileScreen() {
         visible={showMemberModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowMemberModal(false)}
+        onRequestClose={() => {
+          setShowRemoveMemberConfirm(false);
+          setShowMemberModal(false);
+        }}
       >
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
-          <TouchableOpacity 
-            style={styles.modalOverlay} 
-            activeOpacity={1} 
-            onPress={() => setShowMemberModal(false)}
-          >
+          <View style={styles.modalOverlay}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => {
+                setShowRemoveMemberConfirm(false);
+                setShowMemberModal(false);
+              }}
+            />
             <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Družinski član</Text>
-                <TouchableOpacity onPress={() => setShowMemberModal(false)}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowRemoveMemberConfirm(false);
+                    setShowMemberModal(false);
+                  }}
+                >
                   <Ionicons name="close" size={24} color="#9ca3af" />
                 </TouchableOpacity>
               </View>
@@ -1093,14 +1119,8 @@ export default function ProfileScreen() {
                     <TouchableOpacity 
                       style={styles.removeButton}
                       onPress={() => {
-                        Alert.alert(
-                          "Odstrani člana",
-                          `Ali res želiš odstraniti ${selectedMember.nickname} iz družinskega načrta?`,
-                          [
-                            { text: "Prekliči", style: "cancel" },
-                            { text: "Odstrani", style: "destructive", onPress: () => handleRemoveMember(selectedMember) },
-                          ]
-                        );
+                        setRemoveMemberError("");
+                        setShowRemoveMemberConfirm(true);
                       }}
                     >
                       <Ionicons name="person-remove" size={18} color="#ef4444" />
@@ -1111,6 +1131,51 @@ export default function ProfileScreen() {
               )}
             </View>
           </TouchableOpacity>
+        </BlurView>
+      </Modal>
+
+      <Modal
+        visible={showRemoveMemberConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRemoveMemberConfirm(false)}
+      >
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <View style={styles.centeredModalOverlay}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => setShowRemoveMemberConfirm(false)}
+            />
+            <View style={styles.removeConfirmCard} onStartShouldSetResponder={() => true}>
+              <Text style={styles.removeConfirmTitle}>Odstrani člana?</Text>
+              <Text style={styles.removeConfirmText}>
+                Ali res želiš odstraniti {selectedMember?.nickname || "člana"} iz družinskega načrta?
+                {"\n\n"}Odstranitev je mogoča največ enkrat na mesec.
+              </Text>
+              {removeMemberError ? (
+                <Text style={styles.removeConfirmError}>{removeMemberError}</Text>
+              ) : null}
+              <View style={styles.removeConfirmActions}>
+                <TouchableOpacity
+                  style={styles.removeConfirmCancel}
+                  onPress={() => setShowRemoveMemberConfirm(false)}
+                >
+                  <Text style={styles.removeConfirmCancelText}>Prekliči</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.removeConfirmButton, { opacity: removingMember ? 0.6 : 1 }]}
+                  onPress={() => selectedMember && handleRemoveMember(selectedMember)}
+                  disabled={removingMember}
+                >
+                  {removingMember ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.removeConfirmButtonText}>Odstrani</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </BlurView>
       </Modal>
 
@@ -1258,10 +1323,11 @@ export default function ProfileScreen() {
         onRequestClose={() => setShowFeedbackModal(false)}
       >
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
-          <Pressable 
-            style={styles.centeredModalOverlay} 
-            onPress={() => setShowFeedbackModal(false)}
-          >
+          <View style={styles.centeredModalOverlay}>
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={() => setShowFeedbackModal(false)}
+            />
             <View style={styles.feedbackModalContent} onStartShouldSetResponder={() => true}>
               {/* Header */}
               <LinearGradient
@@ -1345,7 +1411,7 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             </View>
-          </Pressable>
+          </View>
         </BlurView>
       </Modal>
 
@@ -1388,7 +1454,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableOpacity>
+          </View>
         </BlurView>
       </Modal>
     </View>
@@ -2444,6 +2510,65 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#f8fafc",
+  },
+  removeConfirmCard: {
+    backgroundColor: "#111827",
+    borderRadius: 20,
+    padding: 20,
+    width: "100%",
+    maxWidth: 340,
+    borderWidth: 1,
+    borderColor: "rgba(239, 68, 68, 0.35)",
+  },
+  removeConfirmTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#f8fafc",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  removeConfirmText: {
+    fontSize: 13,
+    color: "#cbd5e1",
+    textAlign: "center",
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  removeConfirmError: {
+    fontSize: 12,
+    color: "#fca5a5",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  removeConfirmActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  removeConfirmCancel: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.4)",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
+  },
+  removeConfirmCancelText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#e2e8f0",
+  },
+  removeConfirmButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: "#ef4444",
+  },
+  removeConfirmButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
   },
 });
 
