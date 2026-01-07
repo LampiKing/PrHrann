@@ -88,11 +88,19 @@ export const submitFeedback = authMutation({
     const description = args.userEmail
       ? `${trimmedMessage}\n\nKontakt: ${args.userEmail}`
       : trimmedMessage;
-    const userName = args.userName || (ctx.user as { name?: string } | null)?.name || "Anonimen";
+    
+    // Get user info safely
+    const user = ctx.user as { _id: string; name?: string } | undefined;
+    if (!user || !user._id) {
+      return { success: false, error: "Uporabnik ni prijavljen." };
+    }
+    
+    const userName = args.userName || user.name || "Anonimen";
+    const userId = typeof user._id === "string" ? user._id : String(user._id);
 
     try {
       await ctx.db.insert("userSuggestions", {
-        userId: ctx.user._id,
+        userId,
         userNickname: userName,
         suggestionType,
         title,

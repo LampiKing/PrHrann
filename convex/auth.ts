@@ -161,6 +161,17 @@ export const createAuth = (
     ctx: GenericCtx<DataModel>,
     { optionsOnly } = { optionsOnly: false }
 ) => {
+    // Build trusted origins - always include production domains
+    const allTrustedOrigins = [
+        siteUrl,
+        "myapp://",
+        "https://prhran.com",
+        "https://www.prhran.com",
+        "https://prhrannn.netlify.app",
+        ...knownProdOrigins,
+        ...(isDev ? localhostOrigins : []),
+    ].filter(isString);
+    
     const config: any = {
         // disable logging when createAuth is called just to generate options.
         // this is not required, but there's a lot of noise in logs without it.
@@ -168,14 +179,7 @@ export const createAuth = (
             disabled: optionsOnly,
         },
         secret: process.env.BETTER_AUTH_SECRET || "test-secret-for-dev-only-replace-with-real-secret",
-        trustedOrigins: Array.from(
-            new Set([
-                siteUrl,
-                "myapp://",
-                ...knownProdOrigins,
-                ...(isDev ? localhostOrigins : []),
-            ].filter(isString))
-        ),
+        trustedOrigins: Array.from(new Set(allTrustedOrigins)),
         database: authComponent.adapter(ctx),
         emailAndPassword: {
             enabled: true,
@@ -229,21 +233,34 @@ export const createAuth = (
                 maxAge: 5 * 60, // 5 minutes
             },
         },
-        // Security settings
+        // Security settings - increased limits to avoid false 403 errors
         rateLimit: {
             enabled: true,
             window: 60, // 1 minute window
-            max: 10, // Max 10 requests per minute per IP
+            max: 30, // Increased from 10 to 30 requests per minute per IP
         },
         advanced: {
             crossSubDomainCookies: {
                 enabled: false,
             },
             disableCSRFCheck: true,
+            // Allow requests without origin header (needed for some clients)
+            useSecureCookies: process.env.NODE_ENV === "production",
         },
         cors: {
             origin: corsOrigins,
             credentials: true,
+            methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            allowedHeaders: [
+                "Content-Type",
+                "Authorization",
+                "X-Requested-With",
+                "Better-Auth-Cookie",
+                "Set-Better-Auth-Cookie",
+                "Cookie",
+                "Origin",
+                "Accept",
+            ],
         },
         plugins: [
             // The Expo and Convex plugins are required

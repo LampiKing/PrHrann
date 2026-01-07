@@ -510,24 +510,23 @@ export default function AuthScreen() {
 
     setResetLoading(true);
     try {
-      // Use $fetch for direct API call to request-password-reset endpoint
-      const result = await authClient.$fetch("/request-password-reset", {
-        method: "POST",
-        body: {
-          email: trimmedEmail,
-          redirectURL: resetRedirectUrl,
-          redirectTo: resetRedirectUrl,
-        },
+      // Use better-auth's forgetPassword method with proper options
+      const result = await authClient.forgetPassword({
+        email: trimmedEmail,
+        redirectTo: resetRedirectUrl,
       });
+      
       if (result.error) {
-        setError("Pošiljanje povezave ni uspelo. Poskusite znova.");
-        shakeError();
+        console.warn("Password reset error:", result.error);
+        // For security, show success message anyway to not leak user existence
+        openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
         return;
       }
+      
       openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
     } catch (error) {
       console.warn("Password reset request failed:", error);
-      // For security, show success message anyway
+      // For security, show success message anyway - don't reveal if email exists
       openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
     } finally {
       setResetLoading(false);

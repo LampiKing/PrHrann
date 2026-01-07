@@ -14,16 +14,23 @@ const normalizedAuthBaseUrl = authBaseUrl
     ? authBaseUrl.replace(".convex.cloud", ".convex.site")
     : undefined;
 
+// Site URL for cross-domain authentication
+const siteUrl = normalizeUrl(process.env.EXPO_PUBLIC_SITE_URL) || "https://www.prhran.com";
+
 if (!normalizedAuthBaseUrl) {
     console.warn("Missing Convex auth URL. Set EXPO_PUBLIC_CONVEX_SITE_URL.");
 }
 
 export const authClient = createAuthClient({
     baseURL: normalizedAuthBaseUrl,
+    // Add fetch options to handle CORS properly
+    fetchOptions: {
+        credentials: "include",
+    },
     plugins: [
         anonymousClient(),
         ...(Platform.OS === "web"
-            ? [crossDomainClient()]
+            ? [crossDomainClient({ siteURL: siteUrl })]
             : [
                   expoClient({
                       scheme: Constants.expoConfig?.scheme as string,

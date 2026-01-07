@@ -450,38 +450,63 @@ export default function ProfileScreen() {
     };
     
     try {
+      // Najprej poskušamo sendFeedback action (ne zahteva avtentikacije)
       const result = await sendFeedback(payload);
       if (result.success) {
         finalizeSuccess();
-      } else {
-        console.error("Feedback error:", result.error);
-        const fallback = await submitFeedback(payload);
-        if (fallback.success) {
-          finalizeSuccess();
-        } else {
+        return;
+      }
+      
+      // Če sendFeedback vrne napako (ne exception), poskusimo submitFeedback kot fallback
+      console.warn("sendFeedback returned error:", result.error);
+      
+      // Samo poskusi submitFeedback če je uporabnik prijavljen
+      if (isAuthenticated) {
+        try {
+          const fallback = await submitFeedback(payload);
+          if (fallback.success) {
+            finalizeSuccess();
+            return;
+          }
           setFeedbackError(fallback.error || result.error || "Sporočila ni bilo mogoče poslati.");
+        } catch (fallbackError) {
+          console.error("submitFeedback fallback error:", fallbackError);
+          setFeedbackError(result.error || "Sporočila ni bilo mogoče poslati.");
         }
+      } else {
+        setFeedbackError(result.error || "Sporočila ni bilo mogoče poslati.");
       }
     } catch (error) {
-      console.error("Feedback error:", error);
-      try {
-        const fallback = await submitFeedback(payload);
-        if (fallback.success) {
-          finalizeSuccess();
-        } else {
+      console.error("sendFeedback exception:", error);
+      
+      // Če pride do exception pri sendFeedback, poskusimo submitFeedback kot fallback
+      if (isAuthenticated) {
+        try {
+          const fallback = await submitFeedback(payload);
+          if (fallback.success) {
+            finalizeSuccess();
+            return;
+          }
           setFeedbackError(fallback.error || "Sporočila ni bilo mogoče poslati.");
+        } catch (fallbackError) {
+          console.error("submitFeedback fallback error:", fallbackError);
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Sporočila ni bilo mogoče poslati. Preverite internetno povezavo.";
+          setFeedbackError(message);
         }
-      } catch (fallbackError) {
+      } else {
         const message =
-          fallbackError instanceof Error
-            ? fallbackError.message
+          error instanceof Error
+            ? error.message
             : "Sporočila ni bilo mogoče poslati. Preverite internetno povezavo.";
         setFeedbackError(message);
       }
     } finally {
       setSendingFeedback(false);
     }
-  }, [feedbackMessage, feedbackCategory, profile?.email, profile?.nickname, profile?.name, sendFeedback, submitFeedback]);
+  }, [feedbackMessage, feedbackCategory, profile?.email, profile?.nickname, profile?.name, sendFeedback, submitFeedback, isAuthenticated]);
 
   // ============================================================================
   // RENDER HELPERS

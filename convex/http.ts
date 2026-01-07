@@ -47,6 +47,14 @@ authComponent.registerRoutes(http, createAuth, {
       "X-Requested-With",
       "Better-Auth-Cookie",
       "Set-Better-Auth-Cookie",
+      "Cookie",
+      "Origin",
+      "Accept",
+      "X-Auth-Token",
+    ],
+    exposedHeaders: [
+      "Set-Cookie",
+      "Set-Better-Auth-Cookie",
     ],
   },
 });
