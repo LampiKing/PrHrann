@@ -10,8 +10,8 @@ const AWARDS_START_YEAR = 2026;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 const PREMIUM_REWARDS_BY_RANK: Record<number, { label: string; durationMs: number }> = {
-  1: { label: "Pr'Hran Plus 1 leto", durationMs: 365 * DAY_IN_MS },
-  2: { label: "Pr'Hran Plus 6 mesecev", durationMs: 180 * DAY_IN_MS },
+  1: { label: "Pr'Hran Plus 6 mesecev", durationMs: 180 * DAY_IN_MS },
+  2: { label: "Pr'Hran Plus 3 mesece", durationMs: 90 * DAY_IN_MS },
   3: { label: "Pr'Hran Plus 1 mesec", durationMs: 30 * DAY_IN_MS },
 };
 

@@ -608,8 +608,8 @@ export default function ProfileScreen() {
   const planLabel = profile.isPremium
     ? (profile.premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS)
     : "Brezplačno";
-  const searchesLabel = profile.isPremium ? "Iskanja" : "Iskanja danes";
-  const searchesValue = profile.isPremium ? "Neomejeno" : `${profile.searchesRemaining}`;
+  const searchesLabel = profile.isPremium ? "Neomejeno iskanj" : "Iskanj danes";
+  const searchesValue = profile.isPremium ? "∞" : `${profile.searchesRemaining}`;
   const familyLeaderboardEntries: FamilyLeaderboardEntry[] = hasFamilyPlan
     ? [
         {
@@ -656,18 +656,7 @@ export default function ProfileScreen() {
     },
   ];
 
-  if (!hasFamilyPlan && profile.isPremium) {
-    highlightItems.push({
-      key: "validity",
-      icon: "calendar",
-      label: "Veljavnost",
-      value: profile.premiumUntil
-        ? new Date(profile.premiumUntil).toLocaleDateString("sl-SI")
-        : "Aktivno",
-      colors: ["rgba(16, 185, 129, 0.18)", "rgba(5, 150, 105, 0.06)"],
-      iconColor: "#34d399",
-    });
-  }
+  // Validity is now shown separately below the highlight cards for better readability
 
   return (
     <View style={styles.container}>
@@ -767,6 +756,28 @@ export default function ProfileScreen() {
               </LinearGradient>
             ))}
           </View>
+          
+          {/* Premium Validity Info - shown separately for better readability */}
+          {profile.isPremium && profile.premiumUntil && !hasFamilyPlan && (
+            <View style={styles.validityInfoContainer}>
+              <LinearGradient
+                colors={["rgba(16, 185, 129, 0.15)", "rgba(5, 150, 105, 0.05)"]}
+                style={styles.validityInfoGradient}
+              >
+                <Ionicons name="calendar-outline" size={18} color="#34d399" />
+                <View style={styles.validityInfoText}>
+                  <Text style={styles.validityInfoLabel}>Vaš paket {planLabel} velja do</Text>
+                  <Text style={styles.validityInfoDate}>
+                    {new Date(profile.premiumUntil).toLocaleDateString("sl-SI", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric"
+                    })}
+                  </Text>
+                </View>
+              </LinearGradient>
+            </View>
+          )}
         </View>
 
         {/* ================================================================== */}
@@ -1333,7 +1344,7 @@ export default function ProfileScreen() {
                 <Text style={styles.settingsSectionTitle}>Naročnina</Text>
                 
                 <View style={styles.settingsItem}>
-                  <Text style={styles.settingsLabel}>Načrt</Text>
+                  <Text style={styles.settingsLabel}>Paket</Text>
                   <Text style={styles.settingsValue}>
                     {profile.isPremium 
                       ? (profile.premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS)
@@ -1341,11 +1352,22 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
                 
+                {profile.isPremium && (
+                  <View style={styles.settingsItem}>
+                    <Text style={styles.settingsLabel}>Neomejeno iskanj</Text>
+                    <Text style={styles.settingsValue}>Da ✓</Text>
+                  </View>
+                )}
+                
                 {profile.premiumUntil && (
                   <View style={styles.settingsItem}>
-                    <Text style={styles.settingsLabel}>Veljavnost</Text>
+                    <Text style={styles.settingsLabel}>Velja do</Text>
                     <Text style={styles.settingsValue}>
-                      {new Date(profile.premiumUntil).toLocaleDateString("sl-SI")}
+                      {new Date(profile.premiumUntil).toLocaleDateString("sl-SI", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric"
+                      })}
                     </Text>
                   </View>
                 )}
@@ -2082,6 +2104,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9ca3af",
     marginTop: 4,
+  },
+  
+  // Validity Info Section
+  validityInfoContainer: {
+    marginTop: 16,
+  },
+  validityInfoGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(52, 211, 153, 0.2)",
+    gap: 12,
+  },
+  validityInfoText: {
+    flex: 1,
+  },
+  validityInfoLabel: {
+    fontSize: 13,
+    color: "#9ca3af",
+    marginBottom: 2,
+  },
+  validityInfoDate: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#34d399",
   },
 
   // Section Card

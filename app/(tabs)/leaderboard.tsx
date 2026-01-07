@@ -198,11 +198,11 @@ export default function LeaderboardScreen() {
           </View>
           <View style={styles.rewardRow}>
             <Text style={styles.rewardRank}>🥇 1. mesto</Text>
-            <Text style={styles.rewardPrize}>{PLAN_PLUS} 1 leto 🎉</Text>
+            <Text style={styles.rewardPrize}>{PLAN_PLUS} 6 mesecev 🎉</Text>
           </View>
           <View style={styles.rewardRow}>
             <Text style={styles.rewardRank}>🥈 2. mesto</Text>
-            <Text style={styles.rewardPrize}>{PLAN_PLUS} 6 mesecev ⭐</Text>
+            <Text style={styles.rewardPrize}>{PLAN_PLUS} 3 mesece ⭐</Text>
           </View>
           <View style={styles.rewardRow}>
             <Text style={styles.rewardRank}>🥉 3. mesto</Text>
@@ -231,7 +231,7 @@ export default function LeaderboardScreen() {
                     <Ionicons name={slot.icon} size={18} color={slot.accent} />
                   </View>
                   <Text style={[styles.podiumName, isEmpty && styles.podiumNameEmpty]}>
-                    {slot.entry?.nickname ?? "Bodi prvi!"}
+                    {slot.entry?.nickname ?? "Zasedi to mesto!"}
                   </Text>
                   <Text style={[styles.podiumSavings, isEmpty && styles.podiumSavingsEmpty]}>
                     {formatCurrency(slot.entry?.savings ?? 0)}

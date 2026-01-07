@@ -1,7 +1,29 @@
 import { v } from "convex/values";
 import { action, internalMutation, internalQuery } from "./_generated/server";
 import { internal, components } from "./_generated/api";
-import bcrypt from "bcryptjs";
+import { scryptAsync } from "@noble/hashes/scrypt.js";
+import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
+
+// Scrypt config matching better-auth
+const scryptConfig = {
+    N: 16384,
+    r: 16,
+    p: 1,
+    dkLen: 64,
+};
+
+// Hash password using scrypt (same as better-auth)
+async function hashPassword(password: string): Promise<string> {
+    const salt = bytesToHex(randomBytes(16));
+    const key = await scryptAsync(password.normalize("NFKC"), salt, {
+        N: scryptConfig.N,
+        p: scryptConfig.p,
+        r: scryptConfig.r,
+        dkLen: scryptConfig.dkLen,
+        maxmem: 128 * scryptConfig.N * scryptConfig.r * 2,
+    });
+    return `${salt}:${bytesToHex(key)}`;
+}
 
 const fromEmail = process.env.FROM_EMAIL;
 const fromName = process.env.FROM_NAME || "Pr'Hran";
@@ -353,8 +375,8 @@ export const resetPassword = action({
         }
         
         try {
-            // Hash password using bcrypt (same as better-auth)
-            const hashedPassword = await bcrypt.hash(args.newPassword, 10);
+            // Hash password using scrypt (same as better-auth)
+            const hashedPassword = await hashPassword(args.newPassword);
             
             // Find user by email to get userId
             const profile = await ctx.runQuery(internal.passwordReset.findUserByEmail, {
