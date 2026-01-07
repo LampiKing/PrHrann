@@ -887,6 +887,11 @@ export default function SearchScreen() {
       setShowScanner(false);
       setScanningImage(null);
       setScanResult(null);
+      
+      // Automatically trigger search with the scanned product
+      setApprovedQuery(scanResult);
+      setAutoSearchBlockedQuery(null);
+      
       if (Platform.OS !== "web") {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       }
