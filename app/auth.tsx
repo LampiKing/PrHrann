@@ -510,23 +510,24 @@ export default function AuthScreen() {
 
     setResetLoading(true);
     try {
-      // Use better-auth's forgetPassword method with proper options
-      const result = await authClient.forgetPassword({
-        email: trimmedEmail,
-        redirectTo: resetRedirectUrl,
+      // Use correct better-auth endpoint for password reset
+      const result = await authClient.$fetch("/request-password-reset", {
+        method: "POST",
+        body: {
+          email: trimmedEmail,
+          redirectTo: resetRedirectUrl,
+        },
       });
       
       if (result.error) {
         console.warn("Password reset error:", result.error);
-        // For security, show success message anyway to not leak user existence
-        openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
-        return;
       }
       
+      // Always show success for security (don't reveal if email exists)
       openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
     } catch (error) {
       console.warn("Password reset request failed:", error);
-      // For security, show success message anyway - don't reveal if email exists
+      // For security, show success message anyway
       openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");
     } finally {
       setResetLoading(false);
