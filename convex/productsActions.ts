@@ -348,6 +348,49 @@ export const searchFromSheets = action({
         return 60;
       };
 
+      // AI-like relevance scorer: How relevant is this product for the search query?
+      const getRelevanceScore = (productNameNorm: string, searchQuery: string): number => {
+        let score = 100; // Start with perfect score
+
+        const searchTokens = searchQuery.split(/\s+/).filter(Boolean);
+        const productTokens = productNameNorm.split(/\s+/).filter(Boolean);
+
+        // 1. Check how many search tokens are in product name (word overlap)
+        const matchedTokens = searchTokens.filter(st => 
+          productTokens.some(pt => pt.includes(st) || st.includes(pt))
+        );
+        const overlapRatio = matchedTokens.length / searchTokens.length;
+        if (overlapRatio < 0.5) score -= 30; // Less than half words match = penalty
+
+        // 2. Penalize "variant" products when searching for base product
+        // Example: searching "mleko" should deprioritize "čokoladno mleko", "šampon za mleko", etc.
+        const variantKeywords = [
+          "cokolad", "jagod", "banan", "vanilij", "karamel", // flavors
+          "sojin", "ovseni", "kokos", "rizen", "mandljev", // alternatives
+          "sampon", "gel", "krem", "losjon", "milo", "zobna", "paste", // non-food
+          "cistil", "prasek", "detergen", "mehcalec", // cleaning
+          "za telo", "za lase", "za obraz", "za kozo", // body care
+        ];
+        
+        // If search is simple (1-2 words) but product has variant keywords = penalty
+        if (searchTokens.length <= 2) {
+          const hasVariantKeyword = variantKeywords.some(vk => productNameNorm.includes(vk));
+          if (hasVariantKeyword) {
+            // Check if variant keyword is in search query - if not, penalize
+            const isIntentional = variantKeywords.some(vk => searchQuery.includes(vk));
+            if (!isIntentional) {
+              score -= 40; // Big penalty for variants when searching base product
+            }
+          }
+        }
+
+        // 3. Bonus for exact/starts-with already handled in main sort, but reinforce here
+        if (productNameNorm.startsWith(searchQuery)) score += 20;
+        if (productNameNorm === searchQuery) score += 30;
+
+        return Math.max(0, score); // Never go below 0
+      };
+
       // Sort by relevance first (exact match), then by lowest price
       const sorted = hydrated
         .sort((a, b) => {
@@ -370,13 +413,10 @@ export const searchFromSheets = action({
           const bStarts = bNameNorm.startsWith(searchNormalized) ? 0 : 1;
           if (aStarts !== bStarts) return aStarts - bStarts;
 
-          // SPECIAL: For "mleko" search, deprioritize flavored/special milk
-          if (searchNormalized === "mleko") {
-            const aIsFlavored = /cokolad|jagod|banan|vanilij|karamel|sojin|ovseni|kokos|rizen|mandljev/.test(aNameNorm);
-            const bIsFlavored = /cokolad|jagod|banan|vanilij|karamel|sojin|ovseni|kokos|rizen|mandljev/.test(bNameNorm);
-            if (aIsFlavored && !bIsFlavored) return 1; // Plain milk first
-            if (!aIsFlavored && bIsFlavored) return -1;
-          }
+          // AI-LIKE RELEVANCE SCORING (replaces hardcoded "mleko" check)
+          const aRelevance = getRelevanceScore(aNameNorm, searchNormalized);
+          const bRelevance = getRelevanceScore(bNameNorm, searchNormalized);
+          if (aRelevance !== bRelevance) return bRelevance - aRelevance; // Higher relevance first
 
           // Size/volume relevance (prioritize normal sizes like 1L over small 200ml)
           const aSizeScore = getSizeScore(aNameNorm);
