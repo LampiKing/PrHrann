@@ -2008,111 +2008,23 @@ export default function SearchScreen() {
                     outputRange: [40, 0],
                   }),
                 },
-                {
-                  scale: cartToastAnim.interpolate({
-                    inputRange: [0, 0.5, 1],
-                    outputRange: [0.8, 1.05, 1],
-                  }),
-                },
               ],
             },
           ]}
         >
-          {/* Confetti particles */}
-          {confettiAnims.map((anim, index) => (
-            <RNAnimated.View
-              key={`confetti-${index}`}
-              pointerEvents="none"
-              style={[
-                styles.confettiParticle,
-                {
-                  backgroundColor: [
-                    '#10b981', '#34d399', '#6ee7b7', '#a7f3d0',
-                    '#fbbf24', '#fcd34d', '#fde68a',
-                    '#8b5cf6', '#a78bfa', '#c4b5fd',
-                    '#ec4899', '#f472b6'
-                  ][index % 12],
-                  opacity: anim.opacity,
-                  transform: [
-                    { translateX: anim.x },
-                    { translateY: anim.y },
-                    { scale: anim.scale },
-                    {
-                      rotate: anim.rotate.interpolate({
-                        inputRange: [-2, 2],
-                        outputRange: ['-180deg', '180deg'],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          ))}
-          
-          {/* Glow effect behind toast */}
-          <RNAnimated.View
-            style={[
-              styles.cartToastGlow,
-              {
-                opacity: cartGlowAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.3, 0.8],
-                }),
-                transform: [
-                  {
-                    scale: cartGlowAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [1, 1.2],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
-          
           <LinearGradient
-            colors={["rgba(16, 185, 129, 0.35)", "rgba(5, 150, 105, 0.25)"]}
+            colors={["rgba(16, 185, 129, 0.95)", "rgba(5, 150, 105, 0.9)"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.cartToastGradient}
           >
-            {/* Animated checkmark container */}
-            <RNAnimated.View
-              style={[
-                styles.cartToastIconContainer,
-                {
-                  transform: [
-                    {
-                      scale: cartSuccessScale.interpolate({
-                        inputRange: [0, 0.5, 1],
-                        outputRange: [0, 1.3, 1],
-                      }),
-                    },
-                    {
-                      rotate: cartSuccessRotate.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['-45deg', '0deg'],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            >
-              <LinearGradient
-                colors={["#10b981", "#059669"]}
-                style={styles.cartToastIconGradient}
-              >
-                <Ionicons name="checkmark" size={18} color="#fff" />
-              </LinearGradient>
-            </RNAnimated.View>
-            
-            <View style={styles.cartToastContent}>
-              <Text style={styles.cartToastTitle}>Dodano v košarico!</Text>
-              <Text style={styles.cartToastText}>{cartToastMessage}</Text>
+            <View style={styles.cartToastIconContainer}>
+              <Ionicons name="checkmark-circle" size={24} color="#fff" />
             </View>
             
-            <View style={styles.cartToastBadge}>
-              <Ionicons name="cart" size={14} color="#10b981" />
+            <View style={styles.cartToastContent}>
+              <Text style={styles.cartToastTitle}>✓ Dodano!</Text>
+              <Text style={styles.cartToastText}>{cartToastMessage}</Text>
             </View>
           </LinearGradient>
         </RNAnimated.View>

@@ -33,32 +33,37 @@ export const analyzeProductImage = action({
           messages: [
             {
               role: "system",
-              content: `You are an EXPERT product recognition AI for Slovenian grocery items. Your task is to identify the EXACT product shown in the image with HIGH PRECISION.
+              content: `You are a HIGHLY ACCURATE product recognition AI specialized in SLOVENIAN grocery products. Your mission: identify the EXACT product with MAXIMUM precision.
 
-CRITICAL REQUIREMENTS:
-1. Read ALL visible text on the product (brand name, product name, variant, weight/volume)
-2. Identify the EXACT product variant (e.g., "Milka čokolada jagoda 100g" NOT just "čokolada")
-3. Include size/weight if visible (e.g., "1L", "500g", "250ml")
-4. Use Slovenian language for generic terms but keep brand names as-is
-5. If multiple products are visible, identify the PRIMARY/CENTERED product
-6. Return ONLY the product name, NO explanations
+🎯 RECOGNITION RULES:
+1. READ ALL TEXT: Brand name, product type, flavor/variant, size/weight
+2. PRIORITIZE BRAND: Always include brand if visible (Ljubljanske mlekarne, Vindija, Piškot, etc.)
+3. BE SPECIFIC: "Alpsko mleko 3.5% 1L" NOT "mleko", "Milka čokolada jagoda 100g" NOT "čokolada"
+4. INCLUDE SIZE: Add weight/volume if visible (1L, 500g, 250ml, 2L, etc.)
+5. SLOVENIAN TERMS: Use Slovenian for generic words (mleko, kruh, jogurt, sir, etc.)
+6. KEEP BRANDS: Brand names stay as-is (Milka, Nutella, Coca-Cola, etc.)
+7. CENTER FOCUS: If multiple products, identify the MAIN/CENTERED one
 
-EXAMPLES:
-- "Milka čokolada jagoda 100g"
-- "Cockta 0.5L"
-- "Alpsko mleko 3.5% 1L"
-- "Nutella lešnikov namaz 400g"
-- "Kruh beli narezani 500g"
-- "Banane Chiquita 1kg"
+✅ PERFECT EXAMPLES:
+- "Alpsko mleko 3.5% 1L" (brand + type + variant + size)
+- "Milka čokolada jagoda 100g" (brand + type + flavor + size)
+- "Coca-Cola 0.5L" (brand + size)
+- "Kruh beli narezani 500g" (type + variant + size)
+- "Ljubljanske mlekarne maslo 250g" (brand + type + size)
 
-If you CANNOT clearly identify the product, respond with "neznano".`,
+❌ REJECT IF:
+- Text is blurry/unreadable → respond "neznano"
+- Multiple products unclear → respond "neznano"
+- Not a grocery product → respond "neznano"
+
+OUTPUT: Product name ONLY, NO explanations, NO brackets.`,
             },
             {
               role: "user",
               content: [
                 {
                   type: "text",
-                  text: "Identify the EXACT product in this image. Include brand, variant, and size. Respond with product name ONLY.",
+                  text: "Identify this Slovenian grocery product. Include: brand (if visible) + product type + variant/flavor (if any) + size/weight (if visible). Respond with ONLY the product name.",
                 },
                 {
                   type: "image_url",
@@ -72,8 +77,8 @@ If you CANNOT clearly identify the product, respond with "neznano".`,
               ],
             },
           ],
-          max_tokens: 150,
-          temperature: 0.1,
+          max_tokens: 100,
+          temperature: 0.05,
         }),
       });
 
