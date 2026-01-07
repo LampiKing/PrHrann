@@ -8,12 +8,19 @@ const fromName = process.env.FROM_NAME || "Pr'Hran";
 const resendApiKey = process.env.RESEND_API_KEY;
 
 async function sendEmail(to: string, subject: string, html: string) {
+    console.log(`[sendEmail] Attempting to send email to: ${to}`);
+    console.log(`[sendEmail] FROM_EMAIL configured: ${!!fromEmail}`);
+    console.log(`[sendEmail] RESEND_API_KEY configured: ${!!resendApiKey}`);
+    
     if (!fromEmail || !resendApiKey) {
-        console.warn("Email not configured (FROM_EMAIL or RESEND_API_KEY missing)");
+        console.error("[sendEmail] Email not configured - FROM_EMAIL or RESEND_API_KEY missing!");
+        console.error(`[sendEmail] FROM_EMAIL: ${fromEmail ? 'SET' : 'MISSING'}`);
+        console.error(`[sendEmail] RESEND_API_KEY: ${resendApiKey ? 'SET' : 'MISSING'}`);
         return false;
     }
     
     try {
+        console.log(`[sendEmail] Sending via Resend API from: ${fromName} <${fromEmail}>`);
         const response = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
@@ -30,14 +37,15 @@ async function sendEmail(to: string, subject: string, html: string) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`Email send failed: ${response.status} ${errorText}`);
+            console.error(`[sendEmail] Resend API error: ${response.status} ${errorText}`);
             return false;
         }
         
-        console.log(`Password reset email sent to: ${to}`);
+        const result = await response.json();
+        console.log(`[sendEmail] SUCCESS! Email sent to: ${to}, ID: ${result.id}`);
         return true;
     } catch (error) {
-        console.error("Email send error:", error);
+        console.error("[sendEmail] Exception:", error);
         return false;
     }
 }
@@ -103,24 +111,33 @@ export const requestPasswordReset = action({
         message: v.optional(v.string()),
     }),
     handler: async (ctx, args) => {
+        console.log(`[requestPasswordReset] Starting for email: ${args.email}`);
+        console.log(`[requestPasswordReset] Redirect URL: ${args.redirectTo}`);
+        
         const email = args.email.toLowerCase().trim();
         
         if (!email || !email.includes('@')) {
+            console.log(`[requestPasswordReset] Invalid email format`);
             return { success: false, message: "Neveljaven e-naslov" };
         }
         
         // Find user by email
+        console.log(`[requestPasswordReset] Looking for user with email: ${email}`);
         const user = await ctx.runQuery(internal.passwordReset.findUserByEmail, { email });
         
         // Always return success for security (don't reveal if email exists)
         if (!user) {
-            console.log(`Password reset requested for non-existent email: ${email}`);
+            console.log(`[requestPasswordReset] User not found for email: ${email}`);
             return { success: true };
         }
+        
+        console.log(`[requestPasswordReset] User found! userId: ${user.userId}`);
         
         // Generate reset token
         const token = generateResetToken();
         const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
+        
+        console.log(`[requestPasswordReset] Generated token, storing...`);
         
         // Store token
         await ctx.runMutation(internal.passwordReset.storeResetToken, {
@@ -176,7 +193,9 @@ export const requestPasswordReset = action({
             </div>
         `;
         
-        await sendEmail(email, subject, html);
+        console.log(`[requestPasswordReset] Sending email to: ${email}`);
+        const emailSent = await sendEmail(email, subject, html);
+        console.log(`[requestPasswordReset] Email sent result: ${emailSent}`);
         
         return { success: true };
     },

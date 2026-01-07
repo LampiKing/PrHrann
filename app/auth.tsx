@@ -118,7 +118,7 @@ export default function AuthScreen() {
   const logoGlow = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(1)).current;
   const cardSlide = useRef(new Animated.Value(50)).current;
-  const cardOpacity = useRef(new Animated.Value(0)).current;
+  const cardOpacity = useRef(new Animated.Value(1)).current; // Start visible to prevent flash
   const factOpacity = useRef(new Animated.Value(1)).current;
   const orb1Anim = useRef(new Animated.Value(0)).current;
   const orb2Anim = useRef(new Animated.Value(0)).current;
