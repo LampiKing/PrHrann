@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, internalMutation, internalQuery } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, components } from "./_generated/api";
+import bcrypt from "bcryptjs";
 
 const fromEmail = process.env.FROM_EMAIL;
 const fromName = process.env.FROM_NAME || "Pr'Hran";
@@ -247,7 +248,7 @@ export const checkResetToken = action({
     },
 });
 
-// Reset password action - this calls better-auth to update the password
+// Reset password action - updates password in better-auth database
 export const resetPassword = action({
     args: {
         token: v.string(),
@@ -275,30 +276,48 @@ export const resetPassword = action({
         }
         
         try {
-            // Call better-auth's internal reset-password endpoint
-            const betterAuthUrl = process.env.BETTER_AUTH_URL || "https://vibrant-dolphin-871.convex.site/api/auth";
+            // Hash password using bcrypt (same as better-auth)
+            const hashedPassword = await bcrypt.hash(args.newPassword, 10);
             
-            const response = await fetch(`${betterAuthUrl}/reset-password`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    token: args.token,
-                    newPassword: args.newPassword,
-                }),
+            // Find user by email to get userId
+            const profile = await ctx.runQuery(internal.passwordReset.findUserByEmail, {
+                email: args.email,
             });
             
-            // Even if better-auth fails, we try to update through our method
-            if (!response.ok) {
-                console.warn("Better-auth reset failed, token may need manual handling");
+            if (!profile) {
+                return { success: false, error: "Uporabnik ni najden" };
             }
+            
+            // Update password in better-auth account table using updateOne
+            await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+                input: {
+                    model: "account",
+                    update: {
+                        password: hashedPassword,
+                        updatedAt: Date.now(),
+                    },
+                    where: [
+                        {
+                            field: "userId",
+                            operator: "eq",
+                            value: profile.userId,
+                        },
+                        {
+                            field: "providerId",
+                            operator: "eq",
+                            value: "credential",
+                            connector: "AND",
+                        },
+                    ],
+                },
+            });
             
             // Mark token as used
             await ctx.runMutation(internal.passwordReset.markTokenAsUsed, {
                 token: args.token,
             });
             
+            console.log(`Password reset successful for: ${args.email}`);
             return { success: true };
         } catch (error) {
             console.error("Password reset error:", error);

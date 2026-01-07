@@ -21,6 +21,7 @@
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
+    "bcryptjs": "^3.0.3",
     "better-auth": "^1.4.7",
     "convex": "^1.29.3",
     "convex-helpers": "^0.1.104",
