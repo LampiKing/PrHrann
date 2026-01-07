@@ -630,6 +630,8 @@ export default function ProfileScreen() {
     : [];
   const showFamilyLeaderboard = hasFamilyPlan && familyLeaderboardEntries.length > 0;
   const awardItems = awards ?? [];
+  
+  // For free users, show searches remaining. For premium, show nothing (validity is shown separately)
   const highlightItems: Array<{
     key: string;
     icon: IoniconName;
@@ -637,26 +639,18 @@ export default function ProfileScreen() {
     value: string;
     colors: [string, string];
     iconColor: string;
-  }> = [
-    {
-      key: "plan",
-      icon: profile.isPremium ? "diamond" : "sparkles",
-      label: "Paket",
-      value: planLabel,
-      colors: ["rgba(251, 191, 36, 0.18)", "rgba(245, 158, 11, 0.06)"],
-      iconColor: "#fbbf24",
-    },
+  }> = profile.isPremium ? [] : [
     {
       key: "searches",
       icon: "search",
-      label: searchesLabel,
-      value: searchesValue,
+      label: "Iskanj danes",
+      value: `${profile.searchesRemaining}`,
       colors: ["rgba(59, 130, 246, 0.18)", "rgba(37, 99, 235, 0.06)"],
       iconColor: "#60a5fa",
     },
   ];
 
-  // Validity is now shown separately below the highlight cards for better readability
+  // Validity is now shown separately below for premium users
 
   return (
     <View style={styles.container}>
@@ -745,19 +739,22 @@ export default function ProfileScreen() {
           )}
           
           {/* Profile Highlights */}
-          <View style={styles.heroHighlights}>
-            {highlightItems.map((item) => (
-              <LinearGradient key={item.key} colors={item.colors} style={styles.heroHighlightCard}>
-                <View style={styles.heroHighlightIcon}>
-                  <Ionicons name={item.icon} size={16} color={item.iconColor} />
-                </View>
-                <Text style={styles.heroHighlightValue}>{item.value}</Text>
-                <Text style={styles.heroHighlightLabel}>{item.label}</Text>
-              </LinearGradient>
-            ))}
-          </View>
+          {/* Highlight cards for free users only */}
+          {highlightItems.length > 0 && (
+            <View style={styles.heroHighlights}>
+              {highlightItems.map((item) => (
+                <LinearGradient key={item.key} colors={item.colors} style={styles.heroHighlightCard}>
+                  <View style={styles.heroHighlightIcon}>
+                    <Ionicons name={item.icon} size={16} color={item.iconColor} />
+                  </View>
+                  <Text style={styles.heroHighlightValue}>{item.value}</Text>
+                  <Text style={styles.heroHighlightLabel}>{item.label}</Text>
+                </LinearGradient>
+              ))}
+            </View>
+          )}
           
-          {/* Premium Validity Info - shown separately for better readability */}
+          {/* Premium Validity Info - shown for premium users */}
           {profile.isPremium && profile.premiumUntil && !hasFamilyPlan && (
             <View style={styles.validityInfoContainer}>
               <LinearGradient
@@ -766,7 +763,7 @@ export default function ProfileScreen() {
               >
                 <Ionicons name="calendar-outline" size={18} color="#34d399" />
                 <View style={styles.validityInfoText}>
-                  <Text style={styles.validityInfoLabel}>Vaš paket {planLabel} velja do</Text>
+                  <Text style={styles.validityInfoLabel}>Veljavnost paketa</Text>
                   <Text style={styles.validityInfoDate}>
                     {new Date(profile.premiumUntil).toLocaleDateString("sl-SI", {
                       day: "numeric",
