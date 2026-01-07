@@ -2021,14 +2021,8 @@ export default function SearchScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.cartToastGradient}
           >
-            <View style={styles.cartToastIconContainer}>
-              <Ionicons name="checkmark-circle" size={24} color="#fff" />
-            </View>
-            
-            <View style={styles.cartToastContent}>
-              <Text style={styles.cartToastTitle}>✓ Dodano!</Text>
-              <Text style={styles.cartToastText}>{cartToastMessage}</Text>
-            </View>
+            <Ionicons name="cart" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.cartToastTitle}>DODANO V KOŠARICO</Text>
           </LinearGradient>
         </RNAnimated.View>
       )}
