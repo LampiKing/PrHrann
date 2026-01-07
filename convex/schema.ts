@@ -107,6 +107,8 @@ export default defineSchema({
     isPremium: v.boolean(),
     premiumUntil: v.optional(v.number()),
     premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))), // solo: 1,99€, family: 3,99€
+    premiumCancelled: v.optional(v.boolean()), // Uporabnik je preklical naročnino
+    premiumCancelledAt: v.optional(v.number()), // Kdaj je preklical
     familyOwnerId: v.optional(v.string()), // Če je član family plana
     familyMembers: v.optional(v.array(v.string())), // Max 3 osebe za family plan
     lastFamilyMemberRemovedAt: v.optional(v.number()), // Ohranimo omejitev odstranjevanja clanov

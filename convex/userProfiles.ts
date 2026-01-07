@@ -48,6 +48,7 @@ export const getProfile = authQuery({
       isPremium: v.boolean(),
       premiumUntil: v.optional(v.number()),
       premiumType: v.optional(v.union(v.literal("solo"), v.literal("family"))),
+      premiumCancelled: v.optional(v.boolean()),
       familyOwnerId: v.optional(v.string()),
       familyMembers: v.optional(v.array(v.string())),
       dailySearches: v.number(),
@@ -108,6 +109,7 @@ export const getProfile = authQuery({
       isPremium: profile.isPremium,
       premiumUntil: profile.premiumUntil,
       premiumType: profile.premiumType,
+      premiumCancelled: profile.premiumCancelled,
       familyOwnerId: profile.familyOwnerId,
       familyMembers: profile.familyMembers,
       dailySearches,
@@ -584,6 +586,65 @@ export const upgradeToPremium = authMutation({
     await sendAdminNotification(subject, html);
 
     return true;
+  },
+});
+
+// Cancel premium subscription
+export const cancelPremiumSubscription = authMutation({
+  args: {},
+  returns: v.object({
+    success: v.boolean(),
+    expiresAt: v.optional(v.number()),
+    message: v.optional(v.string()),
+  }),
+  handler: async (ctx) => {
+    const userId = ctx.user._id;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      return { success: false, message: "Profil ni najden" };
+    }
+
+    if (!profile.isPremium) {
+      return { success: false, message: "Nimate aktivne naročnine" };
+    }
+
+    // Set premium to expire at current premiumUntil date (no auto-renewal)
+    // If no premiumUntil set, expire immediately
+    const expiresAt = profile.premiumUntil || Date.now();
+    
+    // Mark subscription as cancelled but keep premium until expiry
+    await ctx.db.patch(profile._id, {
+      premiumCancelled: true,
+      premiumCancelledAt: Date.now(),
+    });
+
+    // Send admin notification
+    const email = profile.email || "-";
+    const nickname = profile.nickname || "-";
+    const planLabel = profile.premiumType === "family" ? "Pr'Hran Family" : "Pr'Hran Plus";
+    const subject = "Preklicana naročnina v Pr'Hran";
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+        <h2 style="margin: 0 0 12px; color: #ef4444;">Preklicana naročnina</h2>
+        <p style="margin: 0 0 8px;"><strong>E-naslov:</strong> ${email}</p>
+        <p style="margin: 0 0 8px;"><strong>Vzdevek:</strong> ${nickname}</p>
+        <p style="margin: 0 0 8px;"><strong>Paket:</strong> ${planLabel}</p>
+        <p style="margin: 0 0 8px;"><strong>Velja do:</strong> ${new Date(expiresAt).toLocaleDateString("sl-SI")}</p>
+        <p style="margin: 16px 0 0; color: #475569; font-size: 12px;">Samodejno obvestilo iz Pr'Hran.</p>
+      </div>
+    `;
+    await sendAdminNotification(subject, html);
+
+    return { 
+      success: true, 
+      expiresAt,
+      message: `Naročnina je preklicana. Vaše ugodnosti veljajo do ${new Date(expiresAt).toLocaleDateString("sl-SI", { day: "numeric", month: "long", year: "numeric" })}.`
+    };
   },
 });
 

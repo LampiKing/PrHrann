@@ -100,6 +100,7 @@ export default function ProfileScreen() {
   const [showInfoTooltip, setShowInfoTooltip] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [cancelSuccess, setCancelSuccess] = useState<{ expiresAt: number } | null>(null);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -128,6 +129,7 @@ export default function ProfileScreen() {
   const removeFamilyMember = useMutation(api.familyPlan.removeFamilyMember);
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
+  const cancelSubscription = useMutation(api.userProfiles.cancelPremiumSubscription);
   const sendFeedback = useAction(api.feedback.sendFeedback);
   const submitFeedback = useMutation(api.feedback.submitFeedback);
 
@@ -770,13 +772,22 @@ export default function ProfileScreen() {
           {profile.isPremium && profile.premiumUntil && !hasFamilyPlan && (
             <View style={styles.validityInfoContainer}>
               <LinearGradient
-                colors={["rgba(16, 185, 129, 0.15)", "rgba(5, 150, 105, 0.05)"]}
+                colors={profile.premiumCancelled 
+                  ? ["rgba(239, 68, 68, 0.15)", "rgba(185, 28, 28, 0.05)"]
+                  : ["rgba(16, 185, 129, 0.15)", "rgba(5, 150, 105, 0.05)"]}
                 style={styles.validityInfoGradient}
               >
-                <Ionicons name="calendar-outline" size={18} color="#34d399" />
+                <Ionicons 
+                  name={profile.premiumCancelled ? "close-circle-outline" : "calendar-outline"} 
+                  size={18} 
+                  color={profile.premiumCancelled ? "#f87171" : "#34d399"} 
+                />
                 <View style={styles.validityInfoText}>
-                  <Text style={styles.validityInfoLabel}>Veljavnost paketa</Text>
+                  <Text style={[styles.validityInfoLabel, profile.premiumCancelled && { color: "#f87171" }]}>
+                    {profile.premiumCancelled ? "Naročnina preklicana" : "Veljavnost paketa"}
+                  </Text>
                   <Text style={styles.validityInfoDate}>
+                    {profile.premiumCancelled ? "Velja do " : ""}
                     {new Date(profile.premiumUntil).toLocaleDateString("sl-SI", {
                       day: "numeric",
                       month: "long",
@@ -1107,8 +1118,8 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={18} color="#4b5563" />
           </TouchableOpacity>
 
-          {/* Cancel Subscription - only for premium users */}
-          {profile.isPremium && (
+          {/* Cancel Subscription - only for premium users who haven't cancelled yet */}
+          {profile.isPremium && !profile.premiumCancelled && (
             <TouchableOpacity style={[styles.menuItemNew, { borderBottomWidth: 0 }]} onPress={() => setShowCancelModal(true)}>
               <View style={styles.menuItemNewLeft}>
                 <LinearGradient colors={["rgba(239, 68, 68, 0.2)", "rgba(220, 38, 38, 0.1)"]} style={styles.menuIconNew}>
@@ -1571,49 +1582,95 @@ export default function ProfileScreen() {
         visible={showCancelModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowCancelModal(false)}
+        onRequestClose={() => {
+          if (!cancelSuccess) setShowCancelModal(false);
+        }}
       >
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
           <TouchableOpacity 
             style={styles.centeredModalOverlay}
             activeOpacity={1} 
-            onPress={() => setShowCancelModal(false)}
+            onPress={() => {
+              if (!cancelSuccess) setShowCancelModal(false);
+            }}
           >
             <View style={styles.cancelModalContent} onStartShouldSetResponder={() => true}>
-              <View style={styles.cancelModalIcon}>
-                <Ionicons name="warning" size={48} color="#f59e0b" />
-              </View>
-              <Text style={styles.cancelModalTitle}>Prekliči naročnino?</Text>
-              <Text style={styles.cancelModalText}>
-                Ali ste prepričani, da želite preklicati naročnino? Izgubili boste vse premium ugodnosti.
-              </Text>
-              <View style={styles.cancelModalButtons}>
-                <TouchableOpacity
-                  style={styles.cancelModalButtonSecondary}
-                  onPress={() => setShowCancelModal(false)}
-                >
-                  <Text style={styles.cancelModalButtonSecondaryText}>Ne, obdrži</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.cancelModalButtonDanger}
-                  onPress={async () => {
-                    setCancellingSubscription(true);
-                    // TODO: Add actual cancellation logic here
-                    setTimeout(() => {
-                      setCancellingSubscription(false);
+              {cancelSuccess ? (
+                // Success state
+                <>
+                  <View style={[styles.cancelModalIcon, { backgroundColor: "rgba(34, 197, 94, 0.15)" }]}>
+                    <Ionicons name="checkmark-circle" size={48} color="#22c55e" />
+                  </View>
+                  <Text style={styles.cancelModalTitle}>Naročnina preklicana</Text>
+                  <Text style={styles.cancelModalText}>
+                    Vaša naročnina je bila uspešno preklicana. Premium ugodnosti bodo na voljo do{" "}
+                    <Text style={{ fontWeight: "600", color: "#fff" }}>
+                      {new Date(cancelSuccess.expiresAt).toLocaleDateString("sl-SI", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </Text>.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.cancelModalButtonSecondary, { marginTop: 16, width: "100%" }]}
+                    onPress={() => {
                       setShowCancelModal(false);
-                      // Show confirmation or redirect
-                    }, 1500);
-                  }}
-                  disabled={cancellingSubscription}
-                >
-                  {cancellingSubscription ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.cancelModalButtonDangerText}>Da, prekliči</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
+                      setCancelSuccess(null);
+                    }}
+                  >
+                    <Text style={styles.cancelModalButtonSecondaryText}>Zapri</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                // Confirmation state
+                <>
+                  <View style={styles.cancelModalIcon}>
+                    <Ionicons name="warning" size={48} color="#f59e0b" />
+                  </View>
+                  <Text style={styles.cancelModalTitle}>Prekliči naročnino?</Text>
+                  <Text style={styles.cancelModalText}>
+                    Ali ste prepričani, da želite preklicati naročnino? Izgubili boste vse premium ugodnosti.
+                  </Text>
+                  <View style={styles.cancelModalButtons}>
+                    <TouchableOpacity
+                      style={styles.cancelModalButtonSecondary}
+                      onPress={() => setShowCancelModal(false)}
+                    >
+                      <Text style={styles.cancelModalButtonSecondaryText}>Ne, obdrži</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.cancelModalButtonDanger}
+                      onPress={async () => {
+                        setCancellingSubscription(true);
+                        try {
+                          const result = await cancelSubscription({});
+                          if (result.success && result.expiresAt) {
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            setCancelSuccess({ expiresAt: result.expiresAt });
+                          } else {
+                            Alert.alert("Napaka", result.message || "Preklic ni uspel.");
+                            setShowCancelModal(false);
+                          }
+                        } catch (error) {
+                          console.error("Cancel subscription error:", error);
+                          Alert.alert("Napaka", "Prišlo je do napake pri preklicu naročnine.");
+                          setShowCancelModal(false);
+                        } finally {
+                          setCancellingSubscription(false);
+                        }
+                      }}
+                      disabled={cancellingSubscription}
+                    >
+                      {cancellingSubscription ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.cancelModalButtonDangerText}>Da, prekliči</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
             </View>
           </TouchableOpacity>
         </BlurView>
