@@ -934,13 +934,13 @@ export default function SearchScreen() {
           },
           ...prev,
         ].slice(0, 3));
-        triggerCartPreview();
+        triggerCartToast("Dodano v košarico!");
         setTimeout(() => setAddedToCart(null), 1500);
       } catch (error) {
         console.error("Napaka pri dodajanju:", error);
       }
     },
-    [addToCart, isGuestMode, triggerCartPreview]
+    [addToCart, isGuestMode, triggerCartToast]
   );
 
   const handleAddToCartFromSearch = useCallback(
@@ -982,7 +982,7 @@ export default function SearchScreen() {
           },
           ...prev,
         ].slice(0, 3));
-        triggerCartPreview();
+        triggerCartToast("Dodano v košarico!");
         setTimeout(() => setAddedToCart(null), 1500);
       } catch (error) {
         console.error("Napaka pri dodajanju:", error);
@@ -992,7 +992,7 @@ export default function SearchScreen() {
         setAddingToCart(null);
       }
     },
-    [addToCartFromSearch, isGuestMode, isPremium, router, triggerCartPreview]
+    [addToCartFromSearch, isGuestMode, isPremium, router, triggerCartToast]
   );
 
   const formatPrice = (price: number) => {
