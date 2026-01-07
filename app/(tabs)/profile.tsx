@@ -718,15 +718,23 @@ export default function ProfileScreen() {
           
           {/* Premium Badge */}
           {profile.isPremium ? (
-            <View style={styles.premiumBadgeContainer}>
+            <TouchableOpacity 
+              style={styles.premiumBadgeContainer}
+              onPress={() => router.push("/premium")}
+              activeOpacity={0.8}
+            >
               <LinearGradient
                 colors={["#fbbf24", "#f59e0b"]}
                 style={styles.premiumBadge}
               >
                 <Ionicons name="star" size={14} color="#0a0a0f" />
                 <Text style={styles.premiumBadgeText}>{planLabel}</Text>
+                <Ionicons name="chevron-forward" size={12} color="#0a0a0f" style={{ marginLeft: 4 }} />
               </LinearGradient>
-            </View>
+              <Text style={styles.managePlanHint}>
+                {hasFamilyPlan ? "Upravljaj naročnino" : `Nadgradi na ${PLAN_FAMILY}`}
+              </Text>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity 
               style={styles.upgradeBadge}
@@ -2043,6 +2051,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#0a0a0f",
+  },
+  managePlanHint: {
+    fontSize: 12,
+    color: "#9ca3af",
+    marginTop: 6,
   },
   upgradeBadge: {
     flexDirection: "row",
