@@ -168,8 +168,12 @@ export const createAuth = (
         "https://prhran.com",
         "https://www.prhran.com",
         "https://prhrannn.netlify.app",
+        // Always include localhost for development
+        "http://localhost:8081",
+        "http://localhost:19006",
+        "http://localhost:3000",
         ...knownProdOrigins,
-        ...(isDev ? localhostOrigins : []),
+        ...localhostOrigins,
     ].filter(isString);
     
     const config: any = {
@@ -245,6 +249,11 @@ export const createAuth = (
             disableCSRFCheck: true,
             // Allow requests without origin header (needed for some clients)
             useSecureCookies: process.env.NODE_ENV === "production",
+            // Disable origin check for password reset to avoid 403 errors
+            defaultCookieAttributes: {
+                sameSite: "none",
+                secure: true,
+            },
         },
         cors: {
             origin: corsOrigins,
