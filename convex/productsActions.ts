@@ -418,13 +418,16 @@ export const searchFromSheets = action({
           const bRelevance = getRelevanceScore(bNameNorm, searchNormalized);
           if (aRelevance !== bRelevance) return bRelevance - aRelevance; // Higher relevance first
 
+          // PRICE FIRST - cheapest is always best after relevance filtering
+          if (a.lowestPrice !== b.lowestPrice) return a.lowestPrice - b.lowestPrice;
+
           // Size/volume relevance (prioritize normal sizes like 1L over small 200ml)
           const aSizeScore = getSizeScore(aNameNorm);
           const bSizeScore = getSizeScore(bNameNorm);
           if (aSizeScore !== bSizeScore) return bSizeScore - aSizeScore; // Higher score first
 
-          // Finally by price (cheapest first)
-          return a.lowestPrice - b.lowestPrice;
+          // If everything else is equal, maintain original order
+          return 0;
         })
         .slice(0, MAX_RESULTS)
         .map(({ nameNormalized, ...rest }) => rest);
