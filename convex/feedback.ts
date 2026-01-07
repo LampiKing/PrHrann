@@ -192,6 +192,8 @@ export const sendFeedback = action({
     `;
 
     try {
+      const fromEmail = process.env.FROM_EMAIL || "noreply@prhran.com";
+      const fromName = process.env.FROM_NAME || "Pr'Hran Feedback";
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -199,7 +201,7 @@ export const sendFeedback = action({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Pr'Hran Feedback <noreply@prhran.com>",
+          from: `${fromName} <${fromEmail}>`,
           to: feedbackEmail,
           subject: `[${categoryLabel}] Nov feedback od ${args.userName || "uporabnika"}`,
           html,

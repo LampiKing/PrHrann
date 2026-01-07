@@ -206,6 +206,7 @@ export const createAuth = (
                 }
             },
             sendResetPassword: async ({ user, url }: { user: { email: string }, url: string, token: string }) => {
+                console.log(`[Password Reset] Sending reset email to: ${user.email}`);
                 const subject = "Ponastavi geslo";
                 const html = `
                     <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
@@ -219,9 +220,7 @@ export const createAuth = (
                 `;
 
                 await sendEmail(user.email, subject, html);
-                if (process.env.NODE_ENV !== "production") {
-                    console.log(`Password reset link for ${user.email}: ${url}`);
-                }
+                console.log(`[Password Reset] Email sent successfully to: ${user.email}`);
             },
         },
         // Session settings - track IP and device
