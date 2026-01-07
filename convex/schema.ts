@@ -532,4 +532,14 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_type", ["suggestionType"])
     .index("by_submitted_at", ["submittedAt"]),
+
+  // Password Reset Tokens
+  passwordResetTokens: defineTable({
+    email: v.string(),
+    token: v.string(),
+    expiresAt: v.number(),
+    used: v.boolean(),
+  })
+    .index("by_email", ["email"])
+    .index("by_token", ["token"]),
 });

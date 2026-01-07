@@ -182,6 +182,7 @@ export const createAuth = (
         logger: {
             disabled: optionsOnly,
         },
+        baseURL: "https://vibrant-dolphin-871.convex.site/api/auth",
         secret: process.env.BETTER_AUTH_SECRET || "test-secret-for-dev-only-replace-with-real-secret",
         trustedOrigins: Array.from(new Set(allTrustedOrigins)),
         database: authComponent.adapter(ctx),

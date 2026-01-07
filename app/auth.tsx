@@ -486,6 +486,8 @@ export default function AuthScreen() {
     }
   };
 
+  const requestPasswordReset = useAction(api.passwordReset.requestPasswordReset);
+
   const handleForgotPassword = async () => {
     if (resetLoading || loading) {
       return;
@@ -510,18 +512,11 @@ export default function AuthScreen() {
 
     setResetLoading(true);
     try {
-      // Use correct better-auth endpoint for password reset
-      const result = await authClient.$fetch("/request-password-reset", {
-        method: "POST",
-        body: {
-          email: trimmedEmail,
-          redirectTo: resetRedirectUrl,
-        },
+      // Use our custom Convex action for password reset (bypasses better-auth CORS issues)
+      await requestPasswordReset({
+        email: trimmedEmail,
+        redirectTo: resetRedirectUrl,
       });
-      
-      if (result.error) {
-        console.warn("Password reset error:", result.error);
-      }
       
       // Always show success for security (don't reveal if email exists)
       openSuccessOverlay("Če račun obstaja, smo poslali povezavo za ponastavitev.");

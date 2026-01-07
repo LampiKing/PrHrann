@@ -26,6 +26,7 @@ import type * as groceryImport from "../groceryImport.js";
 import type * as http from "../http.js";
 import type * as leaderboard from "../leaderboard.js";
 import type * as notify from "../notify.js";
+import type * as passwordReset from "../passwordReset.js";
 import type * as priceAlerts from "../priceAlerts.js";
 import type * as products from "../products.js";
 import type * as productsActions from "../productsActions.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   leaderboard: typeof leaderboard;
   notify: typeof notify;
+  passwordReset: typeof passwordReset;
   priceAlerts: typeof priceAlerts;
   products: typeof products;
   productsActions: typeof productsActions;

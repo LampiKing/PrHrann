@@ -16,15 +16,23 @@ import { router, useLocalSearchParams } from "expo-router";
 import { authClient } from "@/lib/auth-client";
 import { createShadow } from "@/lib/shadow-helper";
 import FloatingBackground from "@/lib/FloatingBackground";
+import { useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 export default function ResetScreen() {
-  const params = useLocalSearchParams<{ token?: string; error?: string }>();
+  const params = useLocalSearchParams<{ token?: string; email?: string; error?: string }>();
   const token = Array.isArray(params.token) ? params.token[0] : params.token;
+  const emailParam = Array.isArray(params.email) ? params.email[0] : params.email;
   const errorParam = Array.isArray(params.error) ? params.error[0] : params.error;
 
   // Mode: "request" = enter email to request reset, "reset" = enter new password
   const hasToken = typeof token === "string" && token.length > 0;
   const mode = hasToken && !errorParam ? "reset" : "request";
+
+  // Convex actions for password reset
+  const requestPasswordReset = useAction(api.passwordReset.requestPasswordReset);
+  const checkResetToken = useAction(api.passwordReset.checkResetToken);
+  const resetPasswordAction = useAction(api.passwordReset.resetPassword);
 
   // Request mode state
   const [email, setEmail] = useState("");
@@ -35,10 +43,30 @@ export default function ResetScreen() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tokenValidating, setTokenValidating] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  // Validate token on mount if in reset mode
+  useEffect(() => {
+    if (hasToken && emailParam && !errorParam) {
+      setTokenValidating(true);
+      checkResetToken({ token: token!, email: emailParam })
+        .then((result) => {
+          if (!result.valid) {
+            setError(result.error || "Povezava za ponastavitev je neveljavna ali je potekla.");
+          }
+        })
+        .catch(() => {
+          setError("Povezava za ponastavitev je neveljavna ali je potekla.");
+        })
+        .finally(() => {
+          setTokenValidating(false);
+        });
+    }
+  }, [hasToken, emailParam, token, errorParam]);
 
   useEffect(() => {
     if (errorParam && hasToken) {
@@ -65,8 +93,11 @@ export default function ResetScreen() {
 
   const canSubmit =
     !loading &&
+    !tokenValidating &&
     hasToken &&
+    emailParam &&
     !errorParam &&
+    !error &&
     newPassword.length >= 6 &&
     confirmPassword.length >= 6 &&
     newPassword === confirmPassword;
@@ -102,19 +133,12 @@ export default function ResetScreen() {
     const resetRedirectUrl = getResetRedirectUrl();
 
     try {
-      // Use $fetch for direct API call to request-password-reset endpoint
-      const result = await authClient.$fetch("/request-password-reset", {
-        method: "POST",
-        body: {
-          email: trimmedEmail,
-          redirectURL: resetRedirectUrl,
-          redirectTo: resetRedirectUrl,
-        },
+      // Use our custom Convex action for password reset (bypasses better-auth CORS issues)
+      await requestPasswordReset({
+        email: trimmedEmail,
+        redirectTo: resetRedirectUrl,
       });
-      if (result.error) {
-        setError("Pošiljanje ni uspelo. Poskusite znova.");
-        return;
-      }
+      
       setRequestSent(true);
       setMessage("Če račun obstaja, smo poslali povezavo za ponastavitev na vaš e-naslov.");
     } catch (error) {
@@ -130,7 +154,7 @@ export default function ResetScreen() {
   // Handle reset password (enter new password)
   const handleReset = async () => {
     if (!canSubmit) {
-      if (!hasToken || errorParam) {
+      if (!hasToken || errorParam || !emailParam) {
         setError("Povezava za ponastavitev ni veljavna.");
         return;
       }
@@ -150,14 +174,18 @@ export default function ResetScreen() {
     setMessage("");
 
     try {
-      const result = await authClient.resetPassword({
-        token,
+      // Use our custom Convex action for password reset
+      const result = await resetPasswordAction({
+        token: token!,
+        email: emailParam!,
         newPassword,
       });
-      if (result.error) {
-        setError("Ponastavitev ni uspela. Poskusite znova.");
+      
+      if (!result.success) {
+        setError(result.error || "Ponastavitev ni uspela. Poskusite znova.");
         return;
       }
+      
       setMessage("Geslo je posodobljeno. Prijavite se z novim geslom.");
       setTimeout(() => {
         router.replace({ pathname: "/auth", params: { mode: "login" } });
