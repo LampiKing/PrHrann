@@ -505,12 +505,12 @@ export default function PremiumScreen() {
                 {processing ? (
                   <Ionicons name="sync" size={24} color="#fff" />
                 ) : (
-                  <>
-                    <Text style={styles.ctaText}>
-                      Izbran paket: {selectedPlanLabel} - {price} EUR/mesec
+                  <View style={styles.ctaContent}>
+                    <Text style={styles.ctaText}>Nadaljuj na plačilo</Text>
+                    <Text style={styles.ctaPrice}>
+                      {selectedPlanLabel} • {price} EUR/mesec
                     </Text>
-                    <Ionicons name="arrow-forward" size={24} color="#fff" />
-                  </>
+                  </View>
                 )}
               </LinearGradient>
             </TouchableOpacity>
@@ -867,13 +867,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 18,
-    gap: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  ctaContent: {
+    alignItems: "center",
   },
   ctaText: {
     fontSize: 18,
     fontWeight: "800",
     color: "#fff",
+    textAlign: "center",
+  },
+  ctaPrice: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.85)",
+    marginTop: 4,
+    textAlign: "center",
   },
   trustBadges: {
     flexDirection: "row",
