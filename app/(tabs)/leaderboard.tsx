@@ -375,7 +375,7 @@ export default function LeaderboardScreen() {
               <Text style={styles.infoTitle}>Kako deluje lestvica?</Text>
             </View>
             <Text style={styles.infoText}>
-              🏆 <Text style={styles.infoBold}>Tekmuj s prihranki do zmage!</Text>
+              🏆 <Text style={styles.infoBold}>Tekmuj in s prihranki zmagaj!</Text>
               {"\n\n"}
               📸 <Text style={styles.infoBold}>Slikaj račune</Text> - Vsak dan do 23:00 dodaj račune iz trgovin Mercator, Spar in Tuš. Računi iz drugih trgovin (Lidl, Hofer, itd.) NE veljajo za lestvico. Aplikacija izračuna, koliko bi plačal v drugih trgovinah.
               {"\n\n"}
