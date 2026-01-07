@@ -2003,7 +2003,7 @@ export default function SearchScreen() {
         )}
 
         {/* Loading Indicator */}
-        {(searching || isLoadingSearch) && searchQuery.length >= 2 && (
+        {(searching || isLoadingSearch) && searchQuery.length >= 2 && limitedResults.length === 0 && (
           <View style={styles.loadingIndicatorContainer}>
             <ActivityIndicator size="large" color="#a855f7" />
             <Text style={styles.loadingIndicatorText}>Iskanje izdelkov...</Text>

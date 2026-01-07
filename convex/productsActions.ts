@@ -302,16 +302,28 @@ export const searchFromSheets = action({
 
       // Helper: Extract volume/size score (higher = more relevant for normal products)
       const getSizeScore = (nameNorm: string): number => {
-        // Extract volume in liters
-        const literMatch = nameNorm.match(/(\d+(?:\.\d+)?)l/);
+        // Extract volume in liters OR milliliters
+        const literMatch = nameNorm.match(/(\d+(?:\.\d+)?)l(?![a-z])/);
         if (literMatch) {
           const liters = parseFloat(literMatch[1]);
           // Prioritize 1L > 0.5L > 2L > 0.2L (normal sizes first)
           if (liters >= 0.9 && liters <= 1.1) return 100; // 1L is ideal
           if (liters >= 0.4 && liters <= 0.6) return 90;  // 0.5L common
           if (liters >= 1.8 && liters <= 2.2) return 85;  // 2L family size
-          if (liters >= 0.15 && liters <= 0.3) return 50; // Small bottles
+          if (liters >= 0.15 && liters <= 0.3) return 50; // Small bottles like 0.2L/200ml
+          if (liters < 0.15) return 30; // Tiny bottles
           return 70; // Other sizes
+        }
+        
+        // Extract milliliters (in case it wasn't converted to liters)
+        const mlMatch = nameNorm.match(/(\d+)ml(?![a-z])/);
+        if (mlMatch) {
+          const ml = parseInt(mlMatch[1]);
+          if (ml >= 900 && ml <= 1100) return 100; // ~1L
+          if (ml >= 400 && ml <= 600) return 90;   // ~0.5L
+          if (ml >= 150 && ml <= 300) return 50;   // Small bottles
+          if (ml < 150) return 30; // Tiny bottles
+          return 70;
         }
         
         // Extract weight in kg/g
@@ -323,7 +335,7 @@ export const searchFromSheets = action({
           return 80;
         }
         
-        const gMatch = nameNorm.match(/(\d+)g/);
+        const gMatch = nameNorm.match(/(\d+)g(?![a-z])/);
         if (gMatch) {
           const g = parseInt(gMatch[1]);
           if (g >= 400 && g <= 600) return 95;
@@ -357,6 +369,14 @@ export const searchFromSheets = action({
           const aStarts = aNameNorm.startsWith(searchNormalized) ? 0 : 1;
           const bStarts = bNameNorm.startsWith(searchNormalized) ? 0 : 1;
           if (aStarts !== bStarts) return aStarts - bStarts;
+
+          // SPECIAL: For "mleko" search, deprioritize flavored/special milk
+          if (searchNormalized === "mleko") {
+            const aIsFlavored = /cokolad|jagod|banan|vanilij|karamel|sojin|ovseni|kokos|rizen|mandljev/.test(aNameNorm);
+            const bIsFlavored = /cokolad|jagod|banan|vanilij|karamel|sojin|ovseni|kokos|rizen|mandljev/.test(bNameNorm);
+            if (aIsFlavored && !bIsFlavored) return 1; // Plain milk first
+            if (!aIsFlavored && bIsFlavored) return -1;
+          }
 
           // Size/volume relevance (prioritize normal sizes like 1L over small 200ml)
           const aSizeScore = getSizeScore(aNameNorm);
