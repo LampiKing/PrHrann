@@ -300,6 +300,42 @@ export const searchFromSheets = action({
         })
         .filter((product) => product !== null);
 
+      // Helper: Extract volume/size score (higher = more relevant for normal products)
+      const getSizeScore = (nameNorm: string): number => {
+        // Extract volume in liters
+        const literMatch = nameNorm.match(/(\d+(?:\.\d+)?)l/);
+        if (literMatch) {
+          const liters = parseFloat(literMatch[1]);
+          // Prioritize 1L > 0.5L > 2L > 0.2L (normal sizes first)
+          if (liters >= 0.9 && liters <= 1.1) return 100; // 1L is ideal
+          if (liters >= 0.4 && liters <= 0.6) return 90;  // 0.5L common
+          if (liters >= 1.8 && liters <= 2.2) return 85;  // 2L family size
+          if (liters >= 0.15 && liters <= 0.3) return 50; // Small bottles
+          return 70; // Other sizes
+        }
+        
+        // Extract weight in kg/g
+        const kgMatch = nameNorm.match(/(\d+(?:\.\d+)?)kg/);
+        if (kgMatch) {
+          const kg = parseFloat(kgMatch[1]);
+          if (kg >= 0.9 && kg <= 1.1) return 100;
+          if (kg >= 0.4 && kg <= 0.6) return 90;
+          return 80;
+        }
+        
+        const gMatch = nameNorm.match(/(\d+)g/);
+        if (gMatch) {
+          const g = parseInt(gMatch[1]);
+          if (g >= 400 && g <= 600) return 95;
+          if (g >= 200 && g <= 300) return 85;
+          if (g >= 100 && g <= 150) return 75;
+          return 70;
+        }
+        
+        // No clear size = lower priority
+        return 60;
+      };
+
       // Sort by relevance first (exact match), then by lowest price
       const sorted = hydrated
         .sort((a, b) => {
@@ -322,7 +358,12 @@ export const searchFromSheets = action({
           const bStarts = bNameNorm.startsWith(searchNormalized) ? 0 : 1;
           if (aStarts !== bStarts) return aStarts - bStarts;
 
-          // Finally by price
+          // Size/volume relevance (prioritize normal sizes like 1L over small 200ml)
+          const aSizeScore = getSizeScore(aNameNorm);
+          const bSizeScore = getSizeScore(bNameNorm);
+          if (aSizeScore !== bSizeScore) return bSizeScore - aSizeScore; // Higher score first
+
+          // Finally by price (cheapest first)
           return a.lowestPrice - b.lowestPrice;
         })
         .slice(0, MAX_RESULTS)

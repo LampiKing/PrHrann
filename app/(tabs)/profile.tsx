@@ -101,6 +101,8 @@ export default function ProfileScreen() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [cancelSuccess, setCancelSuccess] = useState<{ expiresAt: number } | null>(null);
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
+  const [downgradingPlan, setDowngradingPlan] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -130,6 +132,7 @@ export default function ProfileScreen() {
   const cancelInvitation = useMutation(api.familyPlan.cancelInvitation);
   const updateProfilePicture = useMutation(api.userProfiles.updateProfilePicture);
   const cancelSubscription = useMutation(api.userProfiles.cancelPremiumSubscription);
+  const downgradePlan = useMutation(api.userProfiles.downgradeFamilyToPlus);
   const sendFeedback = useAction(api.feedback.sendFeedback);
   const submitFeedback = useMutation(api.feedback.submitFeedback);
 
@@ -610,7 +613,9 @@ export default function ProfileScreen() {
 
   const hasFamilyPlan = profile.premiumType === "family";
   const planLabel = profile.isPremium
-    ? (profile.premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS)
+    ? profile.premiumCancelled
+      ? `Naročnina preklicana`
+      : (profile.premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS)
     : "Brezplačno";
   const searchesLabel = profile.isPremium ? "Neomejeno iskanj" : "Iskanj danes";
   const searchesValue = profile.isPremium ? "∞" : `${profile.searchesRemaining}`;
@@ -724,20 +729,44 @@ export default function ProfileScreen() {
           {profile.isPremium ? (
             <TouchableOpacity 
               style={styles.premiumBadgeContainer}
-              onPress={() => router.push("/premium")}
+              onPress={() => {
+                if (profile.premiumCancelled) {
+                  // Already cancelled, go to premium page
+                  router.push("/premium");
+                } else if (hasFamilyPlan) {
+                  // Show downgrade modal
+                  setShowDowngradeModal(true);
+                } else {
+                  // Plus user, upgrade to Family
+                  router.push("/premium");
+                }
+              }}
               activeOpacity={0.8}
             >
               <LinearGradient
-                colors={["#fbbf24", "#f59e0b"]}
+                colors={profile.premiumCancelled ? ["#ef4444", "#dc2626"] : ["#fbbf24", "#f59e0b"]}
                 style={styles.premiumBadge}
               >
-                <Ionicons name="star" size={14} color="#0a0a0f" />
+                <Ionicons name={profile.premiumCancelled ? "close-circle" : "star"} size={14} color="#0a0a0f" />
                 <Text style={styles.premiumBadgeText}>{planLabel}</Text>
                 <Ionicons name="chevron-forward" size={12} color="#0a0a0f" style={{ marginLeft: 4 }} />
               </LinearGradient>
-              {!hasFamilyPlan && (
+              {profile.premiumCancelled ? (
+                <Text style={styles.cancelledPlanHint}>
+                  Premium {profile.premiumType === "family" ? "FAMILY" : "PLUS"} aktiven do{" "}
+                  {profile.premiumUntil && new Date(profile.premiumUntil).toLocaleDateString("sl-SI", {
+                    day: "numeric",
+                    month: "numeric",
+                    year: "numeric"
+                  })}
+                </Text>
+              ) : !hasFamilyPlan ? (
                 <Text style={styles.managePlanHint}>
                   Nadgradi na {PLAN_FAMILY}
+                </Text>
+              ) : (
+                <Text style={styles.managePlanHint}>
+                  Spremeni na {PLAN_PLUS}
                 </Text>
               )}
             </TouchableOpacity>
@@ -1575,6 +1604,78 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* ================================================================== */}
+      {/* DOWNGRADE FAMILY TO PLUS MODAL */}
+      {/* ================================================================== */}
+      
+      <Modal
+        visible={showDowngradeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDowngradeModal(false)}
+      >
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <TouchableOpacity 
+            style={styles.centeredModalOverlay}
+            activeOpacity={1} 
+            onPress={() => setShowDowngradeModal(false)}
+          >
+            <View style={styles.cancelModalContent} onStartShouldSetResponder={() => true}>
+              <View style={styles.cancelModalIcon}>
+                <Ionicons name="arrow-down-circle" size={48} color="#f59e0b" />
+              </View>
+              <Text style={styles.cancelModalTitle}>Spremeni na {PLAN_PLUS}?</Text>
+              <Text style={styles.cancelModalText}>
+                S spremembo na {PLAN_PLUS} takoj izgubite:{"\n\n"}
+                • Vse družinske člane (ostanejo samo vi){"\n"}
+                • Možnost povabila dodatnih oseb{"\n"}
+                • Skupno vodenje prihrankov{"\n\n"}
+                Sprememba začne veljati <Text style={{ fontWeight: "600", color: "#fff" }}>takoj</Text>, ne ob koncu meseca.
+              </Text>
+              <View style={styles.cancelModalButtons}>
+                <TouchableOpacity
+                  style={styles.cancelModalButtonSecondary}
+                  onPress={() => setShowDowngradeModal(false)}
+                >
+                  <Text style={styles.cancelModalButtonSecondaryText}>Prekliči</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cancelModalButtonDanger}
+                  onPress={async () => {
+                    setDowngradingPlan(true);
+                    try {
+                      const result = await downgradePlan({});
+                      if (result.success) {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        Alert.alert(
+                          "Plan spremenjen",
+                          `Uspešno ste prešli na ${PLAN_PLUS}. Vaši družinski člani so bili odstranjeni.`
+                        );
+                        setShowDowngradeModal(false);
+                      } else {
+                        Alert.alert("Napaka", result.message || "Sprememba ni uspela.");
+                      }
+                    } catch (error) {
+                      console.error("Downgrade error:", error);
+                      Alert.alert("Napaka", "Prišlo je do napake pri spremembi plana.");
+                    } finally {
+                      setDowngradingPlan(false);
+                    }
+                  }}
+                  disabled={downgradingPlan}
+                >
+                  {downgradingPlan ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.cancelModalButtonDangerText}>Potrdi spremembo</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </BlurView>
+      </Modal>
+
+      {/* ================================================================== */}
       {/* CANCEL SUBSCRIPTION MODAL */}
       {/* ================================================================== */}
       
@@ -2186,6 +2287,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9ca3af",
     marginTop: 6,
+  },
+  cancelledPlanHint: {
+    fontSize: 12,
+    color: "#f87171",
+    marginTop: 6,
+    fontWeight: "500",
   },
   upgradeBadge: {
     flexDirection: "row",

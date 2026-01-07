@@ -1123,6 +1123,145 @@ export default function SearchScreen() {
     return value.toFixed(2).replace(".", ",") + " EUR";
   };
 
+  const getProductEmoji = (productName: string) => {
+    const normalize = (value: string) => {
+      const lower = value.toLowerCase();
+      if (typeof lower.normalize === "function") {
+        return lower.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      }
+      return lower
+        .replace(/[čć]/g, "c")
+        .replace(/š/g, "s")
+        .replace(/ž/g, "z");
+    };
+    const nameLower = normalize(productName);
+    const has = (...needles: string[]) =>
+      needles.some((needle) => nameLower.includes(needle));
+
+    // MLEKO & MLEČNI IZDELKI
+    if (has("mleko") && !has("kokos", "sojin", "ovseni", "riževo", "riževo")) return "🥛";
+    if (has("kokos", "sojin", "ovseni", "riževo", "riževo") && has("mleko")) return "🥥";
+    if (has("jogurt", "kefir")) return "🥛";
+    if (has("sir", "parmezan", "mocarela", "brie", "gorgonzola", "emmental")) return "🧀";
+    if (has("maslo", "margarin")) return "🧈";
+    if (has("skuta")) return "🥛";
+    if (has("smetana", "kremni", "whipping")) return "🥛";
+    
+    // PIJAČE - SOK & LIMONADA
+    if (has("sok", "juice", "smoothie")) return "🧃";
+    if (has("limonada", "limunada", "gaziran", "fanta", "sprite")) return "🥤";
+    if (has("coca", "cola", "pepsi", "cedevita")) return "🥤";
+    if (has("energi", "red bull", "monster", "hell")) return "⚡";
+    if (has("pivo", "beer", "lager", "lasko", "union", "heineken")) return "🍺";
+    if (has("vino", "wine", "belo", "rdece", "rose")) return "🍷";
+    if (has("voda", "water", "mineral", "gaziran")) return "💧";
+    if (has("kava", "coffee", "espresso", "cappuccino")) return "☕";
+    if (has("caj", "tea", "herbata")) return "🍵";
+    
+    // KRUH & PEKOVSKI IZDELKI
+    if (has("kruh", "bread", "črn kruh", "crn kruh", "polbel", "toast")) return "🍞";
+    if (has("zemlja", "bageta", "ciabatta")) return "🥖";
+    if (has("burek", "gibanica", "pita")) return "🥐";
+    if (has("croissant", "roglic")) return "🥐";
+    if (has("pecivo", "kifle", "strucka", "stručka")) return "🥖";
+    
+    // MESO & MESNI IZDELKI
+    if (has("pišcan", "piscan", "chicken", "piscance", "file", "prsa")) return "🍗";
+    if (has("govedina", "beef", "govej", "steak", "zrezek")) return "🥩";
+    if (has("svinjina", "pork", "svinjski", "šunka", "sunka")) return "🥓";
+    if (has("salama", "klobasa", "hrenovka", "sausage", "kranjska")) return "🌭";
+    if (has("pršut", "prsut", "prosciutto", "sušeno meso", "suseno meso")) return "🥓";
+    if (has("bacon", "slanina")) return "🥓";
+    
+    // RIBE & MORSKI SADEŽI
+    if (has("riba", "tuna", "losos", "salmon", "sardela", "pastrv")) return "🐟";
+    if (has("škampi", "skampi", "lignji", "hobotnica", "seafood")) return "🦐";
+    
+    // SADJE
+    if (has("jabolko", "apple", "jabolka")) return "🍎";
+    if (has("banana", "banane")) return "🍌";
+    if (has("pomaranča", "pomaranca", "orange")) return "🍊";
+    if (has("jagoda", "jagode", "strawberry", "strawberries")) return "🍓";
+    if (has("grozdje", "grape", "rozine")) return "🍇";
+    if (has("kivi")) return "🥝";
+    if (has("breskev", "peach", "nektarin")) return "🍑";
+    if (has("ananas", "pineapple")) return "🍍";
+    if (has("lubenica", "watermelon", "melona")) return "🍉";
+    if (has("limona", "lemon", "lime")) return "🍋";
+    if (has("češnja", "cesnja", "češnje", "cesnje", "cherry", "višnja", "visnja")) return "🍒";
+    
+    // ZELENJAVA
+    if (has("paradiznik", "tomato", "pomidoro")) return "🍅";
+    if (has("solata", "lettuce", "rukola", "iceberg")) return "🥬";
+    if (has("krompir", "potato", "pomfri")) return "🥔";
+    if (has("korenje", "carrot", "korenj")) return "🥕";
+    if (has("paprika", "pepper", "chili")) return "🫑";
+    if (has("kumara", "cucumber", "kumaric")) return "🥒";
+    if (has("cebula", "onion", "čebula", "cebula")) return "🧅";
+    if (has("česen", "cesen", "garlic")) return "🧄";
+    if (has("brokoli", "broccoli")) return "🥦";
+    if (has("grah", "grašic", "grasic", "peas")) return "🫛";
+    if (has("fižol", "fizol", "bean", "pasulj")) return "🫘";
+    if (has("kukuruz", "corn", "koruza")) return "🌽";
+    
+    // SLADKARIJE & DESERTI
+    if (has("čokolada", "cokolada", "chocolate", "čoko", "coko")) return "🍫";
+    if (has("milka", "nutella", "kinder")) return "🍫";
+    if (has("bonbon", "candy", "lizika", "gumijast")) return "🍬";
+    if (has("torta", "cake", "biskvit")) return "🍰";
+    if (has("sladoled", "ice cream", "gelato")) return "🍦";
+    if (has("keks", "piškot", "piskot", "cookie")) return "🍪";
+    if (has("čupavci", "cupavci", "kokosov", "cokoladni desert")) return "🧁";
+    if (has("med", "honey")) return "🍯";
+    if (has("marmelada", "jam", "džem", "dzem")) return "🍓";
+    
+    // TESTENINE & ŽITA
+    if (has("testenin", "pasta", "špageti", "spageti", "makaroni")) return "🍝";
+    if (has("riž", "riz", "rice", "basmati", "risotto")) return "🍚";
+    if (has("kruh", "zrnje", "kvinoja", "quinoa")) return "🌾";
+    if (has("kosmiči", "kosmici", "muesli", "granola", "ovseni", "cornflakes")) return "🥣";
+    
+    // ZAČIMBE & PRIPOMOČKI
+    if (has("moka", "flour", "bela moka", "polnozrnata")) return "🌾";
+    if (has("sladkor", "sugar", "kristalni", "kokosov sladkor")) return "🧂";
+    if (has("sol", "salt", "morska sol")) return "🧂";
+    if (has("olje", "oil", "oljčno", "oljcno", "sončnično", "soncnicno", "oljna")) return "🫒";
+    if (has("začimba", "zacimba", "poper", "pepper", "začimbe", "zacimbe")) return "🌶️";
+    if (has("kvas", "yeast", "pecilni", "prašek", "prasek")) return "🧁";
+    
+    // JAJCA
+    if (has("jajca", "jajce", "egg", "eggs")) return "🥚";
+    
+    // KONZERVIRANI IZDELKI
+    if (has("konzerv", "canned", "tuna v konzervi")) return "🥫";
+    if (has("juha", "soup", "minestrone")) return "🍲";
+    
+    // PRIGRIZKI
+    if (has("chips", "čips", "cips", "hrustljav")) return "🍟";
+    if (has("kokice", "popcorn")) return "🍿";
+    if (has("smoki", "flips", "kreker", "snack")) return "🥨";
+    if (has("orešček", "orescek", "oreški", "oreski", "arašid", "arasid", "mandelj", "lešnik", "lesnik", "nut")) return "🥜";
+    
+    // HIGIENA & KOZMETIKA
+    if (has("milo", "soap", "tekoče", "tekoce")) return "🧼";
+    if (has("šampon", "sampon", "shampoo", "balzam")) return "🧴";
+    if (has("zobna", "pasta", "toothpaste", "zobni")) return "🦷";
+    if (has("higiena", "papir", "toilet", "wc")) return "🧻";
+    if (has("dezodorant", "deo", "deodorant")) return "💨";
+    
+    // ČIŠČENJE
+    if (has("prašek", "prasek", "detergen", "pralno", "ariel", "persil")) return "🧺";
+    if (has("mehčalec", "mehcalec", "softener", "lenor")) return "💧";
+    if (has("čistilo", "cistilo", "mr proper", "domestos")) return "🧽";
+    
+    // PET ARTIKLI
+    if (has("hrana za psa", "dog food", "psja", "chappi")) return "🐶";
+    if (has("hrana za mačko", "macka", "macko", "cat food")) return "🐱";
+    
+    // DEFAULT
+    return "🛒";
+  };
+
   const getCategoryEmoji = (category: string) => {
     const normalizeCategory = (value: string) => {
       const lower = value.toLowerCase();
@@ -1258,7 +1397,7 @@ export default function SearchScreen() {
                     style={styles.productImageBg}
                   >
                     <Text style={styles.productEmoji}>
-                      {getCategoryEmoji(product.category)}
+                      {getProductEmoji(product.name)}
                     </Text>
                   </LinearGradient>
                 </View>
@@ -1864,7 +2003,7 @@ export default function SearchScreen() {
         )}
 
         {/* Loading Indicator */}
-        {isLoadingSearch && searchQuery.length >= 2 && (
+        {(searching || isLoadingSearch) && searchQuery.length >= 2 && (
           <View style={styles.loadingIndicatorContainer}>
             <ActivityIndicator size="large" color="#a855f7" />
             <Text style={styles.loadingIndicatorText}>Iskanje izdelkov...</Text>

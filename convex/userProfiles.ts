@@ -648,6 +648,73 @@ export const cancelPremiumSubscription = authMutation({
   },
 });
 
+// Downgrade from Family to Plus (immediate, not at end of billing period)
+export const downgradeFamilyToPlus = authMutation({
+  args: {},
+  returns: v.object({
+    success: v.boolean(),
+    message: v.optional(v.string()),
+  }),
+  handler: async (ctx) => {
+    const userId = ctx.user._id;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      return { success: false, message: "Profil ni najden" };
+    }
+
+    if (!profile.isPremium || profile.premiumType !== "family") {
+      return { success: false, message: "Nimate Family naročnine" };
+    }
+
+    // Remove all family members immediately
+    const familyMembers = profile.familyMembers || [];
+    for (const memberId of familyMembers) {
+      const member = await ctx.db
+        .query("userProfiles")
+        .withIndex("by_user_id", (q) => q.eq("userId", memberId))
+        .first();
+      
+      if (member) {
+        await ctx.db.patch(member._id, {
+          familyOwnerId: undefined,
+        });
+      }
+    }
+
+    // Update profile to Plus (immediate change)
+    await ctx.db.patch(profile._id, {
+      premiumType: "solo",
+      familyMembers: [],
+    });
+
+    // Send admin notification
+    const email = profile.email || "-";
+    const nickname = profile.nickname || "-";
+    const subject = "Downgrade Family → Plus v Pr'Hran";
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #0f172a;">
+        <h2 style="margin: 0 0 12px; color: #f59e0b;">Plan spremenjen</h2>
+        <p style="margin: 0 0 8px;"><strong>E-naslov:</strong> ${email}</p>
+        <p style="margin: 0 0 8px;"><strong>Vzdevek:</strong> ${nickname}</p>
+        <p style="margin: 0 0 8px;"><strong>Sprememba:</strong> Family → Plus (takojšnja)</p>
+        <p style="margin: 0 0 8px;"><strong>Odstranjeni člani:</strong> ${familyMembers.length}</p>
+        <p style="margin: 16px 0 0; color: #475569; font-size: 12px;">Samodejno obvestilo iz Pr'Hran.</p>
+      </div>
+    `;
+    await sendAdminNotification(subject, html);
+
+    return { 
+      success: true, 
+      message: "Plan uspešno spremenjen na Pr'Hran Plus"
+    };
+  },
+});
+
 export const deleteAccountData = internalMutation({
   args: { userId: v.string(), email: v.optional(v.string()) },
   returns: v.object({ success: v.boolean() }),
