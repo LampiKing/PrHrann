@@ -44,7 +44,7 @@ const FREE_LOYALTY_CARDS = [
     id: "mercator",
     name: "Pika kartica",
     store: "Mercator",
-    color: "#d3003c",
+    color: "#0057a8",
     icon: "card",
     description: "Zbiraj pike in prihrani pri vsakem nakupu",
     perks: "Pika popusti in točke",
