@@ -150,47 +150,105 @@ export const requestPasswordReset = action({
         const resetUrl = `${args.redirectTo}?token=${token}&email=${encodeURIComponent(email)}`;
         
         // Send email
-        const subject = "Ponastavi geslo - Pr'Hran";
+        const subject = "🔐 Ponastavitev gesla - Pr'Hran";
         const html = `
-            <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #1a1025 0%, #0a0a0f 100%); border-radius: 16px; overflow: hidden;">
-                <div style="background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); padding: 24px; text-align: center;">
-                    <h1 style="margin: 0; color: #fff; font-size: 24px; font-weight: 700;">🔐 Ponastavitev gesla</h1>
-                </div>
-                
-                <div style="padding: 24px;">
-                    <p style="color: #e2e8f0; font-size: 16px; margin-bottom: 20px;">
-                        Prejeli smo zahtevo za ponastavitev gesla za vaš račun.
-                    </p>
-                    
-                    <div style="text-align: center; margin: 30px 0;">
-                        <a href="${resetUrl}" 
-                           style="display: inline-block; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); 
-                                  color: #fff; padding: 14px 32px; border-radius: 12px; 
-                                  text-decoration: none; font-weight: 600; font-size: 16px;">
-                            Ponastavi geslo
-                        </a>
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ponastavitev gesla</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #0a0a12 0%, #1a0a2e 50%, #0f0a1e 100%); min-height: 100vh;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="min-height: 100vh; background: linear-gradient(135deg, #0a0a12 0%, #1a0a2e 50%, #0f0a1e 100%);">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <!-- Main Container -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background: rgba(15, 23, 42, 0.95); border-radius: 24px; border: 1px solid rgba(139, 92, 246, 0.4); box-shadow: 0 20px 60px rgba(139, 92, 246, 0.3);">
+
+          <!-- Logo & Header -->
+          <tr>
+            <td align="center" style="padding: 48px 32px 24px;">
+              <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                <tr>
+                  <td>
+                    <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 50%, #6d28d9 100%); border-radius: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 16px 48px rgba(139, 92, 246, 0.5);">
+                      <span style="font-size: 56px; font-weight: 900; color: #ffffff; font-family: Arial, sans-serif; line-height: 100px; text-align: center; display: block; width: 100%;">P</span>
                     </div>
-                    
-                    <p style="color: #94a3b8; font-size: 14px; margin-top: 20px;">
-                        Če gumb ne deluje, kopirajte to povezavo v brskalnik:
-                    </p>
-                    <p style="color: #a855f7; font-size: 12px; word-break: break-all;">
-                        ${resetUrl}
-                    </p>
-                    
-                    <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 24px; padding-top: 16px;">
-                        <p style="color: #64748b; font-size: 12px; margin: 0;">
-                            Povezava velja 1 uro. Če niste zahtevali ponastavitve, ignorirajte to sporočilo.
-                        </p>
-                    </div>
-                </div>
-                
-                <div style="background: rgba(0,0,0,0.3); padding: 16px; text-align: center;">
-                    <p style="margin: 0; color: #6b7280; font-size: 12px;">
-                        Pr'Hran • Pametno nakupovanje
-                    </p>
-                </div>
-            </div>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="margin: 28px 0 12px; font-size: 36px; font-weight: 900; color: #ffffff; letter-spacing: -1px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);">Pr'Hran</h1>
+              <p style="margin: 0; font-size: 17px; color: #e5e7eb; font-weight: 600; letter-spacing: 0.5px;">Nakupuj <strong style="color: #fbbf24;">pametno</strong></p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 32px;">
+              <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), transparent);"></div>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 32px;">
+              <h2 style="margin: 0 0 16px; font-size: 28px; font-weight: 800; color: #ffffff; text-align: center; line-height: 1.2;">🔐 Ponastavitev gesla</h2>
+              <p style="margin: 0 0 32px; font-size: 16px; line-height: 26px; color: #cbd5e1; text-align: center;">Prejeli smo zahtevo za ponastavitev gesla za vaš račun.<br/>Kliknite spodnji gumb za nadaljevanje.</p>
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding: 16px 0 32px;">
+                    <a href="${resetUrl}" style="display: inline-block; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); color: #ffffff; padding: 18px 48px; border-radius: 16px; text-decoration: none; font-weight: 700; font-size: 18px; box-shadow: 0 12px 40px rgba(139, 92, 246, 0.5), 0 0 0 4px rgba(139, 92, 246, 0.1); letter-spacing: 0.5px;">
+                      🔑 Ponastavi geslo
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Info Box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: rgba(139, 92, 246, 0.1); border-radius: 16px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 12px; font-size: 14px; color: #a78bfa; font-weight: 600;">⏰ Pomembno:</p>
+                    <ul style="margin: 0; padding: 0 0 0 20px; color: #cbd5e1; font-size: 14px; line-height: 24px;">
+                      <li>Povezava velja <strong style="color: #a855f7;">1 uro</strong></li>
+                      <li>Geslo mora imeti vsaj <strong style="color: #a855f7;">8 znakov</strong></li>
+                      <li>Če niste zahtevali ponastavitve, ignorirajte to sporočilo</li>
+                    </ul>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Alternative Link -->
+              <p style="margin: 24px 0 8px; font-size: 13px; color: #6b7280; text-align: center;">Če gumb ne deluje, kopirajte to povezavo:</p>
+              <p style="margin: 0; font-size: 12px; color: #a78bfa; text-align: center; word-break: break-all; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px;">${resetUrl}</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 32px;">
+              <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), transparent);"></div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px; text-align: center;">
+              <p style="margin: 0 0 8px; font-size: 14px; color: #9ca3af;">Lep pozdrav,</p>
+              <p style="margin: 0 0 16px; font-size: 16px; font-weight: 700; color: #ffffff;">Ekipa Pr'Hran 💜</p>
+              <p style="margin: 0; font-size: 12px; color: #6b7280;">© ${new Date().getFullYear()} Pr'Hran • Izdelano z ❤️ v Sloveniji 🇸🇮</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
         `;
         
         console.log(`[requestPasswordReset] Sending email to: ${email}`);
