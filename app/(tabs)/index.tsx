@@ -261,20 +261,6 @@ export default function SearchScreen() {
   const cartPreviewAnim = useRef(new RNAnimated.Value(0)).current;
   const cartToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cartPreviewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
-  // Premium cart animation states
-  const cartSuccessScale = useRef(new RNAnimated.Value(0)).current;
-  const cartSuccessRotate = useRef(new RNAnimated.Value(0)).current;
-  const cartGlowAnim = useRef(new RNAnimated.Value(0)).current;
-  const confettiAnims = useRef(
-    Array.from({ length: 12 }, () => ({
-      x: new RNAnimated.Value(0),
-      y: new RNAnimated.Value(0),
-      opacity: new RNAnimated.Value(0),
-      scale: new RNAnimated.Value(0),
-      rotate: new RNAnimated.Value(0),
-    }))
-  ).current;
 
   const profile = useQuery(
     api.userProfiles.getProfile,
@@ -460,48 +446,33 @@ export default function SearchScreen() {
     setCartToastMessage(message);
     setShowCartToast(true);
     
-    // Reset animations
-    cartSuccessScale.setValue(0);
-    cartSuccessRotate.setValue(0);
-    
-    // Simple toast slide in
-    RNAnimated.spring(cartToastAnim, {
+    // Simple slide in - no extra animations
+    RNAnimated.timing(cartToastAnim, {
       toValue: 1,
-      tension: 100,
-      friction: 8,
+      duration: 200,
+      easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start();
-    
-    // Success checkmark animation - simple bounce in
-    RNAnimated.sequence([
-      RNAnimated.delay(100),
-      RNAnimated.spring(cartSuccessScale, {
-        toValue: 1,
-        tension: 200,
-        friction: 6,
-        useNativeDriver: true,
-      }),
-    ]).start();
     
     cartToastTimeoutRef.current = setTimeout(() => {
       RNAnimated.timing(cartToastAnim, {
         toValue: 0,
-        duration: 250,
+        duration: 200,
         easing: Easing.in(Easing.ease),
         useNativeDriver: true,
       }).start(() => setShowCartToast(false));
-    }, 1800);
-  }, [cartToastAnim, cartSuccessScale]);
+    }, 1500);
+  }, [cartToastAnim]);
 
   const triggerCartPreview = useCallback(() => {
     if (cartPreviewTimeoutRef.current) {
       clearTimeout(cartPreviewTimeoutRef.current);
     }
     setShowCartPreview(true);
-    RNAnimated.spring(cartPreviewAnim, {
+    RNAnimated.timing(cartPreviewAnim, {
       toValue: 1,
-      tension: 60,
-      friction: 10,
+      duration: 200,
+      easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start();
     cartPreviewTimeoutRef.current = setTimeout(() => {
@@ -510,7 +481,7 @@ export default function SearchScreen() {
         duration: 200,
         useNativeDriver: true,
       }).start(() => setShowCartPreview(false));
-    }, 2400);
+    }, 2000);
   }, [cartPreviewAnim]);
   
   // Debounce search input
@@ -886,41 +857,32 @@ export default function SearchScreen() {
 
       setIsAnalyzing(false);
 
-      if (result.success && result.productName) {
+      if (result.success && result.productName && result.confidence && result.confidence > 0.4) {
+        // Only accept results with reasonable confidence
         setScanResult(result.productName);
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       } else {
-        setScanResult(null);
+        // Low confidence or no product name - show "not recognized"
+        setScanResult("❌ Ne prepozna - poskusi z boljšo sliko");
         if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         }
       }
     } catch (error) {
       console.error("Error analyzing image:", error);
       setIsAnalyzing(false);
-      // Fallback to simulation if AI fails
-      const simulatedProducts = [
-        "Alpsko mleko 1L",
-        "Jabolka Golden",
-        "Kruh beli",
-        "Maslo 250g",
-        "Jogurt navadni",
-        "Pisanec prsi",
-        "Paradiznik",
-        "Testenine spageti",
-      ];
-      const randomProduct = simulatedProducts[Math.floor(Math.random() * simulatedProducts.length)];
-      setScanResult(randomProduct);
+      setScanResult("❌ Napaka pri analizi - poskusi ponovno");
       if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     }
   };
 
   const handleUseScanResult = () => {
-    if (scanResult) {
+    if (scanResult && !scanResult.startsWith("❌")) {
+      // Only use valid product names, not error messages
       setSearchQuery(scanResult);
       setShowScanner(false);
       setScanningImage(null);

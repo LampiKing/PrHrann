@@ -86,9 +86,22 @@ If you CANNOT clearly identify the product, respond with "neznano".`,
       const data = await response.json();
       const productName = data.choices?.[0]?.message?.content?.trim();
 
-      if (!productName || productName.toLowerCase() === "neznano") {
+      if (!productName || productName.toLowerCase() === "neznano" || productName.length < 3) {
         return {
           success: false,
+          productName: undefined,
+          confidence: 0.1,
+          error: "Izdelka ni bilo mogoče prepoznati. Poskusite z boljšo sliko.",
+        };
+      }
+
+      // Validate that response is a reasonable product name
+      const hasSlang = /slika je|cannot|unable|sorry|ni jasno|nejasno/i.test(productName);
+      if (hasSlang) {
+        return {
+          success: false,
+          productName: undefined,
+          confidence: 0.2,
           error: "Izdelka ni bilo mogoče prepoznati. Poskusite z boljšo sliko.",
         };
       }
