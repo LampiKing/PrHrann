@@ -375,13 +375,13 @@ export default function LeaderboardScreen() {
               <Text style={styles.infoTitle}>Kako deluje lestvica?</Text>
             </View>
             <Text style={styles.infoText}>
-              🏆 <Text style={styles.infoBold}>Tekmuj za najboljše prihranke!</Text>
+              🏆 <Text style={styles.infoBold}>Tekmuj s prihranki do zmage!</Text>
               {"\n\n"}
-              📸 <Text style={styles.infoBold}>Slikaj račune</Text> - Vsak dan do 23:00 dodaj račune iz trgovin (Mercator, Spar, Tuš). Aplikacija izračuna, koliko bi plačal v drugih trgovinah.
+              📸 <Text style={styles.infoBold}>Slikaj račune</Text> - Vsak dan do 23:00 dodaj račune iz trgovin Mercator, Spar in Tuš. Računi iz drugih trgovin (Lidl, Hofer, itd.) NE veljajo za lestvico. Aplikacija izračuna, koliko bi plačal v drugih trgovinah.
               {"\n\n"}
               💰 <Text style={styles.infoBold}>Zberi prihranke</Text> - Tvoj letni prihranek se posodablja z vsakim potrjenim računom. Več računov = večji prihranek = višja pozicija!
               {"\n\n"}
-              🎯 <Text style={styles.infoBold}>Kaj NE šteje?</Text> Košarica in primerjava cen brez nakupa ne vplivata na lestvico. Samo POTRJENI računi štejejo.
+              🎯 <Text style={styles.infoBold}>Kaj NE šteje?</Text> Košarica in primerjava cen brez nakupa ne vplivata na lestvico. Samo POTRJENI računi iz Mercator, Spar ali Tuš štejejo.
               {"\n\n"}
               🏅 <Text style={styles.infoBold}>Nagrade</Text> - Top 10 prejme značke (Zlati, Srebrni, Bronasti). Top 100 dobi special badge. Nagrade se podelijo 25. decembra (od sezone 2026 naprej).
               {"\n\n"}

@@ -463,16 +463,8 @@ export default function SearchScreen() {
     // Reset animations
     cartSuccessScale.setValue(0);
     cartSuccessRotate.setValue(0);
-    cartGlowAnim.setValue(0);
-    confettiAnims.forEach(anim => {
-      anim.x.setValue(0);
-      anim.y.setValue(0);
-      anim.opacity.setValue(0);
-      anim.scale.setValue(0);
-      anim.rotate.setValue(0);
-    });
     
-    // Main toast slide in with spring
+    // Simple toast slide in
     RNAnimated.spring(cartToastAnim, {
       toValue: 1,
       tension: 100,
@@ -480,91 +472,16 @@ export default function SearchScreen() {
       useNativeDriver: true,
     }).start();
     
-    // Success checkmark animation - bounce in with rotation
+    // Success checkmark animation - simple bounce in
     RNAnimated.sequence([
       RNAnimated.delay(100),
-      RNAnimated.parallel([
-        RNAnimated.spring(cartSuccessScale, {
-          toValue: 1,
-          tension: 200,
-          friction: 6,
-          useNativeDriver: true,
-        }),
-        RNAnimated.timing(cartSuccessRotate, {
-          toValue: 1,
-          duration: 400,
-          easing: Easing.out(Easing.back(2)),
-          useNativeDriver: true,
-        }),
-      ]),
+      RNAnimated.spring(cartSuccessScale, {
+        toValue: 1,
+        tension: 200,
+        friction: 6,
+        useNativeDriver: true,
+      }),
     ]).start();
-    
-    // Glow pulse animation
-    RNAnimated.loop(
-      RNAnimated.sequence([
-        RNAnimated.timing(cartGlowAnim, {
-          toValue: 1,
-          duration: 600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        RNAnimated.timing(cartGlowAnim, {
-          toValue: 0.3,
-          duration: 600,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-      { iterations: 2 }
-    ).start();
-    
-    // Confetti burst animation
-    confettiAnims.forEach((anim, index) => {
-      const angle = (index / confettiAnims.length) * Math.PI * 2;
-      const distance = 60 + Math.random() * 40;
-      const targetX = Math.cos(angle) * distance;
-      const targetY = Math.sin(angle) * distance - 20; // bias upward
-      
-      RNAnimated.sequence([
-        RNAnimated.delay(50 + index * 20),
-        RNAnimated.parallel([
-          RNAnimated.timing(anim.opacity, {
-            toValue: 1,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-          RNAnimated.spring(anim.scale, {
-            toValue: 1,
-            tension: 300,
-            friction: 10,
-            useNativeDriver: true,
-          }),
-          RNAnimated.timing(anim.x, {
-            toValue: targetX,
-            duration: 500,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-          RNAnimated.timing(anim.y, {
-            toValue: targetY,
-            duration: 500,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-          RNAnimated.timing(anim.rotate, {
-            toValue: Math.random() * 4 - 2,
-            duration: 500,
-            useNativeDriver: true,
-          }),
-        ]),
-        RNAnimated.timing(anim.opacity, {
-          toValue: 0,
-          duration: 300,
-          delay: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
     
     cartToastTimeoutRef.current = setTimeout(() => {
       RNAnimated.timing(cartToastAnim, {
@@ -573,8 +490,8 @@ export default function SearchScreen() {
         easing: Easing.in(Easing.ease),
         useNativeDriver: true,
       }).start(() => setShowCartToast(false));
-    }, 2200);
-  }, [cartToastAnim, cartSuccessScale, cartSuccessRotate, cartGlowAnim, confettiAnims]);
+    }, 1800);
+  }, [cartToastAnim, cartSuccessScale]);
 
   const triggerCartPreview = useCallback(() => {
     if (cartPreviewTimeoutRef.current) {

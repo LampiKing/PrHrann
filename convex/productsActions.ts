@@ -362,8 +362,8 @@ export const searchFromSheets = action({
         const overlapRatio = matchedTokens.length / searchTokens.length;
         if (overlapRatio < 0.5) score -= 30; // Less than half words match = penalty
 
-        // 2. Penalize "variant" products when searching for base product
-        // Example: searching "mleko" should deprioritize "čokoladno mleko", "šampon za mleko", etc.
+        // 2. STRONG FILTER: Penalize "variant" products when searching for base product
+        // Example: searching "mleko" should HEAVILY deprioritize "čokoladno mleko", "šampon", etc.
         const variantKeywords = [
           "cokolad", "jagod", "banan", "vanilij", "karamel", // flavors
           "sojin", "ovseni", "kokos", "rizen", "mandljev", // alternatives
@@ -372,14 +372,14 @@ export const searchFromSheets = action({
           "za telo", "za lase", "za obraz", "za kozo", // body care
         ];
         
-        // If search is simple (1-2 words) but product has variant keywords = penalty
+        // If search is simple (1-2 words) but product has variant keywords = BIG penalty
         if (searchTokens.length <= 2) {
           const hasVariantKeyword = variantKeywords.some(vk => productNameNorm.includes(vk));
           if (hasVariantKeyword) {
-            // Check if variant keyword is in search query - if not, penalize
+            // Check if variant keyword is in search query - if not, HEAVY penalize
             const isIntentional = variantKeywords.some(vk => searchQuery.includes(vk));
             if (!isIntentional) {
-              score -= 40; // Big penalty for variants when searching base product
+              score -= 80; // MASSIVE penalty - variants go to bottom
             }
           }
         }
