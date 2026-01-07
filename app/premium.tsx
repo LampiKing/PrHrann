@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
   },
   premiumCell: {
     flex: 0.9,
-    backgroundColor: "rgba(34, 197, 94, 0.1)",
+    backgroundColor: "rgba(139, 92, 246, 0.15)",
   },
   familyCell: {
     flex: 0.9,

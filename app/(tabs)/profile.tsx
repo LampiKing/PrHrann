@@ -98,6 +98,8 @@ export default function ProfileScreen() {
   const [feedbackError, setFeedbackError] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showInfoTooltip, setShowInfoTooltip] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -731,9 +733,11 @@ export default function ProfileScreen() {
                 <Text style={styles.premiumBadgeText}>{planLabel}</Text>
                 <Ionicons name="chevron-forward" size={12} color="#0a0a0f" style={{ marginLeft: 4 }} />
               </LinearGradient>
-              <Text style={styles.managePlanHint}>
-                {hasFamilyPlan ? "Upravljaj naročnino" : `Nadgradi na ${PLAN_FAMILY}`}
-              </Text>
+              {!hasFamilyPlan && (
+                <Text style={styles.managePlanHint}>
+                  Nadgradi na {PLAN_FAMILY}
+                </Text>
+              )}
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
@@ -1093,7 +1097,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           {/* Privacy */}
-          <TouchableOpacity style={[styles.menuItemNew, { borderBottomWidth: 0 }]} onPress={() => router.push("/privacy")}>
+          <TouchableOpacity style={styles.menuItemNew} onPress={() => router.push("/privacy")}>
             <View style={styles.menuItemNewLeft}>
               <LinearGradient colors={["rgba(99, 102, 241, 0.2)", "rgba(79, 70, 229, 0.1)"]} style={styles.menuIconNew}>
                 <Ionicons name="shield-checkmark" size={20} color="#6366f1" />
@@ -1102,6 +1106,19 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color="#4b5563" />
           </TouchableOpacity>
+
+          {/* Cancel Subscription - only for premium users */}
+          {profile.isPremium && (
+            <TouchableOpacity style={[styles.menuItemNew, { borderBottomWidth: 0 }]} onPress={() => setShowCancelModal(true)}>
+              <View style={styles.menuItemNewLeft}>
+                <LinearGradient colors={["rgba(239, 68, 68, 0.2)", "rgba(220, 38, 38, 0.1)"]} style={styles.menuIconNew}>
+                  <Ionicons name="close-circle" size={20} color="#ef4444" />
+                </LinearGradient>
+                <Text style={[styles.menuItemTextNew, { color: "#ef4444" }]}>Prekliči naročnino</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#ef4444" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Logout */}
@@ -1539,6 +1556,62 @@ export default function ProfileScreen() {
                   onPress={() => setShowFeedbackSuccessModal(false)}
                 >
                   <Text style={styles.feedbackSuccessButtonTextPrimary}>Super!</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </BlurView>
+      </Modal>
+
+      {/* ================================================================== */}
+      {/* CANCEL SUBSCRIPTION MODAL */}
+      {/* ================================================================== */}
+      
+      <Modal
+        visible={showCancelModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCancelModal(false)}
+      >
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <TouchableOpacity 
+            style={styles.centeredModalOverlay}
+            activeOpacity={1} 
+            onPress={() => setShowCancelModal(false)}
+          >
+            <View style={styles.cancelModalContent} onStartShouldSetResponder={() => true}>
+              <View style={styles.cancelModalIcon}>
+                <Ionicons name="warning" size={48} color="#f59e0b" />
+              </View>
+              <Text style={styles.cancelModalTitle}>Prekliči naročnino?</Text>
+              <Text style={styles.cancelModalText}>
+                Ali ste prepričani, da želite preklicati naročnino? Izgubili boste vse premium ugodnosti.
+              </Text>
+              <View style={styles.cancelModalButtons}>
+                <TouchableOpacity
+                  style={styles.cancelModalButtonSecondary}
+                  onPress={() => setShowCancelModal(false)}
+                >
+                  <Text style={styles.cancelModalButtonSecondaryText}>Ne, obdrži</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cancelModalButtonDanger}
+                  onPress={async () => {
+                    setCancellingSubscription(true);
+                    // TODO: Add actual cancellation logic here
+                    setTimeout(() => {
+                      setCancellingSubscription(false);
+                      setShowCancelModal(false);
+                      // Show confirmation or redirect
+                    }, 1500);
+                  }}
+                  disabled={cancellingSubscription}
+                >
+                  {cancellingSubscription ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.cancelModalButtonDangerText}>Da, prekliči</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -2692,6 +2765,66 @@ const styles = StyleSheet.create({
     backgroundColor: "#ef4444",
   },
   removeConfirmButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  
+  // Cancel Subscription Modal
+  cancelModalContent: {
+    backgroundColor: "#111827",
+    borderRadius: 24,
+    padding: 28,
+    width: "100%",
+    maxWidth: 340,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.3)",
+  },
+  cancelModalIcon: {
+    marginBottom: 16,
+  },
+  cancelModalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#f8fafc",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  cancelModalText: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  cancelModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  cancelModalButtonSecondary: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: "rgba(55, 65, 81, 0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(75, 85, 99, 0.5)",
+  },
+  cancelModalButtonSecondaryText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#e2e8f0",
+  },
+  cancelModalButtonDanger: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    backgroundColor: "#ef4444",
+  },
+  cancelModalButtonDangerText: {
     fontSize: 14,
     fontWeight: "700",
     color: "#fff",
