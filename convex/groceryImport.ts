@@ -98,6 +98,7 @@ export const importFromScanner = internalMutation({
         redna_cena: v.optional(v.number()),
         akcijska_cena: v.optional(v.number()),
         kategorija: v.optional(v.string()),
+        enota: v.optional(v.string()),
         trgovina: v.string(),
         url: v.optional(v.string()),
       })
@@ -170,7 +171,8 @@ export const importFromScanner = internalMutation({
       }
 
       const category = item.kategorija?.trim() || "Neznana kategorija";
-      const unit = inferUnit(rawName);
+      // Use provided unit or infer from name
+      const unit = item.enota?.trim() || inferUnit(rawName);
 
       let product = productMap.get(nameKey);
       if (!product) {
@@ -195,7 +197,7 @@ export const importFromScanner = internalMutation({
         if (!product.category || product.category === "Neznana kategorija") {
           updates.category = category;
         }
-        const inferredUnit = inferUnit(rawName);
+        const inferredUnit = item.enota?.trim() || inferUnit(rawName);
         if (product.unit === "1 kos" && inferredUnit !== "1 kos") {
           updates.unit = inferredUnit;
         }

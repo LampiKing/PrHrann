@@ -40,9 +40,38 @@ function fuzzyMatch(productName: string, searchQuery: string): number {
   return matchPercentage + positionBonus;
 }
 
+function calculateUnitPrice(price: number, unit: string): { price: number; unit: string } | null {
+  if (!unit || !price) return null;
+
+  const cleanUnit = unit.toLowerCase().replace(",", ".").replace(/\s/g, "");
+  const match = cleanUnit.match(/^(\d+(?:\.\d+)?)(l|ml|kg|g|kos|kom)$/);
+
+  if (!match) return null;
+
+  const quantity = parseFloat(match[1]);
+  const unitType = match[2];
+
+  if (quantity === 0) return null;
+
+  let baseQuantity = quantity;
+  let baseUnit = unitType;
+
+  // Normalize to L or kg
+  if (unitType === "ml") {
+    baseQuantity = quantity / 1000;
+    baseUnit = "l";
+  } else if (unitType === "g") {
+    baseQuantity = quantity / 1000;
+    baseUnit = "kg";
+  }
+
+  const pricePerUnit = price / baseQuantity;
+  return { price: Math.round(pricePerUnit * 100) / 100, unit: baseUnit };
+}
+
 // Iskanje izdelkov
 export const search = query({
-  args: { 
+  args: {
     query: v.string(),
     isPremium: v.boolean(),
   },
@@ -66,6 +95,10 @@ export const search = query({
       ),
       lowestPrice: v.number(),
       highestPrice: v.number(),
+      bestUnitPrice: v.optional(v.object({
+        price: v.number(),
+        unit: v.string(),
+      })),
     })
   ),
   handler: async (ctx, args) => {
@@ -123,7 +156,17 @@ export const search = query({
         return { product, score };
       })
       .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => {
+        // If scores are very different (>100), respect relevance
+        if (Math.abs(a.score - b.score) > 100) {
+          return b.score - a.score;
+        }
+        // Otherwise, sort by price (cheaper first) if available
+        // We don't have price here yet, so we rely on score.
+        // But we can boost score by "cheapness" if we indexed it, but we can't.
+        // So we will re-sort AFTER fetching prices below.
+        return b.score - a.score;
+      })
       .slice(0, 50)
       .map(item => item.product);
 
@@ -171,12 +214,25 @@ export const search = query({
           prices: pricesWithStores,
           lowestPrice: Math.min(...validPriceNumbers),
           highestPrice: Math.max(...validPriceNumbers),
+          bestUnitPrice: calculateUnitPrice(Math.min(...validPriceNumbers), product.unit) || undefined,
         };
       })
     );
 
-    // Odstrani izdelke brez veljavnih cen
-    return results.filter((r): r is NonNullable<typeof r> => r !== null && r.prices.length > 0);
+    // Odstrani izdelke brez veljavnih cen in sortiraj po ceni če je "generic" query
+    const resultsFiltered = results.filter((r): r is NonNullable<typeof r> => r !== null && r.prices.length > 0);
+
+    // If query is generic (no brand matched), sort by lowest price
+    if (!hasBrand && resultsFiltered.length > 0) {
+      // Sort by unit price if available, else absolute price
+      return resultsFiltered.sort((a, b) => {
+        const priceA = a.bestUnitPrice ? a.bestUnitPrice.price : a.lowestPrice;
+        const priceB = b.bestUnitPrice ? b.bestUnitPrice.price : b.lowestPrice;
+        return priceA - priceB;
+      });
+    }
+
+    return resultsFiltered;
   },
 });
 
@@ -266,11 +322,11 @@ export const seedProducts = mutation({
         // Naključna variacija cene ±20%
         const variation = 0.8 + Math.random() * 0.4;
         const price = Math.round(basePrice * variation * 100) / 100;
-        
+
         // 20% možnost, da je na akciji
         const isOnSale = Math.random() < 0.2;
-        const originalPrice = isOnSale 
-          ? Math.round(price * 1.25 * 100) / 100 
+        const originalPrice = isOnSale
+          ? Math.round(price * 1.25 * 100) / 100
           : undefined;
 
         await ctx.db.insert("prices", {
