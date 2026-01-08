@@ -12,32 +12,55 @@ function fuzzyMatch(productName: string, searchQuery: string): number {
   const nameLower = productName.toLowerCase();
   const queryLower = searchQuery.toLowerCase();
 
-  // Exact match - najvišji score
-  if (nameLower === queryLower) return 1000;
-  if (nameLower.includes(queryLower)) return 900;
+  // Exact match - SUPER HIGH score to force sort by relevancy
+  if (nameLower === queryLower) return 2000;
 
   // Split query into words
   const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
+  const nameWords = nameLower.split(/\s+/).filter(w => w.length > 0);
+
   if (queryWords.length === 0) return 0;
 
-  // Preveri koliko besed se ujema
+  // Check how many query words are present
   let matchCount = 0;
   let positionBonus = 0;
 
   for (const word of queryWords) {
     if (nameLower.includes(word)) {
       matchCount++;
-      // Bonus če je beseda na začetku
-      if (nameLower.startsWith(word)) positionBonus += 100;
+      // Huge bonus if product STARTS with this word (e.g. "Mleko ..." vs "Čokoladno mleko")
+      if (nameLower.startsWith(word)) positionBonus += 500;
     }
   }
 
-  // Če se nobena beseda ne ujema, 0 score
   if (matchCount === 0) return 0;
 
-  // Score = (matched words / total words) * 100 + position bonus
-  const matchPercentage = (matchCount / queryWords.length) * 100;
-  return matchPercentage + positionBonus;
+  // Penalty for "extra" words - heavily penalizes "Chocolate" when searching "Milk"
+  // But be careful not to penalize "1L" too much.
+  // We count words in name that are NOT in query.
+  let extraWordsCount = 0;
+  for (const nWord of nameWords) {
+    // Check if this word is part of the query
+    const isQueryWord = queryWords.some(qw => nWord.includes(qw));
+    if (!isQueryWord) {
+      // Simple penalty for extra words
+      extraWordsCount++;
+    }
+  }
+
+  // Penalty: -150 per extra word is maybe too aggressive? Let's try -50.
+  // "Mleko 1L" -> 1 extra word ("1L") -> -50
+  // "Čokoladno mleko" -> 1 extra ("čokoladno") -> -50
+  // But "Mleko" gets start bonus +500. "Čokoladno" gets 0.
+  // Net: Mleko (+500 -50 = 450) vs Čokoladno (-50). Mleko wins.
+  const variancePenalty = extraWordsCount * 50;
+
+  // Base score: % of query words matched
+  const matchPercentage = (matchCount / queryWords.length) * 1000; // Scale up to 1000
+
+  let totalScore = matchPercentage + positionBonus - variancePenalty;
+
+  return totalScore;
 }
 
 function calculateUnitPrice(price: number, unit: string): { price: number; unit: string } | null {
