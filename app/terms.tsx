@@ -42,7 +42,7 @@ export default function TermsScreen() {
         >
           <View style={styles.updateBadge}>
             <Ionicons name="time-outline" size={14} color="#9ca3af" />
-            <Text style={styles.updateText}>Zadnja posodobitev: 4. januar 2026</Text>
+            <Text style={styles.updateText}>Zadnja posodobitev: 14. januar 2026</Text>
           </View>
 
           <View style={styles.section}>

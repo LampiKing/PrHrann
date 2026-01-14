@@ -206,7 +206,7 @@ export const mergeTwo = internalMutation({
 
 /**
  * Avtomatsko združi izdelke po podobnosti imena
- * NOVA VERZIJA: Grupira po normaliziranem imenu
+ * OPTIMIZIRANA VERZIJA: Manjše branje dokumentov
  */
 export const autoMerge = internalMutation({
   args: {
@@ -219,19 +219,23 @@ export const autoMerge = internalMutation({
     remaining: v.number(),
   }),
   handler: async (ctx, args) => {
-    // Pridobi vse izdelke
-    const allProducts = await ctx.db.query("products").take(args.batchSize * 3);
+    // OPTIMIZACIJA: Preberi stores ENKRAT
+    const stores = await ctx.db.query("stores").collect();
+    const storeMap = new Map(stores.map(s => [s._id.toString(), s.name]));
 
-    // Za vsak izdelek pridobi cene in trgovine
+    // Omeji batch size za varnost (max 200 izdelkov)
+    const safeBatchSize = Math.min(args.batchSize, 200);
+
+    // Pridobi izdelke
+    const allProducts = await ctx.db.query("products").take(safeBatchSize);
+
+    // Za vsak izdelek pridobi samo cene (stores že imamo)
     const productsWithInfo = await Promise.all(
       allProducts.map(async (product) => {
         const prices = await ctx.db
           .query("prices")
           .withIndex("by_product", q => q.eq("productId", product._id))
           .collect();
-
-        const stores = await ctx.db.query("stores").collect();
-        const storeMap = new Map(stores.map(s => [s._id.toString(), s.name]));
 
         return {
           product,
@@ -281,14 +285,16 @@ export const autoMerge = internalMutation({
       const baseItems = byStore.get(storeNames[0]) || [];
       if (baseItems.length === 0) continue;
 
-      for (const baseItem of baseItems.slice(0, 5)) {
+      // OPTIMIZACIJA: Omeji na 3 base items per group
+      for (const baseItem of baseItems.slice(0, 3)) {
         processed++;
 
-        // Poišči najboljši match v drugih trgovinah
-        for (let i = 1; i < storeNames.length; i++) {
+        // Poišči najboljši match v drugih trgovinah (omeji na 2 trgovine)
+        for (let i = 1; i < Math.min(storeNames.length, 3); i++) {
           const otherItems = byStore.get(storeNames[i]) || [];
 
-          for (const otherItem of otherItems) {
+          // OPTIMIZACIJA: Omeji na 3 items per store
+          for (const otherItem of otherItems.slice(0, 3)) {
             // Preskoči če je isti izdelek
             if (otherItem.product._id === baseItem.product._id) continue;
 
