@@ -51,7 +51,7 @@ const normalizeProductToken = (token: string) => {
 };
 
 const normalizeProductKey = (value: string) => {
-  const normalized = value
+  let normalized = value
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -60,6 +60,11 @@ const normalizeProductKey = (value: string) => {
     .replace(/\s+/g, " ")
     .trim();
   if (!normalized) return "";
+
+  // POMEMBNO: Združi število + enoto če sta ločena s presledkom
+  // "250 g" -> "250g", "1 l" -> "1l", "500 ml" -> "500ml"
+  normalized = normalized.replace(/(\d+(?:\.\d+)?)\s+(kg|g|l|ml|cl|dl|kos|kom)\b/gi, "$1$2");
+
   const tokens = normalized
     .split(" ")
     .map((token) => normalizeProductToken(token))

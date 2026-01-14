@@ -40,16 +40,22 @@ const normalizeStoreKey = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
 
-const normalizeSearchText = (text: string) =>
-  (text || "")
+const normalizeSearchText = (text: string) => {
+  let result = (text || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/,/g, ".")
     .replace(/[^a-z0-9.%]+/g, " ")
     .replace(/\s+/g, " ")
-    .replace(/(\d)\s+([a-z%])/g, "$1$2")
     .trim();
+
+  // POMEMBNO: Združi število + enoto če sta ločena s presledkom
+  // "250 g" -> "250g", "1 l" -> "1l", "500 ml" -> "500ml"
+  result = result.replace(/(\d+(?:\.\d+)?)\s+(kg|g|l|ml|cl|dl|kos|kom)\b/gi, "$1$2");
+
+  return result;
+};
 
 const normalizeProductToken = (token: string) => {
   let cleaned = token;
@@ -57,17 +63,53 @@ const normalizeProductToken = (token: string) => {
     cleaned = cleaned.replace(/\./g, "");
   }
   if (!cleaned || cleaned === "m" || cleaned === "mm") return "";
-  if (/^\d+ml$/.test(cleaned)) {
-    const ml = Number(cleaned.slice(0, -2));
-    if (!Number.isFinite(ml) || ml <= 0) return token;
-    const liters = ml / 1000;
-    const litersText = Number.isInteger(liters) ? String(liters) : String(liters);
-    return `${litersText}l`;
+
+  // Pretvori g -> kg (250g -> 0.25kg)
+  const gMatch = cleaned.match(/^(\d+(?:\.\d+)?)g$/i);
+  if (gMatch) {
+    const grams = Number(gMatch[1]);
+    if (Number.isFinite(grams) && grams > 0) {
+      const kg = grams / 1000;
+      return Number.isInteger(kg) ? `${kg}kg` : `${kg}kg`;
+    }
   }
+
+  // Pretvori ml -> l (500ml -> 0.5l)
+  const mlMatch = cleaned.match(/^(\d+(?:\.\d+)?)ml$/i);
+  if (mlMatch) {
+    const ml = Number(mlMatch[1]);
+    if (Number.isFinite(ml) && ml > 0) {
+      const liters = ml / 1000;
+      return Number.isInteger(liters) ? `${liters}l` : `${liters}l`;
+    }
+  }
+
+  // Pretvori cl -> l (75cl -> 0.75l)
+  const clMatch = cleaned.match(/^(\d+(?:\.\d+)?)cl$/i);
+  if (clMatch) {
+    const cl = Number(clMatch[1]);
+    if (Number.isFinite(cl) && cl > 0) {
+      const liters = cl / 100;
+      return Number.isInteger(liters) ? `${liters}l` : `${liters}l`;
+    }
+  }
+
+  // Pretvori dl -> l (5dl -> 0.5l)
+  const dlMatch = cleaned.match(/^(\d+(?:\.\d+)?)dl$/i);
+  if (dlMatch) {
+    const dl = Number(dlMatch[1]);
+    if (Number.isFinite(dl) && dl > 0) {
+      const liters = dl / 10;
+      return Number.isInteger(liters) ? `${liters}l` : `${liters}l`;
+    }
+  }
+
   if (/^0\d+l$/.test(cleaned)) {
     return `0.${cleaned[1]}l`;
   }
   if (/^\d+(?:\.\d+)?l$/.test(cleaned)) return cleaned;
+  if (/^\d+(?:\.\d+)?kg$/.test(cleaned)) return cleaned;
+
   return cleaned;
 };
 
