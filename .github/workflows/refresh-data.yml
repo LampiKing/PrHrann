@@ -1,0 +1,30 @@
+name: Refresh Product Data
+
+on:
+  schedule:
+    # Runs daily at 6:00 AM UTC (7:00 AM CET / 8:00 AM CEST)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  refresh-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Refresh data from Google Sheets
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          PRHRAN_INGEST_URL: ${{ secrets.PRHRAN_INGEST_URL }}
+          PRHRAN_INGEST_TOKEN: ${{ secrets.PRHRAN_INGEST_TOKEN }}
+        run: node scripts/publish-sheets-to-convex.js
+
+      - name: Validate data
+        run: node scripts/validate-data.js
