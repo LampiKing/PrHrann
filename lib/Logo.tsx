@@ -6,9 +6,9 @@ type Props = {
   pulse?: boolean;
 };
 
-const LOGO_DEFAULT = require("@/assets/images/optimized/Logo Default.png");
-const LOGO_HALLOWEEN = require("@/assets/images/optimized/Logo Halloween.png");
-const LOGO_WINTER = require("@/assets/images/optimized/Logo Bozicni.png");
+const LOGO_DEFAULT = require("../assets/images/optimized/Logo Default.png");
+const LOGO_HALLOWEEN = require("../assets/images/optimized/Logo Halloween.png");
+const LOGO_WINTER = require("../assets/images/optimized/Logo Bozicni.png");
 
 export const getSeasonalLogoSource = (date = new Date()): ImageSourcePropType => {
   const month = date.getMonth() + 1;

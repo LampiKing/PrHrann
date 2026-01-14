@@ -2,6 +2,7 @@ import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
+const CLEAR_BATCH_SIZE = 1000;
 const STORE_COLORS: Record<string, string> = {
   Spar: "#c8102e",
   Mercator: "#d3003c",
@@ -9,7 +10,9 @@ const STORE_COLORS: Record<string, string> = {
 };
 
 const STORE_NAME_MAP: Record<string, string> = {
+  "spar": "Spar",
   "spar online": "Spar",
+  "mercator": "Mercator",
   "mercator online": "Mercator",
   "hitri nakup": "Tus",
   "tuš": "Tus",
@@ -101,6 +104,11 @@ export const importFromScanner = internalMutation({
         enota: v.optional(v.string()),
         trgovina: v.string(),
         url: v.optional(v.string()),
+        slika: v.optional(v.string()), // URL slike izdelka
+        // Datumi veljavnosti akcije
+        akcija_od: v.optional(v.string()), // "2026-01-15" ali "15.1.2026"
+        akcija_do: v.optional(v.string()), // "2026-01-21" ali "21.1.2026"
+        katalog: v.optional(v.string()), // "Mercator katalog 3/2026"
       })
     ),
   },
@@ -114,17 +122,17 @@ export const importFromScanner = internalMutation({
   }),
   handler: async (ctx, args) => {
     const stores = await ctx.db.query("stores").collect();
-    const storeMap = new Map(
-      stores.map((store) => [normalize(store.name), store])
-    );
-
-    const existingProducts = await ctx.db.query("products").collect();
-    const productMap = new Map<string, typeof existingProducts[0]>();
-    for (const product of existingProducts) {
-      const key = normalizeProductKey(product.name);
-      if (!key || productMap.has(key)) continue;
-      productMap.set(key, product);
+    // Prefer canonical store names (Spar/Mercator/Tus) when duplicates exist
+    // (e.g., "SPAR" created by legacy imports).
+    const storeMap = new Map<string, typeof stores[0]>();
+    for (const store of stores) {
+      const key = normalize(store.name);
+      const isCanonical = ALLOWED_STORE_NAMES.has(store.name);
+      if (isCanonical || !storeMap.has(key)) {
+        storeMap.set(key, store);
+      }
     }
+    const productCache = new Map<string, any>();
 
     let createdProducts = 0;
     let updatedProducts = 0;
@@ -142,16 +150,18 @@ export const importFromScanner = internalMutation({
       }
 
       const rawStore = normalize(item.trgovina || "");
-      const mappedStoreName = STORE_NAME_MAP[rawStore] || item.trgovina;
-      let store: typeof stores[0] | null | undefined = storeMap.get(normalize(mappedStoreName));
+      const canonicalStoreName = STORE_NAME_MAP[rawStore] || item.trgovina;
+      if (!ALLOWED_STORE_NAMES.has(canonicalStoreName)) {
+        unknownStores += 1;
+        continue;
+      }
+
+      const storeKey = normalize(canonicalStoreName);
+      let store: typeof stores[0] | null | undefined = storeMap.get(storeKey);
       if (!store) {
-        if (!ALLOWED_STORE_NAMES.has(mappedStoreName)) {
-          unknownStores += 1;
-          continue;
-        }
         const storeId = await ctx.db.insert("stores", {
-          name: mappedStoreName,
-          color: STORE_COLORS[mappedStoreName] ?? "#8b5cf6",
+          name: canonicalStoreName,
+          color: STORE_COLORS[canonicalStoreName] ?? "#8b5cf6",
           isPremium: false,
         });
         store = await ctx.db.get(storeId);
@@ -159,41 +169,84 @@ export const importFromScanner = internalMutation({
           skipped += 1;
           continue;
         }
-        if (!store) {
-          skipped += 1;
-          continue;
-        }
-        storeMap.set(normalize(store.name), store);
-      }
-      if (!ALLOWED_STORE_NAMES.has(store.name)) {
-        unknownStores += 1;
-        continue;
+        storeMap.set(storeKey, store);
+      } else if (store.name !== canonicalStoreName) {
+        // Normalize legacy names like "SPAR", "MERCATOR", "TUŠ" to canonical names.
+        const nextColor = STORE_COLORS[canonicalStoreName] ?? store.color;
+        await ctx.db.patch(store._id, {
+          name: canonicalStoreName,
+          color: nextColor,
+        });
+        store = { ...store, name: canonicalStoreName, color: nextColor };
+        storeMap.set(storeKey, store);
       }
 
       const category = item.kategorija?.trim() || "Neznana kategorija";
       // Use provided unit or infer from name
       const unit = item.enota?.trim() || inferUnit(rawName);
 
-      let product = productMap.get(nameKey);
+      // Slika izdelka
+      const imageUrl = item.slika?.trim() || undefined;
+
+      // NOVO: Najprej poišči izdelek po SLIKI (isti izdelek v različnih trgovinah ima isto sliko!)
+      let product = productCache.get(nameKey);
+      if (!product && imageUrl) {
+        // Poišči po image URL - to je KLJUČNO za združevanje istih izdelkov iz različnih trgovin
+        product = await ctx.db
+          .query("products")
+          .withIndex("by_image", (q) => q.eq("imageUrl", imageUrl))
+          .first();
+        if (product) {
+          productCache.set(nameKey, product);
+          // Shrani tudi pod image key za hitrejše iskanje
+          productCache.set(`img:${imageUrl}`, product);
+        }
+      }
+      // Če ni najdeno po sliki, preveri cache po image URL
+      if (!product && imageUrl) {
+        product = productCache.get(`img:${imageUrl}`);
+      }
+      // Fallback na nameKey in name
+      if (!product) {
+        product = await ctx.db
+          .query("products")
+          .withIndex("by_name_key", (q) => q.eq("nameKey", nameKey))
+          .first();
+        if (!product) {
+          product = await ctx.db
+            .query("products")
+            .withIndex("by_name", (q) => q.eq("name", rawName))
+            .first();
+        }
+        if (product) {
+          productCache.set(nameKey, product);
+        }
+      }
+
       if (!product) {
         const productId = await ctx.db.insert("products", {
           name: rawName,
+          nameKey,
           category,
           unit,
-          imageUrl: undefined,
+          imageUrl,
         });
         product = {
           _id: productId,
           _creationTime: Date.now(),
           name: rawName,
+          nameKey,
           category,
           unit,
-          imageUrl: undefined,
+          imageUrl,
         };
-        productMap.set(nameKey, product);
+        productCache.set(nameKey, product);
         createdProducts += 1;
       } else {
         const updates: Partial<typeof product> = {};
+        if (product.nameKey !== nameKey) {
+          updates.nameKey = nameKey;
+        }
         if (!product.category || product.category === "Neznana kategorija") {
           updates.category = category;
         }
@@ -206,9 +259,14 @@ export const importFromScanner = internalMutation({
         if (incomingScore > existingScore && rawName.length > product.name.length) {
           updates.name = rawName;
         }
+        // VEDNO posodobi sliko če imamo novo (preference: nova slika je boljša)
+        if (imageUrl) {
+          updates.imageUrl = imageUrl;
+        }
         if (Object.keys(updates).length > 0) {
           await ctx.db.patch(product._id, updates);
           product = { ...product, ...updates };
+          productCache.set(nameKey, product);
           updatedProducts += 1;
         }
       }
@@ -236,6 +294,24 @@ export const importFromScanner = internalMutation({
         )
         .first();
 
+      // Parsiraj datume akcije
+      const parseDate = (dateStr?: string): string | undefined => {
+        if (!dateStr) return undefined;
+        // Podpira: "2026-01-15", "15.1.2026", "15. 1. 2026"
+        const clean = dateStr.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean; // ISO format
+        const match = clean.match(/(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})/);
+        if (match) {
+          const [, d, m, y] = match;
+          return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+        }
+        return undefined;
+      };
+
+      const saleValidFrom = parseDate(item.akcija_od);
+      const saleValidUntil = parseDate(item.akcija_do);
+      const catalogSource = item.katalog?.trim() || undefined;
+
       if (!existingPrice) {
         await ctx.db.insert("prices", {
           productId: product._id,
@@ -243,6 +319,9 @@ export const importFromScanner = internalMutation({
           price,
           originalPrice,
           isOnSale,
+          saleValidFrom,
+          saleValidUntil,
+          catalogSource,
           lastUpdated: Date.now(),
         });
         createdPrices += 1;
@@ -251,6 +330,9 @@ export const importFromScanner = internalMutation({
           price,
           originalPrice,
           isOnSale,
+          saleValidFrom,
+          saleValidUntil,
+          catalogSource,
           lastUpdated: Date.now(),
         });
         updatedPrices += 1;
@@ -264,6 +346,30 @@ export const importFromScanner = internalMutation({
       updatedPrices,
       skipped,
       unknownStores,
+    };
+  },
+});
+
+// Funkcija za brisanje vseh izdelkov in cen (za fresh import)
+export const clearAllProductsAndPrices = internalMutation({
+  args: {},
+  returns: v.object({
+    deletedProducts: v.number(),
+    deletedPrices: v.number(),
+  }),
+  handler: async (ctx) => {
+    const prices = await ctx.db.query("prices").take(CLEAR_BATCH_SIZE);
+    for (const price of prices) await ctx.db.delete(price._id);
+
+    const remaining = CLEAR_BATCH_SIZE - prices.length;
+    const products = remaining > 0
+      ? await ctx.db.query("products").take(remaining)
+      : [];
+    for (const product of products) await ctx.db.delete(product._id);
+
+    return {
+      deletedProducts: products.length,
+      deletedPrices: prices.length,
     };
   },
 });

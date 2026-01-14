@@ -16,11 +16,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import Svg, { Rect } from "react-native-svg";
-import { createShadow } from "@/lib/shadow-helper";
-import Logo from "@/lib/Logo";
+import { createShadow } from "../lib/shadow-helper";
+import Logo from "../lib/Logo";
 import { useQuery, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import FloatingBackground from "@/lib/FloatingBackground";
+import { api } from "../convex/_generated/api";
+import FloatingBackground from "../lib/FloatingBackground";
 
 // Map between card ID and store name in database
 const CARD_TO_STORE_NAME: Record<string, string> = {
@@ -1613,4 +1613,3 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 });
-

@@ -1,26 +1,29 @@
 import { query, internalQuery } from "./_generated/server";
+import { v } from "convex/values";
 
 export const getStoreCounts = query({
   args: {},
+  returns: v.array(
+    v.object({
+      storeId: v.id("stores"),
+      storeName: v.string(),
+      priceCount: v.number(),
+    })
+  ),
   handler: async (ctx) => {
-    const prices = await ctx.db.query("prices").collect();
     const stores = await ctx.db.query("stores").collect();
+    const countsById = new Map<string, number>();
 
-    const storeMap = new Map(stores.map(s => [s._id, s.name]));
-    const counts: Record<string, number> = {};
-
-    // Initialize
-    for (const s of stores) {
-      counts[s.name] = 0;
+    const prices = await ctx.db.query("prices").collect();
+    for (const price of prices) {
+      const key = String(price.storeId);
+      countsById.set(key, (countsById.get(key) ?? 0) + 1);
     }
 
-    for (const p of prices) {
-      const sName = storeMap.get(p.storeId);
-      if (sName) {
-        counts[sName] = (counts[sName] || 0) + 1;
-      }
-    }
-
-    return counts;
+    return stores.map((store) => ({
+      storeId: store._id,
+      storeName: store.name,
+      priceCount: countsById.get(String(store._id)) ?? 0,
+    }));
   }
 });

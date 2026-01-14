@@ -19,17 +19,17 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useAction } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "../../lib/auth-client";
 import { useConvexAuth } from "convex/react";
-import { getSeasonalLogoSource } from "@/lib/Logo";
-import FloatingBackground from "@/lib/FloatingBackground";
-import { PLAN_FAMILY, PLAN_PLUS } from "@/lib/branding";
+import { getSeasonalLogoSource } from "../../lib/Logo";
+import FloatingBackground from "../../lib/FloatingBackground";
+import { PLAN_FAMILY, PLAN_PLUS } from "../../lib/branding";
 
 const TAB_BAR_HEIGHT = Platform.OS === "ios" ? 88 : 72;
 

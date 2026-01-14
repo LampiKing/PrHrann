@@ -89,15 +89,136 @@ http.route({
       return new Response("Missing items", { status: 400 });
     }
 
-    const result = await ctx.runMutation(
-      internal.groceryImport.importFromScanner,
-      { items }
-    );
+    try {
+      let cleared: { deletedProducts: number; deletedPrices: number } | null =
+        null;
 
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+      // Če je clearFirst=true, najprej pobriši vse (batchirano, da ne timeouta)
+      if (payload?.clearFirst === true) {
+        const MAX_CLEAR_ITERATIONS = 10000;
+        let deletedProducts = 0;
+        let deletedPrices = 0;
+        let done = false;
+
+        for (let i = 0; i < MAX_CLEAR_ITERATIONS; i += 1) {
+          const batch = await ctx.runMutation(
+            internal.groceryImport.clearAllProductsAndPrices,
+            {}
+          );
+          deletedProducts += batch.deletedProducts;
+          deletedPrices += batch.deletedPrices;
+          if (batch.deletedProducts === 0 && batch.deletedPrices === 0) {
+            done = true;
+            break;
+          }
+        }
+
+        if (!done) {
+          throw new Error("Clear exceeded maximum iterations");
+        }
+
+        cleared = { deletedProducts, deletedPrices };
+      }
+
+      const result = await ctx.runMutation(
+        internal.groceryImport.importFromScanner,
+        { items }
+      );
+
+      return new Response(
+        JSON.stringify({
+          ...result,
+          ...(cleared ? { cleared } : {}),
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return new Response(
+        JSON.stringify({
+          error: message,
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }),
+});
+
+// Endpoint za združevanje podobnih izdelkov
+http.route({
+  path: "/api/admin/merge-products",
+  method: "POST",
+  handler: httpActionGeneric(async (ctx, request) => {
+    const expectedToken = process.env.PRHRAN_INGEST_TOKEN;
+    if (!expectedToken) {
+      return new Response("Token not configured", { status: 500 });
+    }
+
+    const authHeader = request.headers.get("authorization") || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : authHeader.trim();
+
+    if (token !== expectedToken) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    let payload: any = null;
+    try {
+      payload = await request.json();
+    } catch {
+      payload = {};
+    }
+
+    const minSimilarity = payload?.minSimilarity ?? 75;
+    const batchSize = payload?.batchSize ?? 100;
+    const iterations = payload?.iterations ?? 10;
+
+    try {
+      let totalMerged = 0;
+      let totalProcessed = 0;
+
+      for (let i = 0; i < iterations; i++) {
+        const result = await ctx.runMutation(
+          internal.mergeProducts.autoMerge,
+          { minSimilarity, batchSize }
+        );
+        totalMerged += result.merged;
+        totalProcessed += result.processed;
+
+        // Če ni več kaj procesirati, končaj
+        if (result.remaining === 0 || result.merged === 0) {
+          break;
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          totalMerged,
+          totalProcessed,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return new Response(
+        JSON.stringify({ error: message }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
   }),
 });
 

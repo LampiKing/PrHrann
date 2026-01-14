@@ -15,10 +15,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQuery, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { PLAN_FREE, PLAN_PLUS, PLAN_FAMILY, MARKETING } from "@/lib/branding";
-import { createShadow } from "@/lib/shadow-helper";
-import FloatingBackground from "@/lib/FloatingBackground";
+import { api } from "../convex/_generated/api";
+import { PLAN_FREE, PLAN_PLUS, PLAN_FAMILY, MARKETING } from "../lib/branding";
+import { createShadow } from "../lib/shadow-helper";
+import FloatingBackground from "../lib/FloatingBackground";
 
 const INDIVIDUAL_FEATURES = [
   { icon: "infinite", title: "Neomejeno iskanje", description: "Brez dnevnih omejitev v vseh trgovinah." },

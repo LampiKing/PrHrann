@@ -16,11 +16,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useMutation, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
-import { createShadow } from "@/lib/shadow-helper";
-import Logo from "@/lib/Logo";
-import FloatingBackground from "@/lib/FloatingBackground";
+import { api } from "../convex/_generated/api";
+import { Id } from "../convex/_generated/dataModel";
+import { createShadow } from "../lib/shadow-helper";
+import Logo from "../lib/Logo";
+import FloatingBackground from "../lib/FloatingBackground";
 
 const ICONS: Array<keyof typeof Ionicons.glyphMap> = [
   "cart",

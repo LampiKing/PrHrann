@@ -2,20 +2,35 @@
 import { ConvexReactClient } from "convex/react";
 import { Stack } from "expo-router";
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "../lib/auth-client";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { Asset } from "expo-asset";
-import { getSeasonalLogoSource } from "@/lib/Logo";
+import { getSeasonalLogoSource } from "../lib/Logo";
 
 const rawConvexUrl =
   process.env.EXPO_PUBLIC_CONVEX_URL || process.env.EXPO_PUBLIC_CONVEX_SITE_URL;
 const DEFAULT_CONVEX_URL = "https://vibrant-dolphin-871.convex.cloud";
-const convexUrl = (rawConvexUrl || DEFAULT_CONVEX_URL)?.replace(
-  ".convex.site",
-  ".convex.cloud"
-);
+
+const normalizeConvexUrl = (value?: string) =>
+  value?.trim().replace(".convex.site", ".convex.cloud").replace(/\/$/, "");
+
+const isLocalUrl = (value?: string) =>
+  Boolean(value && /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/i.test(value));
+
+const envConvexUrl = normalizeConvexUrl(rawConvexUrl);
+const convexUrl = (() => {
+  const candidate = envConvexUrl || DEFAULT_CONVEX_URL;
+
+  // If the web app is deployed (not on localhost) but was built with local env vars,
+  // force the production Convex deployment so users see the real data.
+  if (typeof window === "undefined") return candidate;
+  const host = window.location.hostname;
+  const isLocalHost = host === "localhost" || host === "127.0.0.1";
+  if (!isLocalHost && isLocalUrl(candidate)) return DEFAULT_CONVEX_URL;
+  return candidate;
+})();
 
 const convexClient = convexUrl
   ? new ConvexReactClient(convexUrl, {

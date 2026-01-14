@@ -2,12 +2,12 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import Logo from "@/lib/Logo";
+import Logo from "../lib/Logo";
 import { useMutation, useAction, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "../convex/_generated/api";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import FloatingBackground from "@/lib/FloatingBackground";
+import FloatingBackground from "../lib/FloatingBackground";
 
 export default function VerifyEmailScreen() {
   const [code, setCode] = useState("");

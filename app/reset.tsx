@@ -13,11 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { authClient } from "@/lib/auth-client";
-import { createShadow } from "@/lib/shadow-helper";
-import FloatingBackground from "@/lib/FloatingBackground";
+import { authClient } from "../lib/auth-client";
+import { createShadow } from "../lib/shadow-helper";
+import FloatingBackground from "../lib/FloatingBackground";
 import { useAction } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "../convex/_generated/api";
 
 export default function ResetScreen() {
   const params = useLocalSearchParams<{ token?: string; email?: string; error?: string }>();

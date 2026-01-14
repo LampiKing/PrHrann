@@ -12,16 +12,16 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "react-native";
-import { getSeasonalLogoSource } from "@/lib/Logo";
-import { createShadow } from "@/lib/shadow-helper";
+import { getSeasonalLogoSource } from "../../lib/Logo";
+import { createShadow } from "../../lib/shadow-helper";
 import { useRouter } from "expo-router";
-import FloatingBackground from "@/lib/FloatingBackground";
-import { PLAN_FAMILY, PLAN_PLUS } from "@/lib/branding";
+import FloatingBackground from "../../lib/FloatingBackground";
+import { PLAN_FAMILY, PLAN_PLUS } from "../../lib/branding";
 
 interface CartItemType {
   _id: Id<"cartItems">;
@@ -1464,4 +1464,3 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 });
-

@@ -1,9 +1,9 @@
 ﻿import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { View, StyleSheet, Platform } from "react-native";
-import Logo from "@/lib/Logo";
+import Logo from "../../lib/Logo";
 import { useQuery, useConvexAuth, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 import { useEffect, useRef } from "react";
 import { LinearGradient } from "expo-linear-gradient";
 

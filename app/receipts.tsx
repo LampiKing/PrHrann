@@ -15,9 +15,9 @@ import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { useAction, useQuery, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "../convex/_generated/api";
 import * as Haptics from "expo-haptics";
-import FloatingBackground from "@/lib/FloatingBackground";
+import FloatingBackground from "../lib/FloatingBackground";
 
 export default function ReceiptsScreen() {
   const router = useRouter();

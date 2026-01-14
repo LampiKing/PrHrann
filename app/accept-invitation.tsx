@@ -10,9 +10,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useConvexAuth, useMutation } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
-import { api } from "@/convex/_generated/api";
-import FloatingBackground from "@/lib/FloatingBackground";
-import { PLAN_FAMILY } from "@/lib/branding";
+import { api } from "../convex/_generated/api";
+import FloatingBackground from "../lib/FloatingBackground";
+import { PLAN_FAMILY } from "../lib/branding";
 
 export default function AcceptInvitationScreen() {
   const router = useRouter();

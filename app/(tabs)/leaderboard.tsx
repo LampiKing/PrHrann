@@ -3,12 +3,12 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Act
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { getSeasonalLogoSource } from "@/lib/Logo";
-import FloatingBackground from "@/lib/FloatingBackground";
-import { PLAN_FAMILY, PLAN_PLUS } from "@/lib/branding";
+import { getSeasonalLogoSource } from "../../lib/Logo";
+import FloatingBackground from "../../lib/FloatingBackground";
+import { PLAN_FAMILY, PLAN_PLUS } from "../../lib/branding";
 
 const formatCurrency = (value: number) => {
   if (!Number.isFinite(value)) return "0.00 EUR";

@@ -13,15 +13,15 @@ import {
   Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "../lib/auth-client";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { createShadow } from "@/lib/shadow-helper";
+import { createShadow } from "../lib/shadow-helper";
 import { useConvexAuth, useQuery, useAction } from "convex/react";
-import Logo, { getSeasonalLogoSource } from "@/lib/Logo";
-import { api } from "@/convex/_generated/api";
+import Logo, { getSeasonalLogoSource } from "../lib/Logo";
+import { api } from "../convex/_generated/api";
 
 const FACTS = [
   "Pametna primerjava cen ti prihrani čas in denar.",

@@ -30,7 +30,8 @@ const COSMETICS_KEYWORDS = new Set([
 // CACHE: Reduce Google Sheets API calls - cache for 1 hour
 let cachedSheetData: any[] | null = null;
 let cacheTimestamp = 0;
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+// Keep this relatively short so price updates propagate quickly after a re-scrape.
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 const normalizeStoreKey = (value: string) =>
   value

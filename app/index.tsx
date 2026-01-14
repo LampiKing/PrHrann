@@ -1,5 +1,5 @@
 import { View, StyleSheet } from "react-native";
-import Logo from "@/lib/Logo";
+import Logo from "../lib/Logo";
 import { useConvexAuth } from "convex/react";
 import { Redirect } from "expo-router";
 

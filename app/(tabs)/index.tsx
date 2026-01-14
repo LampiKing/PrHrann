@@ -14,21 +14,21 @@ import {
   Easing,
   Modal,
 } from "react-native";
-import Logo, { getSeasonalLogoSource } from "@/lib/Logo";
+import Logo, { getSeasonalLogoSource } from "../../lib/Logo";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useConvexAuth, useAction } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, Link } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
-import { PLAN_PLUS } from "@/lib/branding";
-import { createShadow, createTextShadow } from "@/lib/shadow-helper";
-import FloatingBackground from "@/lib/FloatingBackground";
+import { PLAN_PLUS } from "../../lib/branding";
+import { createShadow, createTextShadow } from "../../lib/shadow-helper";
+import FloatingBackground from "../../lib/FloatingBackground";
 
 
 interface PriceInfo {
@@ -219,7 +219,6 @@ export default function SearchScreen() {
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
   const [autoSearchBlockedQuery, setAutoSearchBlockedQuery] = useState<string | null>(null);
-  const [searchCache, setSearchCache] = useState<Map<string, typeof rawSearchResults>>(new Map());
 
   // Guest mode + search gating state
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
@@ -564,43 +563,13 @@ export default function SearchScreen() {
   };
   
   // Auto-search when query changes (but only after recordSearch)
-  const searchFromSheets = useAction(api.productsActions.searchFromSheets);
   const dbSearchResults = useQuery(
     api.products.search,
     approvedQuery.length >= 2 ? { query: approvedQuery, isPremium } : "skip"
   );
-  const [rawSearchResults, setRawSearchResults] = useState<ProductResult[]>([]);
-  const [isLoadingSearch, setIsLoadingSearch] = useState(false);
-
-  useEffect(() => {
-    if (approvedQuery.length >= 2) {
-      const cacheKey = `${approvedQuery}-${isPremium}`;
-      const cached = searchCache.get(cacheKey);
-
-      if (cached) {
-        setRawSearchResults(cached);
-        setIsLoadingSearch(false);
-      } else {
-        setIsLoadingSearch(true);
-        searchFromSheets({ query: approvedQuery, isPremium })
-          .then((results) => {
-            setRawSearchResults(results);
-            setSearchCache(new Map(searchCache.set(cacheKey, results)));
-          })
-          .catch(console.error)
-          .finally(() => setIsLoadingSearch(false));
-      }
-    } else {
-      setRawSearchResults([]);
-      setIsLoadingSearch(false);
-    }
-  }, [approvedQuery, isPremium, searchFromSheets]);
 
   // Use searchResults directly
-  const rawResults =
-    rawSearchResults.length > 0
-      ? rawSearchResults
-      : (dbSearchResults ?? []);
+  const rawResults = dbSearchResults ?? [];
   const searchResults = rawResults
     .map((product) => {
       const prices = product.prices
@@ -620,16 +589,14 @@ export default function SearchScreen() {
     .filter((product): product is ProductResult => product !== null);
   const isSearchResultsLoading =
     searching ||
-    (approvedQuery.length >= 2 &&
-      rawSearchResults.length === 0 &&
-      dbSearchResults === undefined);
+    (approvedQuery.length >= 2 && dbSearchResults === undefined);
 
   // Sort results based on swipe direction
   const sortedResults = searchResults
     ? [...searchResults].sort((a, b) => a.lowestPrice - b.lowestPrice)
     : [];
 
-  const limitedResults = sortedResults.slice(0, 10);
+  const limitedResults = sortedResults.slice(0, 20);
 
   const handleSearchFocus = () => {
     RNAnimated.spring(searchBarScale, {
@@ -1274,14 +1241,22 @@ export default function SearchScreen() {
             <View style={styles.productHeader}>
               <View style={styles.productInfoRow}>
                 <View style={styles.productImageContainer}>
-                  <LinearGradient
-                    colors={["rgba(168, 85, 247, 0.3)", "rgba(139, 92, 246, 0.1)"]}
-                    style={styles.productImageBg}
-                  >
-                    <Text style={styles.productEmoji}>
-                      {getProductEmoji(product.name)}
-                    </Text>
-                  </LinearGradient>
+                  {product.imageUrl ? (
+                    <Image
+                      source={{ uri: product.imageUrl }}
+                      style={styles.productImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={["rgba(168, 85, 247, 0.3)", "rgba(139, 92, 246, 0.1)"]}
+                      style={styles.productImageBg}
+                    >
+                      <Text style={styles.productEmoji}>
+                        {getProductEmoji(product.name)}
+                      </Text>
+                    </LinearGradient>
+                  )}
                 </View>
 
                 <View style={styles.productInfo}>
@@ -1885,7 +1860,7 @@ export default function SearchScreen() {
         )}
 
         {/* Loading Indicator */}
-        {(searching || isLoadingSearch) && searchQuery.length >= 2 && limitedResults.length === 0 && (
+        {isSearchResultsLoading && searchQuery.length >= 2 && limitedResults.length === 0 && (
           <View style={styles.loadingIndicatorContainer}>
             <ActivityIndicator size="large" color="#a855f7" />
             <Text style={styles.loadingIndicatorText}>Iskanje izdelkov...</Text>
@@ -2766,6 +2741,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+  },
+  productImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   productEmoji: {
     fontSize: 28,
@@ -4151,9 +4132,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
-
-
-
 
 
 

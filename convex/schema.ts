@@ -13,12 +13,17 @@ export default defineSchema({
   // Izdelki
   products: defineTable({
     name: v.string(),
+    // Normaliziran ključ za združevanje istih izdelkov med trgovinami.
+    // (Optional za kompatibilnost z obstoječimi podatki.)
+    nameKey: v.optional(v.string()),
     category: v.string(),
     unit: v.string(), // npr. "1L", "500g", "1kg"
     imageUrl: v.optional(v.string()),
   })
     .index("by_name", ["name"])
+    .index("by_name_key", ["nameKey"])
     .index("by_category", ["category"])
+    .index("by_image", ["imageUrl"]) // Za združevanje istih izdelkov iz različnih trgovin po sliki
     .searchIndex("search_name", { searchField: "name" }),
 
   // Cene izdelkov po trgovinah
@@ -28,6 +33,10 @@ export default defineSchema({
     price: v.number(),
     originalPrice: v.optional(v.number()), // Če je na akciji
     isOnSale: v.boolean(),
+    // Datumi veljavnosti akcije
+    saleValidFrom: v.optional(v.string()), // "2026-01-15" ISO format
+    saleValidUntil: v.optional(v.string()), // "2026-01-21" ISO format
+    catalogSource: v.optional(v.string()), // "Mercator katalog 3/2026"
     lastUpdated: v.number(),
   })
     .index("by_product", ["productId"])

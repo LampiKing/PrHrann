@@ -14,15 +14,30 @@ const normalizedAuthBaseUrl = authBaseUrl
     ? authBaseUrl.replace(".convex.cloud", ".convex.site")
     : undefined;
 
+const DEFAULT_CONVEX_SITE_URL = "https://vibrant-dolphin-871.convex.site";
+const isLocalUrl = (value?: string) =>
+    Boolean(value && /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/i.test(value));
+
+const resolvedAuthBaseUrl = (() => {
+    const candidate = normalizedAuthBaseUrl || DEFAULT_CONVEX_SITE_URL;
+
+    // If deployed on a real domain, ignore localhost/127.* base URLs baked into the bundle.
+    if (typeof window === "undefined") return candidate;
+    const host = window.location.hostname;
+    const isLocalHost = host === "localhost" || host === "127.0.0.1";
+    if (!isLocalHost && isLocalUrl(candidate)) return DEFAULT_CONVEX_SITE_URL;
+    return candidate;
+})();
+
 // Site URL for cross-domain authentication
 const siteUrl = normalizeUrl(process.env.EXPO_PUBLIC_SITE_URL) || "https://www.prhran.com";
 
-if (!normalizedAuthBaseUrl) {
+if (!resolvedAuthBaseUrl) {
     console.warn("Missing Convex auth URL. Set EXPO_PUBLIC_CONVEX_SITE_URL.");
 }
 
 export const authClient = createAuthClient({
-    baseURL: normalizedAuthBaseUrl,
+    baseURL: resolvedAuthBaseUrl,
     // Add fetch options to handle CORS properly
     fetchOptions: {
         credentials: "include",

@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
-import FloatingBackground from "@/lib/FloatingBackground";
+import FloatingBackground from "../lib/FloatingBackground";
 
 export default function PrivacyScreen() {
   const router = useRouter();

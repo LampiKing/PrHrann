@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "PrHran Price Scraper",
+  "version": "1.0.1",
+  "description": "Poberi vse izdelke s trgovinskih strani (ime, cena, slika, akcija)",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "scripting",
+    "identity"
+  ],
+  "oauth2": {
+    "client_id": "797500691950-910onkdgmkh4mj2c00cemml98oa3tlqc.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/drive.metadata.readonly"
+    ]
+  },
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

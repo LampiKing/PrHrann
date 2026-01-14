@@ -5,12 +5,12 @@ import {
   StyleSheet,
   ScrollView,
 } from "react-native";
-import { PLAN_PLUS, PLAN_FAMILY } from "@/lib/branding";
+import { PLAN_PLUS, PLAN_FAMILY } from "../lib/branding";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import FloatingBackground from "@/lib/FloatingBackground";
+import FloatingBackground from "../lib/FloatingBackground";
 
 export default function TermsScreen() {
   const router = useRouter();

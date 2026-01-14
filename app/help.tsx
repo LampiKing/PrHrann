@@ -15,9 +15,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useAction, useConvexAuth, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import FloatingBackground from "@/lib/FloatingBackground";
-import { PLAN_FAMILY, PLAN_PLUS } from "@/lib/branding";
+import { api } from "../convex/_generated/api";
+import FloatingBackground from "../lib/FloatingBackground";
+import { PLAN_FAMILY, PLAN_PLUS } from "../lib/branding";
 
 const FAQ_ITEMS = [
   {
@@ -379,4 +379,3 @@ const styles = StyleSheet.create({
     color: "#ef4444",
   },
 });
-
