@@ -51,13 +51,76 @@ function normalizeText(value: string): string {
     .trim();
 }
 
+// Znane blagovne znamke za boljše ujemanje
+const KNOWN_BRANDS = new Set([
+  "milka", "jaffa", "coca", "cola", "pepsi", "fanta", "sprite",
+  "alpsko", "mu", "ego", "zott", "danone", "activia",
+  "barilla", "knorr", "podravka", "vegeta", "argeta",
+  "nutella", "ferrero", "kinder", "mars", "snickers", "twix",
+  "lindt", "toblerone", "nivea", "dove", "colgate",
+  "radenska", "donat", "jana", "nescafe", "jacobs", "barcaffe",
+]);
+
+// Izvleči brand iz imena
+function extractBrand(name: string): string | null {
+  const normalized = normalizeText(name);
+  for (const brand of KNOWN_BRANDS) {
+    if (normalized.includes(brand)) return brand;
+  }
+  return null;
+}
+
+// Izvleči velikost (gramatura/volumen)
+function extractSize(name: string): string | null {
+  const normalized = normalizeText(name);
+  const match = normalized.match(/(\d+(?:[.,]\d+)?)\s*(kg|g|l|ml|cl|dl)/i);
+  if (!match) return null;
+  const value = parseFloat(match[1].replace(",", "."));
+  const unit = match[2].toLowerCase();
+  // Normaliziraj v osnovne enote
+  if (unit === "g") return `${value}g`;
+  if (unit === "kg") return `${value * 1000}g`;
+  if (unit === "ml") return `${value}ml`;
+  if (unit === "l") return `${value * 1000}ml`;
+  if (unit === "cl") return `${value * 10}ml`;
+  if (unit === "dl") return `${value * 100}ml`;
+  return `${value}${unit}`;
+}
+
+// IZBOLJŠAN scoreMatch - upošteva brand in velikost
 function scoreMatch(itemName: string, productName: string): number {
-  const itemTokens = normalizeText(itemName).split(" ").filter(Boolean);
-  const productTokens = normalizeText(productName).split(" ").filter(Boolean);
+  const itemNorm = normalizeText(itemName);
+  const productNorm = normalizeText(productName);
+
+  // Izvleči brand in velikost
+  const itemBrand = extractBrand(itemName);
+  const productBrand = extractBrand(productName);
+  const itemSize = extractSize(itemName);
+  const productSize = extractSize(productName);
+
+  // BONUS: Isti brand + ista velikost = zelo verjeten match
+  if (itemBrand && productBrand && itemBrand === productBrand) {
+    if (itemSize && productSize && itemSize === productSize) {
+      return 0.9; // 90% match - isti brand + velikost
+    }
+    return 0.6; // 60% match - isti brand
+  }
+
+  // Standardna primerjava tokenov
+  const itemTokens = itemNorm.split(" ").filter(Boolean);
+  const productTokens = productNorm.split(" ").filter(Boolean);
   if (itemTokens.length === 0 || productTokens.length === 0) return 0;
+
   const productSet = new Set(productTokens);
   const overlap = itemTokens.filter((token) => productSet.has(token)).length;
-  return overlap / Math.max(itemTokens.length, productTokens.length);
+  const baseScore = overlap / Math.max(itemTokens.length, productTokens.length);
+
+  // Bonus za ujemanje velikosti (tudi če brand ni znan)
+  if (itemSize && productSize && itemSize === productSize) {
+    return Math.min(1, baseScore + 0.2);
+  }
+
+  return baseScore;
 }
 
 function getReceiptFingerprint(storeNameLower: string, dateKey: string, totalPaid: number): string {
