@@ -1,0 +1,40 @@
+name: Scrape Catalog Sales
+
+on:
+  schedule:
+    # Vsako nedeljo ob 20:00 UTC (21:00 CET) - pred tednom
+    - cron: '0 20 * * 0'
+  workflow_dispatch: # Omogoči ročno sprožitev
+
+jobs:
+  scrape-catalogs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: Run catalog scraper
+        working-directory: scripts/catalog-scraper
+        env:
+          CONVEX_URL: https://vibrant-dolphin-871.convex.cloud
+        run: |
+          python catalog_scraper.py
+          echo "Catalog sales scraped and sent to Convex"
+
+      - name: Commit catalog data (if any)
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add scripts/catalog-scraper/*.json || true
+          git diff --staged --quiet || git commit -m "Update catalog sales data [skip ci]"
+          git push || echo "Nothing to push"

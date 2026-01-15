@@ -17,4 +17,11 @@ crons.interval(
   internal.smartMergeCron.runAutoMerge
 );
 
+// Preveri potekle akcije vsak dan ob 6:00 UTC
+crons.daily(
+  "Check expired sales",
+  { hourUTC: 6, minuteUTC: 0 },
+  internal.catalogManager.checkExpiredSales
+);
+
 export default crons;

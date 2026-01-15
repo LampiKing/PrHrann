@@ -15,6 +15,7 @@ import type * as aiCouponParser from "../aiCouponParser.js";
 import type * as auth from "../auth.js";
 import type * as awards from "../awards.js";
 import type * as cart from "../cart.js";
+import type * as catalogManager from "../catalogManager.js";
 import type * as catalogSales from "../catalogSales.js";
 import type * as coupons from "../coupons.js";
 import type * as crons from "../crons.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   awards: typeof awards;
   cart: typeof cart;
+  catalogManager: typeof catalogManager;
   catalogSales: typeof catalogSales;
   coupons: typeof coupons;
   crons: typeof crons;
