@@ -553,4 +553,18 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_token", ["token"]),
+
+  // Primerjave cen med trgovinami (iz Python matcherja)
+  priceComparisons: defineTable({
+    canonicalName: v.string(),
+    sparPrice: v.optional(v.number()),
+    mercatorPrice: v.optional(v.number()),
+    tusPrice: v.optional(v.number()),
+    cheapestStore: v.string(),
+    priceDifference: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_cheapest", ["cheapestStore"])
+    .index("by_savings", ["priceDifference"])
+    .searchIndex("search_name", { searchField: "canonicalName" }),
 });

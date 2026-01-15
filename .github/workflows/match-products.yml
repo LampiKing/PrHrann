@@ -1,0 +1,57 @@
+name: Match Products Across Stores
+
+on:
+  schedule:
+    # Vsak dan ob 5:00 UTC (6:00 CET)
+    - cron: '0 5 * * *'
+  workflow_dispatch: # Omogoči ročno sprožitev
+
+jobs:
+  match-products:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install requests
+
+      - name: Run product matcher
+        working-directory: scripts/price-compare
+        run: |
+          python product_matcher_intelligent.py
+          echo "Matched products saved to matched_products.json"
+
+      - name: Copy results to project root
+        run: |
+          cp scripts/price-compare/matched_products_latest.csv matched_products.csv
+          cp scripts/price-compare/matched_products.json matched_products.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Import to Convex
+        env:
+          CONVEX_URL: https://vibrant-dolphin-871.convex.cloud
+        run: |
+          npx tsx scripts/importPriceComparisons.ts
+
+      - name: Commit and push results
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add matched_products.csv matched_products.json
+          git diff --staged --quiet || git commit -m "Update matched products [skip ci]"
+          git push || echo "Nothing to push"

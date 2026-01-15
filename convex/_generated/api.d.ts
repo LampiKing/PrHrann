@@ -30,6 +30,7 @@ import type * as mergeProducts from "../mergeProducts.js";
 import type * as notify from "../notify.js";
 import type * as passwordReset from "../passwordReset.js";
 import type * as priceAlerts from "../priceAlerts.js";
+import type * as priceComparison from "../priceComparison.js";
 import type * as products from "../products.js";
 import type * as productsActions from "../productsActions.js";
 import type * as receipts from "../receipts.js";
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   notify: typeof notify;
   passwordReset: typeof passwordReset;
   priceAlerts: typeof priceAlerts;
+  priceComparison: typeof priceComparison;
   products: typeof products;
   productsActions: typeof productsActions;
   receipts: typeof receipts;
