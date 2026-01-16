@@ -7,6 +7,8 @@ import {
   ScrollView,
   Platform,
   ActivityIndicator,
+  Modal,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -19,11 +21,23 @@ import { api } from "../convex/_generated/api";
 import * as Haptics from "expo-haptics";
 import FloatingBackground from "../lib/FloatingBackground";
 
+type ReceiptResult = {
+  success: boolean;
+  savedAmount?: number;
+  storeName?: string;
+  totalPaid?: number;
+  error?: string;
+  invalidReason?: string;  // If set, receipt doesn't count for competition
+};
+
 export default function ReceiptsScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<string>("");
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [receiptResult, setReceiptResult] = useState<ReceiptResult | null>(null);
 
   const myReceipts = useQuery(
     api.receipts.getMyReceipts,
@@ -87,6 +101,7 @@ export default function ReceiptsScreen() {
   const handleImageSelected = async (uri: string) => {
     setAnalyzing(true);
     setUploading(true);
+    setLoadingStage("Pripravljam sliko...");
 
     try {
       // Convert image to base64
@@ -106,21 +121,71 @@ export default function ReceiptsScreen() {
         base64Image = `data:image/jpeg;base64,${base64}`;
       }
 
-      // Submit receipt with OCR
-      await submitReceipt({ imageBase64: base64Image, confirmed: true });
+      setLoadingStage("Berem račun z AI...");
 
-      if (Platform.OS !== "web") {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Submit receipt with OCR
+      const result = await submitReceipt({ imageBase64: base64Image, confirmed: true });
+
+      if (result.success && result.receiptId) {
+        setReceiptResult({
+          success: true,
+          savedAmount: result.savedAmount ?? 0,
+          storeName: result.storeName ?? "Trgovina",
+          totalPaid: result.totalPaid ?? 0,
+          invalidReason: result.invalidReason,  // May be set if receipt doesn't count
+        });
+        setShowResultModal(true);
+
+        if (Platform.OS !== "web") {
+          // Warning haptic if invalid, success if valid
+          Haptics.notificationAsync(
+            result.invalidReason
+              ? Haptics.NotificationFeedbackType.Warning
+              : Haptics.NotificationFeedbackType.Success
+          );
+        }
+      } else {
+        // Show error
+        let errorMessage = result.error || "Napaka pri obdelavi računa";
+        if (result.error?.includes("Duplicate")) {
+          errorMessage = "Ta račun je že dodan! Isti račun ne more biti dodan dvakrat.";
+        } else if (result.error?.includes("Daily")) {
+          errorMessage = "Dnevna omejitev dosežena. Jutri lahko dodaš nov račun.";
+        } else if (result.error?.includes("parse")) {
+          errorMessage = "Račun ni bil prepoznan. Prosim poskusi z bolj jasno sliko.";
+        }
+
+        setReceiptResult({
+          success: false,
+          error: errorMessage,
+        });
+        setShowResultModal(true);
+
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
       }
     } catch (error) {
       console.error("Receipt upload error:", error);
+      setReceiptResult({
+        success: false,
+        error: "Napaka pri nalaganju. Preveri internetno povezavo.",
+      });
+      setShowResultModal(true);
+
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } finally {
       setAnalyzing(false);
       setUploading(false);
+      setLoadingStage("");
     }
+  };
+
+  const closeResultModal = () => {
+    setShowResultModal(false);
+    setReceiptResult(null);
   };
 
   if (!isAuthenticated) {
@@ -210,7 +275,7 @@ export default function ReceiptsScreen() {
             {analyzing && (
               <View style={styles.analyzingBox}>
                 <ActivityIndicator size="small" color="#8b5cf6" />
-                <Text style={styles.analyzingText}>Analiziram račun...</Text>
+                <Text style={styles.analyzingText}>{loadingStage || "Analiziram račun..."}</Text>
               </View>
             )}
           </View>
@@ -275,6 +340,48 @@ export default function ReceiptsScreen() {
             )}
           </View>
         </ScrollView>
+
+        {/* Result Modal */}
+        <Modal
+          visible={showResultModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={closeResultModal}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {receiptResult?.success ? (
+                <>
+                  <View style={styles.successIconCircle}>
+                    <Ionicons name="checkmark" size={48} color="#10b981" />
+                  </View>
+                  <Text style={styles.modalTitle}>Super!</Text>
+                  <Text style={styles.modalSubtitle}>Račun uspešno dodan</Text>
+                  <View style={styles.savingsDisplay}>
+                    <Text style={styles.savingsLabel}>Prihranek</Text>
+                    <Text style={styles.savingsAmount}>
+                      {(receiptResult.savedAmount ?? 0).toFixed(2)} EUR
+                    </Text>
+                    <Text style={styles.storeInfo}>
+                      {receiptResult.storeName} • {(receiptResult.totalPaid ?? 0).toFixed(2)} EUR
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.errorIconCircle}>
+                    <Ionicons name="close" size={48} color="#ef4444" />
+                  </View>
+                  <Text style={styles.modalTitle}>Ojoj!</Text>
+                  <Text style={styles.modalErrorText}>{receiptResult?.error}</Text>
+                </>
+              )}
+              <TouchableOpacity style={styles.modalCloseButton} onPress={closeResultModal}>
+                <Text style={styles.modalCloseText}>Zapri</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </View>
   );
@@ -494,5 +601,99 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#1a1a2e",
+    borderRadius: 24,
+    padding: 32,
+    width: "100%",
+    maxWidth: 340,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+  },
+  successIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  errorIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(239, 68, 68, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#fff",
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: "#9ca3af",
+    marginBottom: 20,
+  },
+  modalErrorText: {
+    fontSize: 15,
+    color: "#f87171",
+    textAlign: "center",
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  savingsDisplay: {
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    borderRadius: 16,
+    padding: 20,
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.3)",
+  },
+  savingsLabel: {
+    fontSize: 12,
+    color: "#9ca3af",
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  savingsAmount: {
+    fontSize: 36,
+    fontWeight: "800",
+    color: "#10b981",
+    marginBottom: 8,
+  },
+  storeInfo: {
+    fontSize: 14,
+    color: "#9ca3af",
+  },
+  modalCloseButton: {
+    backgroundColor: "rgba(139, 92, 246, 0.2)",
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.4)",
+  },
+  modalCloseText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#a78bfa",
   },
 });

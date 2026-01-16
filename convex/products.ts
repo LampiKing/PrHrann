@@ -187,58 +187,58 @@ export const search = query({
     const getSizeScore = (name: string, unit: string): number => {
       const text = `${name} ${unit}`.toLowerCase();
 
-      // PRIORITETNE velikosti - kar ljudje dejansko kupujejo
-      // Najvišji score za najbolj pogoste velikosti
-      if (/\b1\s*l\b|\b1000\s*ml\b|\b1\s*liter\b/i.test(text)) return 100;  // 1L
-      if (/\b1\s*kg\b|\b1000\s*g\b/i.test(text)) return 100;                 // 1kg
-      if (/\b500\s*g\b|\b0[,.]5\s*kg\b/i.test(text)) return 90;              // 500g
-      if (/\b500\s*ml\b|\b0[,.]5\s*l\b/i.test(text)) return 90;              // 500ml
-      if (/\b750\s*ml\b/i.test(text)) return 85;                              // 750ml (vino, sokovi)
-      if (/\b1[,.]5\s*l\b|\b1500\s*ml\b/i.test(text)) return 85;             // 1.5L
-      if (/\b2\s*l\b|\b2000\s*ml\b/i.test(text)) return 80;                  // 2L
-      if (/\b250\s*g\b/i.test(text)) return 75;                               // 250g (maslo, kava)
-      if (/\b400\s*g\b/i.test(text)) return 70;                               // 400g (konzerve)
-      if (/\b330\s*ml\b/i.test(text)) return 65;                              // 330ml (pločevinke)
+      // PRIORITETNE velikosti - kar ljudje dejansko kupujejo (NAJVIŠJI SCORE)
+      if (/\b1\s*kg\b|\b1000\s*g\b/i.test(text)) return 100;                 // 1kg - NAJBOLJŠE
+      if (/\b1\s*l\b|\b1000\s*ml\b|\b1\s*liter\b/i.test(text)) return 100;  // 1L - NAJBOLJŠE
+      if (/\b500\s*g\b|\b0[,.]5\s*kg\b/i.test(text)) return 95;              // 500g
+      if (/\b500\s*ml\b|\b0[,.]5\s*l\b/i.test(text)) return 95;              // 500ml
+      if (/\b750\s*ml\b/i.test(text)) return 90;                              // 750ml (vino, sokovi)
+      if (/\b1[,.]5\s*l\b|\b1500\s*ml\b/i.test(text)) return 90;             // 1.5L
+      if (/\b2\s*l\b|\b2000\s*ml\b/i.test(text)) return 85;                  // 2L
+      if (/\b250\s*g\b/i.test(text)) return 80;                               // 250g (maslo, kava)
+      if (/\b400\s*g\b/i.test(text)) return 75;                               // 400g (konzerve)
+      if (/\b330\s*ml\b/i.test(text)) return 70;                              // 330ml (pločevinke)
+      if (/\b300\s*g\b/i.test(text)) return 65;                               // 300g
 
-      // SREDNJE velikosti - ok ampak ne prioriteta
-      if (/\b200\s*g\b/i.test(text)) return 40;
-      if (/\b300\s*g\b/i.test(text)) return 50;
-      if (/\b150\s*g\b/i.test(text)) return 35;
+      // SREDNJE velikosti - uporabne ampak ne prioriteta
+      if (/\b200\s*g\b/i.test(text)) return 50;                               // 200g
+      if (/\b150\s*g\b/i.test(text)) return 45;                               // 150g
+      if (/\b250\s*ml\b/i.test(text)) return 45;                              // 250ml
 
-      // MAJHNA pakiranja - penalizacija (ljudje ne kupujejo)
-      if (/\b200\s*ml\b/i.test(text)) return 10;    // 200ml - premajhno
-      if (/\b100\s*ml\b/i.test(text)) return 5;     // 100ml - vzorec
+      // MAJHNA pakiranja - MOČNA penalizacija (ljudje ne kupujejo)
+      if (/\b200\s*ml\b/i.test(text)) return 15;    // 200ml - premajhno
+      if (/\b100\s*ml\b/i.test(text)) return 8;     // 100ml - vzorec
       if (/\b50\s*ml\b/i.test(text)) return 5;      // 50ml - vzorec
-      if (/\b100\s*g\b/i.test(text)) return 15;     // 100g - majhno
+      if (/\b100\s*g\b/i.test(text)) return 20;     // 100g - majhno
+      if (/\b80\s*g\b/i.test(text)) return 15;      // 80g - majhno
+      if (/\b75\s*g\b/i.test(text)) return 15;      // 75g - majhno
       if (/\b50\s*g\b/i.test(text)) return 10;      // 50g - vzorec
-      if (/\b25\s*g\b/i.test(text)) return 5;       // 25g - mini
-      if (/\b30\s*g\b/i.test(text)) return 5;       // 30g - mini
       if (/\b40\s*g\b/i.test(text)) return 8;       // 40g - mini
-      if (/\b75\s*g\b/i.test(text)) return 12;      // 75g - majhno
-      if (/\b80\s*g\b/i.test(text)) return 12;      // 80g - majhno
+      if (/\b30\s*g\b/i.test(text)) return 5;       // 30g - mini
+      if (/\b25\s*g\b/i.test(text)) return 5;       // 25g - mini
 
-      // Če ni zaznane velikosti, srednji score
-      return 30;
+      // Če ni zaznane velikosti, nizek score (penalizacija za neznano)
+      return 25;
     };
 
-    // Sortiraj: najprej po velikosti (prioritetne velikosti), nato po ceni
+    // Sortiraj: NAJPREJ po velikosti, nato po ceni
     return validResults.sort((a, b) => {
       const aSize = getSizeScore(a.name, a.unit);
       const bSize = getSizeScore(b.name, b.unit);
 
-      // Če je velika razlika v velikosti (>30 točk), velikost prevlada
-      if (Math.abs(aSize - bSize) > 30) {
+      // Če je razlika v velikosti >15 točk, velikost VEDNO prevlada
+      if (Math.abs(aSize - bSize) > 15) {
         return bSize - aSize; // Višji score = prvi
       }
 
-      // Sicer kombiniraj: 70% velikost, 30% cena
-      // Normaliziraj ceno na 0-100 lestvico (predpostavimo max 20€)
+      // Pri podobnih velikostih: VEDNO najcenejši prvi
+      // Kombiniraj: 60% velikost, 40% cena (več teže na ceno)
       const maxPrice = 20;
       const aPriceScore = 100 - Math.min(a.lowestPrice / maxPrice * 100, 100);
       const bPriceScore = 100 - Math.min(b.lowestPrice / maxPrice * 100, 100);
 
-      const aTotal = aSize * 0.7 + aPriceScore * 0.3;
-      const bTotal = bSize * 0.7 + bPriceScore * 0.3;
+      const aTotal = aSize * 0.6 + aPriceScore * 0.4;
+      const bTotal = bSize * 0.6 + bPriceScore * 0.4;
 
       return bTotal - aTotal;
     });

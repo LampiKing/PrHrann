@@ -1179,7 +1179,8 @@ export default function SearchScreen() {
     const isExpanded = expandedProduct === resultKey;
     const validPriceStores = product.prices.filter((p) => Number.isFinite(p.price) && p.price > 0);
     const displayPrices = buildDisplayPrices(product.prices);
-    const storeCount = displayPrices.length;
+    // Count only stores that actually have this product (not missing)
+    const storeCount = displayPrices.filter(p => !p.missing).length;
     const lowestPriceStore = validPriceStores[0];
     const lowestStoreKey = lowestPriceStore ? normalizeStoreKey(lowestPriceStore.storeName) : null;
     const displayLowestPrice = lowestPriceStore?.price ?? product.lowestPrice;

@@ -37,6 +37,9 @@ type ReceiptActionResult = {
   receiptId?: Id<"receipts">;
   error?: string;
   invalidReason?: string;
+  savedAmount?: number;
+  storeName?: string;
+  totalPaid?: number;
 };
 
 const MAX_RECEIPTS_FREE = 2;
@@ -141,53 +144,26 @@ function parsePurchaseDate(dateString?: string): { dateKey?: string; timestamp?:
   return { dateKey, timestamp };
 }
 
-async function parseReceiptWithOpenAI(imageBase64: string): Promise<ParsedReceipt | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
+const RECEIPT_SYSTEM_PROMPT = "You are an expert OCR system for grocery receipts. Extract receipt data from ANY format: physical receipts, digital receipts, screenshots, emails, PDFs, or virtual receipts. Focus on ESSENTIAL information only: store name (Mercator, Spar, Tuš), date, time, total amount, and itemized list. Return ONLY valid JSON with keys: storeName, purchaseDate (YYYY-MM-DD), purchaseTime (HH:MM), totalPaid (number), currency (string), items (array of {name, quantity, unitPrice, lineTotal}). If missing, use null for strings and 0 for numbers. Items array can be empty if not visible. Be flexible with formats - accept e-receipts, loyalty app screenshots, and virtual receipts. Prioritize accuracy over completeness.";
 
-  const imageUrl = imageBase64.startsWith("data:")
-    ? imageBase64
-    : `data:image/jpeg;base64,${imageBase64}`;
+const RECEIPT_USER_PROMPT = "Extract essential receipt data from this image. Accept any format: physical receipt, digital receipt, screenshot, email, or virtual receipt. Focus on store name, date, time, total, and items.";
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert OCR system for grocery receipts. Extract receipt data from ANY format: physical receipts, digital receipts, screenshots, emails, PDFs, or virtual receipts. Focus on ESSENTIAL information only: store name (Mercator, Spar, Tuš), date, time, total amount, and itemized list. Return ONLY valid JSON with keys: storeName, purchaseDate (YYYY-MM-DD), purchaseTime (HH:MM), totalPaid (number), currency (string), items (array of {name, quantity, unitPrice, lineTotal}). If missing, use null for strings and 0 for numbers. Items array can be empty if not visible. Be flexible with formats - accept e-receipts, loyalty app screenshots, and virtual receipts. Prioritize accuracy over completeness.",
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Extract essential receipt data from this image. Accept any format: physical receipt, digital receipt, screenshot, email, or virtual receipt. Focus on store name, date, time, total, and items." },
-            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-          ],
-        },
-      ],
-      max_tokens: 1000,
-      temperature: 0.1,
-    }),
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
-  if (!content) return null;
-
+function parseReceiptResponse(content: string): ParsedReceipt | null {
   try {
-    const parsed = JSON.parse(content) as ParsedReceipt;
+    // Try to extract JSON from the response (might be wrapped in markdown)
+    let jsonStr = content;
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1];
+    } else {
+      // Try to find JSON object directly
+      const objMatch = content.match(/\{[\s\S]*\}/);
+      if (objMatch) {
+        jsonStr = objMatch[0];
+      }
+    }
+
+    const parsed = JSON.parse(jsonStr) as ParsedReceipt;
     if (!parsed || typeof parsed.totalPaid !== "number") return null;
     return {
       storeName: parsed.storeName || undefined,
@@ -202,6 +178,127 @@ async function parseReceiptWithOpenAI(imageBase64: string): Promise<ParsedReceip
   }
 }
 
+// Try Groq first (FREE), then OpenAI as fallback
+async function parseReceiptWithGroq(imageBase64: string): Promise<ParsedReceipt | null> {
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) {
+    return null;
+  }
+
+  const imageUrl = imageBase64.startsWith("data:")
+    ? imageBase64
+    : `data:image/jpeg;base64,${imageBase64}`;
+
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${groqKey}`,
+      },
+      body: JSON.stringify({
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        messages: [
+          { role: "system", content: RECEIPT_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: RECEIPT_USER_PROMPT },
+              { type: "image_url", image_url: { url: imageUrl } },
+            ],
+          },
+        ],
+        max_tokens: 1500,
+        temperature: 0.1,
+      }),
+    });
+
+    if (!response.ok) {
+      console.log("Groq error:", response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) return null;
+
+    return parseReceiptResponse(content);
+  } catch (error) {
+    console.log("Groq exception:", error);
+    return null;
+  }
+}
+
+async function parseReceiptWithOpenAI(imageBase64: string): Promise<ParsedReceipt | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  const imageUrl = imageBase64.startsWith("data:")
+    ? imageBase64
+    : `data:image/jpeg;base64,${imageBase64}`;
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: RECEIPT_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: RECEIPT_USER_PROMPT },
+              { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+            ],
+          },
+        ],
+        max_tokens: 1000,
+        temperature: 0.1,
+      }),
+    });
+
+    if (!response.ok) {
+      console.log("OpenAI error:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) return null;
+
+    return parseReceiptResponse(content);
+  } catch (error) {
+    console.log("OpenAI exception:", error);
+    return null;
+  }
+}
+
+// Main parser - tries Groq (free) first, then OpenAI
+async function parseReceipt(imageBase64: string): Promise<ParsedReceipt | null> {
+  // Try Groq first (FREE)
+  const groqResult = await parseReceiptWithGroq(imageBase64);
+  if (groqResult) {
+    console.log("Receipt parsed with Groq (free)");
+    return groqResult;
+  }
+
+  // Fallback to OpenAI
+  const openaiResult = await parseReceiptWithOpenAI(imageBase64);
+  if (openaiResult) {
+    console.log("Receipt parsed with OpenAI");
+    return openaiResult;
+  }
+
+  console.log("No API key available for receipt parsing");
+  return null;
+}
+
 export const submitReceipt = action({
   args: {
     imageBase64: v.string(),
@@ -212,6 +309,9 @@ export const submitReceipt = action({
     receiptId: v.optional(v.id("receipts")),
     error: v.optional(v.string()),
     invalidReason: v.optional(v.string()),
+    savedAmount: v.optional(v.number()),
+    storeName: v.optional(v.string()),
+    totalPaid: v.optional(v.number()),
   }),
   handler: async (ctx, args): Promise<ReceiptActionResult> => {
     const identity = await ctx.auth.getUserIdentity();
@@ -219,9 +319,9 @@ export const submitReceipt = action({
       return { success: false, error: "Authentication required." };
     }
 
-    const parsed = await parseReceiptWithOpenAI(args.imageBase64);
+    const parsed = await parseReceipt(args.imageBase64);
     if (!parsed) {
-      return { success: false, error: "Receipt could not be parsed." };
+      return { success: false, error: "Račun ni bil prepoznan. Preveri če imaš nastavljeno GROQ_API_KEY ali OPENAI_API_KEY." };
     }
 
     const result: ReceiptActionResult = await ctx.runMutation(api.receipts.createReceipt, {
@@ -257,6 +357,9 @@ export const createReceipt = authMutation({
     receiptId: v.optional(v.id("receipts")),
     error: v.optional(v.string()),
     invalidReason: v.optional(v.string()),
+    savedAmount: v.optional(v.number()),
+    storeName: v.optional(v.string()),
+    totalPaid: v.optional(v.number()),
   }),
   handler: async (ctx, args) => {
     const userId = ctx.user._id;
@@ -308,14 +411,21 @@ export const createReceipt = authMutation({
     const endOfDay = getEndOfDayTimestamp(now);
     const isSameDay = purchaseDateKey === todayKey;
     const isBeforeCutoff = now <= endOfDay;
+    const hasDate = !!args.parsed.purchaseDate && !!parsedDateInfo.dateKey;
+    const allowedStores = ["spar", "interspar", "mercator", "tus", "tuš"];
+    const isAllowedStore = allowedStores.some(s => storeNameLower.includes(s));
     let invalidReason: string | undefined;
 
     if (!args.confirmed) {
-      invalidReason = "Receipt confirmation missing.";
+      invalidReason = "Račun ni bil potrjen.";
+    } else if (!hasDate) {
+      invalidReason = "Datum računa ni bil prepoznan. Prosim naloži bolj jasno sliko.";
+    } else if (!isAllowedStore) {
+      invalidReason = `Neznana trgovina: ${storeName}. Podprte so: Mercator, Spar, Tuš.`;
     } else if (!isSameDay) {
-      invalidReason = "Receipt date is not today.";
+      invalidReason = `Račun ni od danes (${purchaseDateKey}). Za tekmovanje štejejo samo današnji računi.`;
     } else if (!isBeforeCutoff) {
-      invalidReason = "Receipt submitted after 23:00.";
+      invalidReason = "Račun oddan po 23:00. Poskusi jutri.";
     }
 
     const products = await ctx.db.query("products").collect();
@@ -441,6 +551,9 @@ export const createReceipt = authMutation({
       success: true,
       receiptId,
       invalidReason,
+      savedAmount: seasonEligible ? savedAmount : 0,
+      storeName,
+      totalPaid,
     };
   },
 });
