@@ -1,14 +1,15 @@
-name: Scrape Catalog Sales
+name: Avtomatski Scraper Cen
 
 on:
   schedule:
-    # Vsako nedeljo ob 20:00 UTC (21:00 CET) - pred tednom
-    - cron: '0 20 * * 0'
+    # Vsak dan ob 6:00 in 18:00 UTC (7:00 in 19:00 CET)
+    - cron: '0 6,18 * * *'
   workflow_dispatch: # Omogoči ročno sprožitev
 
 jobs:
   scrape-catalogs:
     runs-on: ubuntu-latest
+    timeout-minutes: 45  # Povečan timeout za scraping
 
     steps:
       - name: Checkout repository
@@ -19,22 +20,40 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('scripts/catalog-scraper/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install Python dependencies
         run: |
-          pip install requests beautifulsoup4
+          pip install -r scripts/catalog-scraper/requirements.txt
 
-      - name: Run catalog scraper
+      - name: Install Playwright browsers
+        run: |
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Run Playwright catalog scraper
         working-directory: scripts/catalog-scraper
         env:
           CONVEX_URL: https://vibrant-dolphin-871.convex.cloud
         run: |
-          python catalog_scraper.py
-          echo "Catalog sales scraped and sent to Convex"
+          python playwright_scraper.py
+          echo "✅ Scraping končano!"
+          echo "Mercator: direktno scrapanje"
+          echo "Tuš: direktno scrapanje"
+          echo "Spar: Google Sheets"
 
-      - name: Commit catalog data (if any)
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add scripts/catalog-scraper/*.json || true
-          git diff --staged --quiet || git commit -m "Update catalog sales data [skip ci]"
-          git push || echo "Nothing to push"
+      - name: Upload scraped data as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scraped-products-${{ github.run_id }}
+          path: |
+            scripts/catalog-scraper/all_products_*.json
+            scripts/catalog-scraper/scraped_sales_*.json
+          retention-days: 7
