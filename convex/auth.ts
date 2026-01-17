@@ -230,11 +230,11 @@ export const createAuth = (
         },
         // Session settings - track IP and device
         session: {
-            updateAge: 1000 * 60 * 5, // Update session every 5 minutes
-            expiresIn: 60 * 60 * 24 * 7, // 7 days
+            updateAge: 60 * 60, // Update session every 1 hour (in seconds)
+            expiresIn: 60 * 60 * 24 * 30, // 30 days (in seconds)
             cookieCache: {
                 enabled: true,
-                maxAge: 5 * 60, // 5 minutes
+                maxAge: 60 * 60, // 1 hour (in seconds)
             },
         },
         // Security settings - increased limits to avoid false 403 errors
@@ -277,9 +277,9 @@ export const createAuth = (
             expo(),
             convex({ authConfig }),
             crossDomain({ siteUrl }),
-            // Multi-session management - max 2 active sessions per user
+            // Multi-session management - max 5 active sessions per user
             multiSession({
-                maximumSessions: 2,
+                maximumSessions: 5,
             }),
         ],
     };
