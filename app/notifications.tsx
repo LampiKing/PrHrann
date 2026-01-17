@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   View,
   Text,
@@ -14,19 +13,39 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import FloatingBackground from "../lib/FloatingBackground";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
+import { api } from "../convex/_generated/api";
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const [priceDrops, setPriceDrops] = useState(true);
-  const [newCoupons, setNewCoupons] = useState(true);
-  const [weeklyDeals, setWeeklyDeals] = useState(false);
-  const [cartReminders, setCartReminders] = useState(true);
+  const { isAuthenticated } = useConvexAuth();
 
-  const handleToggle = (setter: (value: boolean) => void, value: boolean) => {
+  // Get notification settings from Convex
+  const settings = useQuery(api.userProfiles.getNotificationSettings, isAuthenticated ? {} : "skip");
+  const updateSettings = useMutation(api.userProfiles.updateNotificationSettings);
+
+  // Default values while loading
+  const priceDrops = settings?.priceDrops ?? true;
+  const newCoupons = settings?.newCoupons ?? true;
+  const weeklyDeals = settings?.weeklyDeals ?? false;
+  const cartReminders = settings?.cartReminders ?? true;
+
+  const handleToggle = async (key: "priceDrops" | "newCoupons" | "weeklyDeals" | "cartReminders", currentValue: boolean) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    setter(!value);
+
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      await updateSettings({
+        [key]: !currentValue,
+      });
+    } catch {
+      // Silently fail
+    }
   };
 
   return (
@@ -84,7 +103,7 @@ export default function NotificationsScreen() {
                 </View>
                 <Switch
                   value={priceDrops}
-                  onValueChange={() => handleToggle(setPriceDrops, priceDrops)}
+                  onValueChange={() => handleToggle("priceDrops", priceDrops)}
                   trackColor={{ false: "#374151", true: "#8b5cf6" }}
                   thumbColor={priceDrops ? "#fff" : "#9ca3af"}
                 />
@@ -104,7 +123,7 @@ export default function NotificationsScreen() {
                 </View>
                 <Switch
                   value={newCoupons}
-                  onValueChange={() => handleToggle(setNewCoupons, newCoupons)}
+                  onValueChange={() => handleToggle("newCoupons", newCoupons)}
                   trackColor={{ false: "#374151", true: "#8b5cf6" }}
                   thumbColor={newCoupons ? "#fff" : "#9ca3af"}
                 />
@@ -124,7 +143,7 @@ export default function NotificationsScreen() {
                 </View>
                 <Switch
                   value={weeklyDeals}
-                  onValueChange={() => handleToggle(setWeeklyDeals, weeklyDeals)}
+                  onValueChange={() => handleToggle("weeklyDeals", weeklyDeals)}
                   trackColor={{ false: "#374151", true: "#8b5cf6" }}
                   thumbColor={weeklyDeals ? "#fff" : "#9ca3af"}
                 />
@@ -144,7 +163,7 @@ export default function NotificationsScreen() {
                 </View>
                 <Switch
                   value={cartReminders}
-                  onValueChange={() => handleToggle(setCartReminders, cartReminders)}
+                  onValueChange={() => handleToggle("cartReminders", cartReminders)}
                   trackColor={{ false: "#374151", true: "#8b5cf6" }}
                   thumbColor={cartReminders ? "#fff" : "#9ca3af"}
                 />

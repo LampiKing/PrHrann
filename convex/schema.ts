@@ -124,14 +124,32 @@ export default defineSchema({
     dailySearches: v.number(),
     lastSearchDate: v.string(), // YYYY-MM-DD format
     searchResetTime: v.optional(v.number()), // Timestamp when searches reset
-    // Kartice zvestobe
-    loyaltyCards: v.optional(v.array(v.id("stores"))),
+    // Kartice zvestobe - shranjene številke kartic
+    loyaltyCards: v.optional(v.array(v.id("stores"))), // Legacy
+    loyaltyCardNumbers: v.optional(v.array(v.object({
+      cardType: v.string(), // "spar", "mercator", "tus"
+      number: v.string(),
+      label: v.optional(v.string()),
+    }))),
+    // Nastavitve obvestil
+    notificationSettings: v.optional(v.object({
+      priceDrops: v.boolean(),
+      newCoupons: v.boolean(),
+      weeklyDeals: v.boolean(),
+      cartReminders: v.boolean(),
+    })),
     // Priljubljene trgovine
     favoriteStores: v.optional(v.array(v.id("stores"))),
     // Security tracking
     lastIpAddress: v.optional(v.string()),
     lastDeviceInfo: v.optional(v.string()),
     suspiciousActivity: v.optional(v.boolean()),
+    // Premium device anti-abuse - 1 naprava na mesec
+    registeredDeviceName: v.optional(v.string()), // "iPhone 16 Pro Max"
+    registeredDeviceHash: v.optional(v.string()), // Device fingerprint
+    registeredDevicePlatform: v.optional(v.string()), // "ios", "android", "web"
+    deviceRegisteredAt: v.optional(v.number()), // Kdaj je bila naprava registrirana
+    deviceChangeBlockedUntil: v.optional(v.number()), // Do kdaj ne more spremeniti naprave
     // Savings tracker
     totalSavings: v.optional(v.number()), // Skupni prihranki
     monthlySavings: v.optional(v.number()), // Prihranki ta mesec

@@ -989,3 +989,193 @@ export const deleteAccount = action({
     return { success: true };
   },
 });
+
+// ============= LOYALTY CARDS =============
+
+// Get loyalty cards
+export const getLoyaltyCards = authQuery({
+  args: {},
+  returns: v.array(v.object({
+    cardType: v.string(),
+    number: v.string(),
+    label: v.optional(v.string()),
+  })),
+  handler: async (ctx) => {
+    const userId = ctx.user._id;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) return [];
+
+    return profile.loyaltyCardNumbers ?? [];
+  },
+});
+
+// Add loyalty card
+export const addLoyaltyCard = authMutation({
+  args: {
+    cardType: v.string(),
+    number: v.string(),
+    label: v.optional(v.string()),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const userId = ctx.user._id;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      return { success: false, error: "Profil ni najden" };
+    }
+
+    // Validate card number (min 8 digits)
+    if (args.number.length < 8) {
+      return { success: false, error: "Številka kartice mora imeti vsaj 8 številk" };
+    }
+
+    const existingCards = profile.loyaltyCardNumbers ?? [];
+
+    // Check for duplicate
+    const duplicate = existingCards.find(
+      (c) => c.cardType === args.cardType && c.number === args.number
+    );
+    if (duplicate) {
+      return { success: false, error: "Ta kartica je že dodana" };
+    }
+
+    const newCard = {
+      cardType: args.cardType,
+      number: args.number,
+      label: args.label,
+    };
+
+    await ctx.db.patch(profile._id, {
+      loyaltyCardNumbers: [...existingCards, newCard],
+    });
+
+    return { success: true };
+  },
+});
+
+// Remove loyalty card
+export const removeLoyaltyCard = authMutation({
+  args: {
+    cardType: v.string(),
+    number: v.string(),
+  },
+  returns: v.object({
+    success: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = ctx.user._id;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      return { success: false };
+    }
+
+    const existingCards = profile.loyaltyCardNumbers ?? [];
+    const filteredCards = existingCards.filter(
+      (c) => !(c.cardType === args.cardType && c.number === args.number)
+    );
+
+    await ctx.db.patch(profile._id, {
+      loyaltyCardNumbers: filteredCards,
+    });
+
+    return { success: true };
+  },
+});
+
+// ============= NOTIFICATION SETTINGS =============
+
+// Get notification settings
+export const getNotificationSettings = authQuery({
+  args: {},
+  returns: v.object({
+    priceDrops: v.boolean(),
+    newCoupons: v.boolean(),
+    weeklyDeals: v.boolean(),
+    cartReminders: v.boolean(),
+  }),
+  handler: async (ctx) => {
+    const userId = ctx.user._id;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    // Default settings
+    const defaults = {
+      priceDrops: true,
+      newCoupons: true,
+      weeklyDeals: false,
+      cartReminders: true,
+    };
+
+    if (!profile || !profile.notificationSettings) {
+      return defaults;
+    }
+
+    return profile.notificationSettings;
+  },
+});
+
+// Update notification settings
+export const updateNotificationSettings = authMutation({
+  args: {
+    priceDrops: v.optional(v.boolean()),
+    newCoupons: v.optional(v.boolean()),
+    weeklyDeals: v.optional(v.boolean()),
+    cartReminders: v.optional(v.boolean()),
+  },
+  returns: v.object({
+    success: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const userId = ctx.user._id;
+
+    const profile = await ctx.db
+      .query("userProfiles")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .first();
+
+    if (!profile) {
+      return { success: false };
+    }
+
+    const current = profile.notificationSettings ?? {
+      priceDrops: true,
+      newCoupons: true,
+      weeklyDeals: false,
+      cartReminders: true,
+    };
+
+    const updated = {
+      priceDrops: args.priceDrops ?? current.priceDrops,
+      newCoupons: args.newCoupons ?? current.newCoupons,
+      weeklyDeals: args.weeklyDeals ?? current.weeklyDeals,
+      cartReminders: args.cartReminders ?? current.cartReminders,
+    };
+
+    await ctx.db.patch(profile._id, {
+      notificationSettings: updated,
+    });
+
+    return { success: true };
+  },
+});

@@ -18,7 +18,7 @@ import * as Haptics from "expo-haptics";
 import Svg, { Rect } from "react-native-svg";
 import { createShadow } from "../lib/shadow-helper";
 import Logo from "../lib/Logo";
-import { useQuery, useConvexAuth } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../convex/_generated/api";
 import FloatingBackground from "../lib/FloatingBackground";
 
@@ -167,7 +167,6 @@ export default function LoyaltyCardsScreen() {
   const isCompact = width < 520;
   const { isAuthenticated } = useConvexAuth();
 
-  const [cards, setCards] = useState<Record<string, { number: string; label?: string }[]>>({});
   const [editingCard, setEditingCard] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [labelInput, setLabelInput] = useState("");
@@ -179,6 +178,22 @@ export default function LoyaltyCardsScreen() {
   // Get user profile for premium status
   const profile = useQuery(api.userProfiles.getProfile, isAuthenticated ? {} : "skip");
   const isPremium = profile?.isPremium ?? false;
+
+  // Get loyalty cards from Convex
+  const loyaltyCardsData = useQuery(api.userProfiles.getLoyaltyCards, isAuthenticated ? {} : "skip");
+  const addLoyaltyCard = useMutation(api.userProfiles.addLoyaltyCard);
+  const removeLoyaltyCard = useMutation(api.userProfiles.removeLoyaltyCard);
+
+  // Transform Convex data to local format
+  const cards: Record<string, { number: string; label?: string }[]> = {};
+  if (loyaltyCardsData) {
+    for (const card of loyaltyCardsData) {
+      if (!cards[card.cardType]) {
+        cards[card.cardType] = [];
+      }
+      cards[card.cardType].push({ number: card.number, label: card.label });
+    }
+  }
 
   // Get stores and coupons
   const stores = useQuery(api.stores.getAll);
@@ -200,7 +215,7 @@ export default function LoyaltyCardsScreen() {
     : null;
   const activeNumber = showBarcodeModal?.number;
 
-  const handleSaveCard = (cardId: string) => {
+  const handleSaveCard = async (cardId: string) => {
     // Validacija - kartica mora imeti vsaj 8 številk
     if (inputValue.length < 8) {
       if (Platform.OS !== "web") {
@@ -209,35 +224,51 @@ export default function LoyaltyCardsScreen() {
       alert("Številka kartice mora imeti vsaj 8 številk!");
       return;
     }
-    
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    if (!isAuthenticated) {
+      alert("Za shranjevanje kartic se morate prijaviti.");
+      return;
     }
-    setCards((prev) => {
-      const existing = prev[cardId] ?? [];
-      const entry = labelInput.trim().length
-        ? { number: inputValue, label: labelInput.trim() }
-        : { number: inputValue };
-      return { ...prev, [cardId]: [...existing, entry] };
-    });
-    setEditingCard(null);
-    setInputValue("");
-    setLabelInput("");
+
+    try {
+      const result = await addLoyaltyCard({
+        cardType: cardId,
+        number: inputValue,
+        label: labelInput.trim() || undefined,
+      });
+
+      if (result.success) {
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        setEditingCard(null);
+        setInputValue("");
+        setLabelInput("");
+      } else {
+        alert(result.error || "Napaka pri shranjevanju kartice");
+      }
+    } catch {
+      alert("Napaka pri shranjevanju kartice");
+    }
   };
 
-  const handleRemoveCardNumber = (cardId: string, number: string) => {
+  const handleRemoveCardNumber = async (cardId: string, number: string) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    setCards((prev) => {
-      const remaining = (prev[cardId] ?? []).filter((n) => n.number !== number);
-      if (!remaining.length) {
-        const copy = { ...prev };
-        delete copy[cardId];
-        return copy;
-      }
-      return { ...prev, [cardId]: remaining };
-    });
+
+    if (!isAuthenticated) {
+      return;
+    }
+
+    try {
+      await removeLoyaltyCard({
+        cardType: cardId,
+        number: number,
+      });
+    } catch {
+      alert("Napaka pri brisanju kartice");
+    }
   };
 
   const handleEditCard = (cardId: string) => {
