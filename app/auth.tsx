@@ -54,6 +54,7 @@ export default function AuthScreen() {
   const [birthDay, setBirthDay] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [anonymousLoading, setAnonymousLoading] = useState(false);
@@ -146,15 +147,6 @@ export default function AuthScreen() {
   }, [deviceAccess, deviceCheckPending, deviceInfo]);
 
   const modeInitialized = useRef(false);
-  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
-
-  // Timeout for loading screen to prevent infinite loading
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowLoadingScreen(false);
-    }, 3000); // Max 3 seconds loading
-    return () => clearTimeout(timer);
-  }, []);
 
   const switchMode = (login: boolean) => {
     triggerHaptic();
@@ -167,6 +159,7 @@ export default function AuthScreen() {
     setSuccess("");
     setShowSuccessOverlay(false);
     setPendingRedirect(null);
+    setHasAttemptedSubmit(false);
     setFocusedField(null);
     setResetLoading(false);
   };
@@ -432,6 +425,7 @@ export default function AuthScreen() {
     if (loading) {
       return;
     }
+    setHasAttemptedSubmit(true);
     triggerHaptic();
     setError("");
     setSuccess("");
@@ -685,18 +679,8 @@ export default function AuthScreen() {
     router.push("/privacy");
   };
 
-  if (authLoading && showLoadingScreen) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <LinearGradient
-          colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
-          style={StyleSheet.absoluteFill}
-        />
-        <Logo size={90} />
-        <Text style={styles.loadingText}>Nalaganje...</Text>
-      </View>
-    );
-  }
+  // Ne prikaži loading screen - takoj pokaži UI
+  // authLoading se uporablja samo za redirect logiko
 
   return (
     <View style={styles.container}>
@@ -1083,7 +1067,7 @@ export default function AuthScreen() {
                             />
                           </View>
                         </View>
-                        {!birthDateValid && (
+                        {hasAttemptedSubmit && !birthDateValid && (
                           <Text style={styles.helperTextError}>
                             {!hasBirthDate ? "Datum rojstva je obvezen" : "Vnesite veljaven datum"}
                           </Text>

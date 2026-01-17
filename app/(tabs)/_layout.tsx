@@ -45,7 +45,7 @@ export default function TabsLayout() {
     if (!isAuthenticated || ensureProfileAttemptedRef.current) {
       return;
     }
-    
+
     // Immediate creation if profile is null (doesn't exist)
     if (profile === null) {
       ensureProfileAttemptedRef.current = true;
@@ -59,7 +59,7 @@ export default function TabsLayout() {
         });
       return;
     }
-    
+
     // Timeout fallback: if profile is undefined for too long, try creating
     if (profile === undefined && profileLoadStartRef.current) {
       const timeout = setTimeout(() => {
@@ -75,7 +75,7 @@ export default function TabsLayout() {
             });
         }
       }, 3000); // 3 second timeout
-      
+
       return () => clearTimeout(timeout);
     }
   }, [isAuthenticated, profile, ensureProfile]);
@@ -95,7 +95,7 @@ export default function TabsLayout() {
       });
   }, [isAuthenticated, stores, seedStores]);
 
-  // Show loading while checking auth
+  // Hitro preveri auth state - brez čakanja
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -108,7 +108,7 @@ export default function TabsLayout() {
     );
   }
 
-  // Redirect to auth if not authenticated
+  // Takoj redirect če ni prijavljen
   if (!isAuthenticated) {
     return <Redirect href="/auth" />;
   }
