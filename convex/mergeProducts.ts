@@ -1,4 +1,4 @@
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -354,5 +354,133 @@ export const autoMerge = internalMutation({
       merged,
       remaining,
     };
+  },
+});
+
+/**
+ * Javna mutacija za združevanje izdelkov po imenu
+ * Sprejme imena izdelkov iz različnih trgovin in jih združi
+ */
+export const mergeByNames = mutation({
+  args: {
+    productNames: v.array(v.object({
+      store: v.string(),
+      name: v.string(),
+    })),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    merged: v.number(),
+    message: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    if (args.productNames.length < 2) {
+      return { success: false, merged: 0, message: "Potrebna vsaj 2 izdelka" };
+    }
+
+    // Poišči trgovine
+    const stores = await ctx.db.query("stores").collect();
+    const storeByName = new Map<string, typeof stores[0]>();
+    for (const store of stores) {
+      storeByName.set(store.name.toLowerCase(), store);
+      // Tudi brez č, š, ž
+      const normalized = store.name.toLowerCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "");
+      storeByName.set(normalized, store);
+    }
+
+    // Poišči izdelke
+    const foundProducts: Array<{ product: any; store: string }> = [];
+
+    for (const item of args.productNames) {
+      // Poišči trgovino
+      let store = storeByName.get(item.store.toLowerCase());
+      if (!store) {
+        // Poskusi z delnim ujemanjem
+        for (const [key, s] of storeByName) {
+          if (key.includes(item.store.toLowerCase()) || item.store.toLowerCase().includes(key)) {
+            store = s;
+            break;
+          }
+        }
+      }
+      if (!store) continue;
+
+      // Poišči izdelek po imenu (uporabi normalizirano ime)
+      const normalizedSearch = normalizeForMatch(item.name);
+      const allProducts = await ctx.db.query("products").collect();
+
+      for (const product of allProducts) {
+        const productNormalized = normalizeForMatch(product.name);
+        // Preveri če se ime ujema (delno ujemanje)
+        if (productNormalized.includes(normalizedSearch.substring(0, 15)) ||
+            normalizedSearch.includes(productNormalized.substring(0, 15))) {
+          // Preveri če ima ceno v tej trgovini
+          const price = await ctx.db
+            .query("prices")
+            .withIndex("by_product_and_store", q =>
+              q.eq("productId", product._id).eq("storeId", store!._id)
+            )
+            .first();
+
+          if (price) {
+            foundProducts.push({ product, store: item.store });
+            break;
+          }
+        }
+      }
+    }
+
+    if (foundProducts.length < 2) {
+      return { success: false, merged: 0, message: "Ni dovolj izdelkov za združitev" };
+    }
+
+    // Združi izdelke
+    const baseProduct = foundProducts[0].product;
+    let merged = 0;
+
+    for (let i = 1; i < foundProducts.length; i++) {
+      const otherProduct = foundProducts[i].product;
+      if (otherProduct._id === baseProduct._id) continue;
+
+      // Prenesi cene
+      const pricesToMove = await ctx.db
+        .query("prices")
+        .withIndex("by_product", q => q.eq("productId", otherProduct._id))
+        .collect();
+
+      for (const price of pricesToMove) {
+        const existing = await ctx.db
+          .query("prices")
+          .withIndex("by_product_and_store", q =>
+            q.eq("productId", baseProduct._id).eq("storeId", price.storeId)
+          )
+          .first();
+
+        if (!existing) {
+          await ctx.db.patch(price._id, { productId: baseProduct._id });
+        } else {
+          await ctx.db.delete(price._id);
+        }
+      }
+
+      // Posodobi ime če je boljše
+      const newName = createCanonicalName([baseProduct.name, otherProduct.name]);
+      if (newName !== baseProduct.name) {
+        await ctx.db.patch(baseProduct._id, { name: newName });
+      }
+
+      // Prenesi sliko
+      if (!baseProduct.imageUrl && otherProduct.imageUrl) {
+        await ctx.db.patch(baseProduct._id, { imageUrl: otherProduct.imageUrl });
+      }
+
+      // Pobriši
+      await ctx.db.delete(otherProduct._id);
+      merged++;
+    }
+
+    return { success: true, merged, message: `Združenih ${merged} izdelkov` };
   },
 });

@@ -8,10 +8,8 @@
  * @module
  */
 
-import type * as addSheetHeader from "../addSheetHeader.js";
 import type * as admin from "../admin.js";
 import type * as ai from "../ai.js";
-import type * as aiCouponParser from "../aiCouponParser.js";
 import type * as auth from "../auth.js";
 import type * as awards from "../awards.js";
 import type * as cart from "../cart.js";
@@ -19,7 +17,6 @@ import type * as catalogManager from "../catalogManager.js";
 import type * as catalogSales from "../catalogSales.js";
 import type * as coupons from "../coupons.js";
 import type * as crons from "../crons.js";
-import type * as deviceManagement from "../deviceManagement.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as familyPlan from "../familyPlan.js";
 import type * as feedback from "../feedback.js";
@@ -33,13 +30,10 @@ import type * as passwordReset from "../passwordReset.js";
 import type * as priceAlerts from "../priceAlerts.js";
 import type * as priceComparison from "../priceComparison.js";
 import type * as products from "../products.js";
-import type * as productsActions from "../productsActions.js";
 import type * as receipts from "../receipts.js";
 import type * as resetData from "../resetData.js";
 import type * as savings from "../savings.js";
-import type * as scraperMonitoring from "../scraperMonitoring.js";
 import type * as searchAnalytics from "../searchAnalytics.js";
-import type * as searchHelpers from "../searchHelpers.js";
 import type * as security from "../security.js";
 import type * as seedCoupons from "../seedCoupons.js";
 import type * as seedData from "../seedData.js";
@@ -60,10 +54,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  addSheetHeader: typeof addSheetHeader;
   admin: typeof admin;
   ai: typeof ai;
-  aiCouponParser: typeof aiCouponParser;
   auth: typeof auth;
   awards: typeof awards;
   cart: typeof cart;
@@ -71,7 +63,6 @@ declare const fullApi: ApiFromModules<{
   catalogSales: typeof catalogSales;
   coupons: typeof coupons;
   crons: typeof crons;
-  deviceManagement: typeof deviceManagement;
   emailVerification: typeof emailVerification;
   familyPlan: typeof familyPlan;
   feedback: typeof feedback;
@@ -85,13 +76,10 @@ declare const fullApi: ApiFromModules<{
   priceAlerts: typeof priceAlerts;
   priceComparison: typeof priceComparison;
   products: typeof products;
-  productsActions: typeof productsActions;
   receipts: typeof receipts;
   resetData: typeof resetData;
   savings: typeof savings;
-  scraperMonitoring: typeof scraperMonitoring;
   searchAnalytics: typeof searchAnalytics;
-  searchHelpers: typeof searchHelpers;
   security: typeof security;
   seedCoupons: typeof seedCoupons;
   seedData: typeof seedData;

@@ -34,7 +34,7 @@ export const getSingleStoreProducts = internalMutation({
   },
 });
 
-// Pridobi izdelke z več trgovinami (za primerjavo)
+// Pridobi izdelke za primerjavo (brez cen za hitrejše branje)
 export const getMultiStoreProducts = internalMutation({
   args: { limit: v.number() },
   returns: v.array(v.object({
@@ -44,25 +44,53 @@ export const getMultiStoreProducts = internalMutation({
     storeCount: v.number(),
   })),
   handler: async (ctx, args) => {
-    const products = await ctx.db.query("products").take(args.limit * 2);
+    // Preprosto vrni vse izdelke brez preverjanja cen (za hitrost)
+    const products = await ctx.db.query("products").take(args.limit);
+
+    return products.map(product => ({
+      _id: product._id,
+      name: product.name,
+      imageUrl: product.imageUrl,
+      storeCount: 1, // Privzeto 1, ker ne preverjamo
+    }));
+  },
+});
+
+// Pridobi izdelke iz določene trgovine (za primerjavo čez trgovine)
+export const getProductsFromStore = internalMutation({
+  args: {
+    storeId: v.id("stores"),
+    limit: v.number(),
+    excludeIds: v.array(v.id("products")),
+  },
+  returns: v.array(v.object({
+    _id: v.id("products"),
+    name: v.string(),
+    imageUrl: v.optional(v.string()),
+  })),
+  handler: async (ctx, args) => {
+    const excludeSet = new Set(args.excludeIds.map(id => id.toString()));
+    const products = await ctx.db.query("products").take(args.limit * 10);
 
     const results = [];
     for (const product of products) {
-      const prices = await ctx.db
-        .query("prices")
-        .withIndex("by_product", q => q.eq("productId", product._id))
-        .collect();
+      if (excludeSet.has(product._id.toString())) continue;
 
-      if (prices.length >= 1) {
+      const price = await ctx.db
+        .query("prices")
+        .withIndex("by_product_and_store", q =>
+          q.eq("productId", product._id).eq("storeId", args.storeId)
+        )
+        .first();
+
+      if (price) {
         results.push({
           _id: product._id,
           name: product.name,
           imageUrl: product.imageUrl,
-          storeCount: prices.length,
         });
+        if (results.length >= args.limit) break;
       }
-
-      if (results.length >= args.limit) break;
     }
 
     return results;

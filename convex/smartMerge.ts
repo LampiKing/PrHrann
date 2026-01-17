@@ -209,8 +209,8 @@ export const runSmartMerge = action({
     // Pridobi izdelke s samo 1 trgovino
     const singleStoreProducts = await ctx.runMutation(internal.smartMergeHelpers.getSingleStoreProducts, { limit: batchSize });
 
-    // Pridobi vse ostale izdelke
-    const allProducts = await ctx.runMutation(internal.smartMergeHelpers.getMultiStoreProducts, { limit: 2000 });
+    // Pridobi izdelke za primerjavo (omejeno zaradi read limits)
+    const allProducts = await ctx.runMutation(internal.smartMergeHelpers.getMultiStoreProducts, { limit: 500 });
 
     let mergedByImage = 0;
     let mergedByAI = 0;
@@ -242,37 +242,46 @@ export const runSmartMerge = action({
       if (!useAI) continue;
 
       // PAMETNO ISKANJE KANDIDATOV:
-      // 1. Isti brand + ista gramatura = zelo verjeten match
-      // 2. Podobno ime = možen match
       const productBrand = extractBrand(product.name);
       const productSize = extractSize(product.name);
+      const productKeywords = extractKeywords(product.name);
 
+      // Filtriraj kandidate - iščemo izdelke iz DRUGIH trgovin
       const candidates = allProducts.filter(p => {
         if (p._id === product._id) return false;
 
         const candidateBrand = extractBrand(p.name);
         const candidateSize = extractSize(p.name);
 
-        // PRIORITETA 1: Isti brand + ista velikost = skoraj zagotovo isti izdelek
+        // PRIORITETA 1: Isti brand + ista velikost = zelo verjeten match
         if (productBrand && candidateBrand && productSize && candidateSize) {
           if (productBrand === candidateBrand && productSize === candidateSize) {
-            return true; // Zelo verjeten match!
+            return true;
           }
         }
 
-        // PRIORITETA 2: Isti brand (brez velikosti) - še vedno verjeten
+        // PRIORITETA 2: Isti brand + podobna velikost
         if (productBrand && candidateBrand && productBrand === candidateBrand) {
-          const sim = similarity(product.name, p.name);
-          return sim >= 0.2;
+          return true;
         }
 
-        // PRIORITETA 3: Podobno ime
-        const sim = similarity(product.name, p.name);
-        return sim >= 0.3;
+        // PRIORITETA 3: Ista velikost + vsaj 2 skupni besedi
+        if (productSize && candidateSize && productSize === candidateSize) {
+          const candidateKeywords = extractKeywords(p.name);
+          const commonWords = productKeywords.filter(w => candidateKeywords.includes(w));
+          if (commonWords.length >= 2) {
+            return true;
+          }
+        }
+
+        // PRIORITETA 4: Vsaj 3 skupne besede
+        const candidateKeywords = extractKeywords(p.name);
+        const commonWords = productKeywords.filter(w => candidateKeywords.includes(w));
+        return commonWords.length >= 3;
       });
 
-      // Preveri z AI (max 3 kandidati)
-      for (const candidate of candidates.slice(0, 3)) {
+      // Preveri z AI (max 5 kandidatov za boljši rezultat)
+      for (const candidate of candidates.slice(0, 5)) {
         aiCalls++;
         const isMatch = await aiCompare(product.name, candidate.name);
 
