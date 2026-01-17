@@ -93,10 +93,16 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={{ backgroundColor: "#0a0a12" }}>
       <ConvexBetterAuthProvider client={convexClient} authClient={authClient}>
         <StatusBar style="light" />
-        <Stack screenOptions={{ headerShown: false, animation: "fade" }} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: "fade",
+            contentStyle: { backgroundColor: "#0a0a12" },
+          }}
+        />
       </ConvexBetterAuthProvider>
     </SafeAreaProvider>
   );

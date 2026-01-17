@@ -103,6 +103,11 @@ export default function ProfileScreen() {
   const [cancelSuccess, setCancelSuccess] = useState<{ expiresAt: number } | null>(null);
   const [showDowngradeModal, setShowDowngradeModal] = useState(false);
   const [downgradingPlan, setDowngradingPlan] = useState(false);
+  const [showBirthDateModal, setShowBirthDateModal] = useState(false);
+  const [editBirthDay, setEditBirthDay] = useState("");
+  const [editBirthMonth, setEditBirthMonth] = useState("");
+  const [editBirthYear, setEditBirthYear] = useState("");
+  const [savingBirthDate, setSavingBirthDate] = useState(false);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -135,6 +140,7 @@ export default function ProfileScreen() {
   const downgradePlan = useMutation(api.userProfiles.downgradeFamilyToPlus);
   const sendFeedback = useAction(api.feedback.sendFeedback);
   const submitFeedback = useMutation(api.feedback.submitFeedback);
+  const updateBirthDate = useMutation(api.userProfiles.updateBirthDate);
 
   // Feedback categories
   const FEEDBACK_CATEGORIES = [
@@ -296,7 +302,7 @@ export default function ProfileScreen() {
     }
   }, [cancelInvitation]);
 
-  const handleSignOut = useCallback(async () => {
+  const handleSignOut = useCallback(() => {
     setSigningOut(true);
     setShowSettingsModal(false);
     setShowFeedbackModal(false);
@@ -306,15 +312,57 @@ export default function ProfileScreen() {
     setShowInfoTooltip(null);
     setSelectedMember(null);
     setInviteError("");
-    try {
-      await authClient.signOut();
-      router.replace("/auth");
-    } catch (error) {
+
+    // Takoj preusmeri za hitrejšo UX
+    router.replace("/auth");
+
+    // signOut teče v ozadju
+    authClient.signOut().catch((error) => {
       console.error("Sign out error:", error);
-    } finally {
-      setSigningOut(false);
-    }
+    });
+
+    setSigningOut(false);
   }, [router]);
+
+  const handleSaveBirthDate = useCallback(async () => {
+    const day = parseInt(editBirthDay, 10);
+    const month = parseInt(editBirthMonth, 10);
+    const year = parseInt(editBirthYear, 10);
+
+    if (isNaN(day) || isNaN(month) || isNaN(year)) {
+      Alert.alert("Napaka", "Vnesite veljaven datum");
+      return;
+    }
+    if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > new Date().getFullYear()) {
+      Alert.alert("Napaka", "Vnesite veljaven datum");
+      return;
+    }
+
+    setSavingBirthDate(true);
+    try {
+      await updateBirthDate({ day, month, year });
+      setShowBirthDateModal(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      console.error("Failed to save birth date:", err);
+      Alert.alert("Napaka", "Shranjevanje ni uspelo");
+    } finally {
+      setSavingBirthDate(false);
+    }
+  }, [editBirthDay, editBirthMonth, editBirthYear, updateBirthDate]);
+
+  const openBirthDateModal = useCallback(() => {
+    if (profile?.birthDate) {
+      setEditBirthDay(String(profile.birthDate.day));
+      setEditBirthMonth(String(profile.birthDate.month));
+      setEditBirthYear(String(profile.birthDate.year));
+    } else {
+      setEditBirthDay("");
+      setEditBirthMonth("");
+      setEditBirthYear("");
+    }
+    setShowBirthDateModal(true);
+  }, [profile?.birthDate]);
 
   const PROFILE_IMAGE_MAX_BASE64 = 900_000;
   const PROFILE_IMAGE_SIZES = [640, 512, 448, 384];
@@ -1400,8 +1448,20 @@ export default function ProfileScreen() {
                     {profile.emailVerified ? "Da ✓" : "Ne"}
                   </Text>
                 </View>
+
+                <TouchableOpacity style={styles.settingsItemEditable} onPress={openBirthDateModal}>
+                  <View>
+                    <Text style={styles.settingsLabel}>Datum rojstva</Text>
+                    <Text style={styles.settingsValue}>
+                      {profile.birthDate
+                        ? `${profile.birthDate.day}. ${profile.birthDate.month}. ${profile.birthDate.year}`
+                        : "Ni nastavljeno"}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+                </TouchableOpacity>
               </View>
-              
+
               <View style={styles.settingsSection}>
                 <Text style={styles.settingsSectionTitle}>Naročnina</Text>
                 
@@ -1772,6 +1832,97 @@ export default function ProfileScreen() {
                   </View>
                 </>
               )}
+            </View>
+          </TouchableOpacity>
+        </BlurView>
+      </Modal>
+
+      {/* ================================================================== */}
+      {/* BIRTH DATE EDIT MODAL */}
+      {/* ================================================================== */}
+
+      <Modal
+        visible={showBirthDateModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBirthDateModal(false)}
+      >
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
+          <TouchableOpacity
+            style={styles.centeredModalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowBirthDateModal(false)}
+          >
+            <View style={styles.birthDateModalContent} onStartShouldSetResponder={() => true}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Datum rojstva</Text>
+                <TouchableOpacity onPress={() => setShowBirthDateModal(false)}>
+                  <Ionicons name="close" size={24} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.birthDateModalSubtitle}>
+                Datum rojstva uporabljamo za prikaz kuponov za upokojence (65+ let).
+              </Text>
+
+              <View style={styles.birthDateInputRow}>
+                <View style={styles.birthDateInputContainer}>
+                  <Text style={styles.birthDateInputLabel}>Dan</Text>
+                  <TextInput
+                    style={styles.birthDateModalInput}
+                    value={editBirthDay}
+                    onChangeText={(text) => setEditBirthDay(text.replace(/[^0-9]/g, "").slice(0, 2))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    placeholder="DD"
+                    placeholderTextColor="#6b7280"
+                  />
+                </View>
+                <View style={styles.birthDateInputContainer}>
+                  <Text style={styles.birthDateInputLabel}>Mesec</Text>
+                  <TextInput
+                    style={styles.birthDateModalInput}
+                    value={editBirthMonth}
+                    onChangeText={(text) => setEditBirthMonth(text.replace(/[^0-9]/g, "").slice(0, 2))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    placeholder="MM"
+                    placeholderTextColor="#6b7280"
+                  />
+                </View>
+                <View style={[styles.birthDateInputContainer, { flex: 1.5 }]}>
+                  <Text style={styles.birthDateInputLabel}>Leto</Text>
+                  <TextInput
+                    style={styles.birthDateModalInput}
+                    value={editBirthYear}
+                    onChangeText={(text) => setEditBirthYear(text.replace(/[^0-9]/g, "").slice(0, 4))}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                    placeholder="LLLL"
+                    placeholderTextColor="#6b7280"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.birthDateModalButtons}>
+                <TouchableOpacity
+                  style={styles.birthDateModalButtonSecondary}
+                  onPress={() => setShowBirthDateModal(false)}
+                >
+                  <Text style={styles.birthDateModalButtonSecondaryText}>Prekliči</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.birthDateModalButtonPrimary}
+                  onPress={handleSaveBirthDate}
+                  disabled={savingBirthDate}
+                >
+                  {savingBirthDate ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.birthDateModalButtonPrimaryText}>Shrani</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </TouchableOpacity>
         </BlurView>
@@ -2189,6 +2340,87 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#f1f5f9",
+  },
+  settingsItemEditable: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(55, 65, 81, 0.5)",
+  },
+
+  // Birth date modal styles
+  birthDateModalContent: {
+    backgroundColor: "rgba(17, 24, 39, 0.98)",
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 20,
+    maxWidth: 400,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "rgba(168, 85, 247, 0.3)",
+  },
+  birthDateModalSubtitle: {
+    fontSize: 14,
+    color: "#9ca3af",
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  birthDateInputRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  birthDateInputContainer: {
+    flex: 1,
+  },
+  birthDateInputLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 6,
+    textTransform: "uppercase",
+  },
+  birthDateModalInput: {
+    backgroundColor: "rgba(31, 41, 55, 0.6)",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    fontSize: 16,
+    color: "#fff",
+    textAlign: "center",
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+  },
+  birthDateModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  birthDateModalButtonSecondary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "rgba(107, 114, 128, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(107, 114, 128, 0.3)",
+  },
+  birthDateModalButtonSecondaryText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#9ca3af",
+  },
+  birthDateModalButtonPrimary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "#8b5cf6",
+  },
+  birthDateModalButtonPrimaryText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
   },
 
   // ============================================================================
