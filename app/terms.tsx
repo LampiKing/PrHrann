@@ -42,7 +42,7 @@ export default function TermsScreen() {
         >
           <View style={styles.updateBadge}>
             <Ionicons name="time-outline" size={14} color="#9ca3af" />
-            <Text style={styles.updateText}>Zadnja posodobitev: 14. januar 2026</Text>
+            <Text style={styles.updateText}>Zadnja posodobitev: 17. januar 2026</Text>
           </View>
 
           <View style={styles.section}>
@@ -169,7 +169,33 @@ export default function TermsScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>11. Zakon in pristojnost</Text>
+            <Text style={styles.sectionTitle}>11. Viri podatkov in vsebine tretjih strank</Text>
+            <Text style={styles.sectionText}>
+              <Text style={styles.boldText}>POMEMBNA IZJAVA O VIRIH PODATKOV:</Text>
+              {"\n\n"}
+              Pr'Hran je agregator cen, ki zbira in prikazuje javno dostopne podatke o cenah izdelkov iz različnih trgovin v Sloveniji. Cene in podatke o izdelkih pridobivamo iz naslednjih virov:
+              {"\n\n"}
+              <Text style={styles.boldText}>Trgovine:</Text>
+              {"\n"}- Spar Slovenija (spar.si)
+              {"\n"}- Mercator (mercator.si)
+              {"\n"}- Tuš (tus.si)
+              {"\n\n"}
+              <Text style={styles.boldText}>SLIKE IZDELKOV:</Text>
+              {"\n"}Slike izdelkov, ki so prikazane v aplikaciji, so last in avtorska lastnina posameznih trgovin oziroma proizvajalcev izdelkov. Pr'Hran <Text style={styles.boldText}>NI LASTNIK</Text> teh slik in jih prikazuje izključno v informativne namene za lažjo identifikacijo izdelkov s strani uporabnikov.
+              {"\n\n"}
+              <Text style={styles.boldText}>BLAGOVNE ZNAMKE:</Text>
+              {"\n"}Imena trgovin (Spar, Mercator, Tuš) in vsi z njimi povezani logotipi, blagovne znamke in grafična podoba so last njihovih imetnikov. Pr'Hran ni povezan, podprt ali odobren s strani teh trgovin. Uporaba njihovih imen služi izključno za identifikacijo vira podatkov.
+              {"\n\n"}
+              <Text style={styles.boldText}>CENE IN RAZPOLOŽLJIVOST:</Text>
+              {"\n"}Prikazane cene so pridobljene iz javno dostopnih virov in so zgolj informativne narave. Cene se lahko razlikujejo od dejanskih cen v fizičnih trgovinah. Pr'Hran ne jamči za točnost, aktualnost ali popolnost prikazanih cen. Uporabnik je dolžan preveriti dejansko ceno pred nakupom.
+              {"\n\n"}
+              <Text style={styles.boldText}>AVTORSKE PRAVICE:</Text>
+              {"\n"}Če ste lastnik avtorskih pravic na vsebini, ki je prikazana v aplikaciji, in menite, da ta krši vaše pravice, nas kontaktirajte na support@prhran.com. Ob prejemu veljavnega zahtevka za odstranitev bomo sporno vsebino odstranili v najkrajšem možnem času.
+            </Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>12. Zakon in pristojnost</Text>
             <Text style={styles.sectionText}>
               Ti pogoji uporabe se urejajo in razlagajo v skladu z zakoni Republike Slovenije.
               {"\n\n"}
@@ -178,7 +204,7 @@ export default function TermsScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>12. Kontakt in podpora</Text>
+            <Text style={styles.sectionTitle}>13. Kontakt in podpora</Text>
             <Text style={styles.sectionText}>
               Za vprašanja, pritožbe ali zahteve glede teh pogojev ali delovanja aplikacije nas kontaktirajte na:
               {"\n\n"}

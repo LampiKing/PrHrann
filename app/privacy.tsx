@@ -26,7 +26,7 @@ export default function PrivacyScreen() {
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Text style={styles.lastUpdated}>Nazadnje posodobljeno: 4. januar 2026</Text>
+          <Text style={styles.lastUpdated}>Nazadnje posodobljeno: 17. januar 2026</Text>
 
           <Text style={styles.intro}>
             <Text style={styles.bold}>PrHran cenimo vašo zasebnost.</Text> Ta politika opisuje, kako
@@ -395,6 +395,41 @@ export default function PrivacyScreen() {
             • Uporabljamo ustrezne <Text style={styles.bold}>tehnične in organizacijske ukrepe</Text>
             za varnost{"\n"}
             • Spoštujemo <Text style={styles.bold}>vse vaše pravice</Text> po GDPR
+          </Text>
+
+          <Text style={styles.sectionTitle}>13. Viri Podatkov o Cenah in Izdelkih</Text>
+          <Text style={styles.paragraph}>
+            <Text style={styles.bold}>Pr'Hran je agregator cen</Text>, ki zbira javno dostopne podatke
+            o cenah izdelkov iz naslednjih virov:
+          </Text>
+          <Text style={styles.paragraph}>
+            <Text style={styles.bold}>13.1. Viri Podatkov:</Text>{"\n"}
+            • <Text style={styles.bold}>Spar Slovenija</Text> (spar.si) - javno dostopni podatki o
+            cenah in izdelkih{"\n"}
+            • <Text style={styles.bold}>Mercator</Text> (mercator.si) - javno dostopni podatki o cenah
+            in izdelkih{"\n"}
+            • <Text style={styles.bold}>Tuš</Text> (tus.si) - javno dostopni podatki o cenah in
+            izdelkih
+          </Text>
+          <Text style={styles.paragraph}>
+            <Text style={styles.bold}>13.2. Slike Izdelkov:</Text>{"\n"}
+            Slike izdelkov, prikazane v aplikaciji, so last posameznih trgovin ali proizvajalcev
+            izdelkov. Pr'Hran jih prikazuje izključno v informativne namene za lažjo identifikacijo
+            izdelkov. <Text style={styles.bold}>Ne shranjujemo slik na lastnih strežnikih</Text>, ampak
+            jih povezujemo neposredno iz virov trgovin.
+          </Text>
+          <Text style={styles.paragraph}>
+            <Text style={styles.bold}>13.3. Blagovne Znamke:</Text>{"\n"}
+            Imena trgovin (Spar, Mercator, Tuš), njihovi logotipi in blagovne znamke so last
+            posameznih podjetij. Pr'Hran <Text style={styles.bold}>NI povezan, podprt ali odobren
+            </Text> s strani teh trgovin. Uporaba njihovih imen služi izključno za identifikacijo
+            virov podatkov.
+          </Text>
+          <Text style={styles.paragraph}>
+            <Text style={styles.bold}>13.4. Točnost Podatkov:</Text>{"\n"}
+            Podatki o cenah so informativne narave in se lahko razlikujejo od dejanskih cen v
+            trgovinah. Pr'Hran <Text style={styles.bold}>ne jamči</Text> za popolno točnost,
+            ažurnost ali razpoložljivost prikazanih cen in izdelkov.
           </Text>
 
           <View style={styles.footer}>
