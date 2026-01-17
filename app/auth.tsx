@@ -465,8 +465,35 @@ export default function AuthScreen() {
         shakeError();
         return;
       }
+      // Specifična validacija datuma
+      const currentYear = new Date().getFullYear();
+      if (isNaN(parsedDay) || parsedDay < 1 || parsedDay > 31) {
+        setError("Dan mora biti med 1 in 31");
+        shakeError();
+        return;
+      }
+      if (isNaN(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) {
+        setError("Mesec mora biti med 1 in 12");
+        shakeError();
+        return;
+      }
+      if (isNaN(parsedYear) || parsedYear < 1920) {
+        setError("Leto mora biti 1920 ali kasnejše");
+        shakeError();
+        return;
+      }
+      if (parsedYear > currentYear - 13) {
+        setError("Morate biti stari vsaj 13 let");
+        shakeError();
+        return;
+      }
       if (!birthDateValid) {
         setError("Vnesite veljaven datum rojstva");
+        shakeError();
+        return;
+      }
+      if (!acceptedTerms) {
+        setError("Morate sprejeti pogoje uporabe");
         shakeError();
         return;
       }
