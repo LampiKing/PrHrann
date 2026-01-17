@@ -19,9 +19,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { createShadow } from "../lib/shadow-helper";
-import { useConvexAuth, useQuery, useAction } from "convex/react";
+import { useConvexAuth, useQuery, useAction, useMutation } from "convex/react";
 import Logo, { getSeasonalLogoSource } from "../lib/Logo";
 import { api } from "../convex/_generated/api";
+import { getDeviceFingerprint } from "../lib/device-fingerprint";
 
 const FACTS = [
   "Pametna primerjava cen ti prihrani čas in denar.",
@@ -50,6 +51,9 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nickname, setNickname] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [anonymousLoading, setAnonymousLoading] = useState(false);
@@ -74,6 +78,72 @@ export default function AuthScreen() {
     isAuthenticated ? {} : "skip"
   );
   const requestEmailVerification = useAction(api.emailVerification.requestEmailVerification);
+  const updateBirthDate = useMutation(api.userProfiles.updateBirthDate);
+  const registerDevice = useMutation(api.deviceManager.registerDevice);
+
+  // Device check state
+  const [deviceCheckPending, setDeviceCheckPending] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState<{ deviceName: string; deviceHash: string; platform: string } | null>(null);
+  const deviceCheckDone = useRef(false);
+
+  // Get device fingerprint on mount
+  useEffect(() => {
+    getDeviceFingerprint().then(setDeviceInfo).catch(console.error);
+  }, []);
+
+  // Device access check query
+  const deviceAccess = useQuery(
+    api.deviceManager.checkDeviceAccess,
+    isAuthenticated && deviceInfo && deviceCheckPending
+      ? { deviceName: deviceInfo.deviceName, deviceHash: deviceInfo.deviceHash, platform: deviceInfo.platform }
+      : "skip"
+  );
+
+  // Handle device check result
+  useEffect(() => {
+    if (!deviceCheckPending || !deviceAccess || deviceCheckDone.current) return;
+
+    deviceCheckDone.current = true;
+
+    if (!deviceAccess.allowed) {
+      // Device is blocked - show error and sign out
+      setError(deviceAccess.reason || "Prijava z druge naprave ni mogoča do naslednjega meseca.");
+      shakeError();
+      setLoading(false);
+      setDeviceCheckPending(false);
+      // Sign out the user
+      authClient.signOut().catch(console.error);
+      return;
+    }
+
+    // Device is allowed
+    if (deviceAccess.isNewDevice && deviceInfo) {
+      // Register the new device
+      registerDevice({
+        deviceName: deviceInfo.deviceName,
+        deviceHash: deviceInfo.deviceHash,
+        platform: deviceInfo.platform,
+      }).then((result) => {
+        if (result.success) {
+          console.log("Device registered:", result.message);
+        }
+        // Continue with login success
+        setLoading(false);
+        setDeviceCheckPending(false);
+        openSuccessOverlay("Uspešna prijava!", "login");
+      }).catch((err) => {
+        console.error("Device registration error:", err);
+        setLoading(false);
+        setDeviceCheckPending(false);
+        openSuccessOverlay("Uspešna prijava!", "login");
+      });
+    } else {
+      // Same device - just continue
+      setLoading(false);
+      setDeviceCheckPending(false);
+      openSuccessOverlay("Uspešna prijava!", "login");
+    }
+  }, [deviceAccess, deviceCheckPending, deviceInfo]);
 
   const modeInitialized = useRef(false);
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
@@ -328,9 +398,22 @@ export default function AuthScreen() {
     ? true
     : trimmedNickname.length >= 3 && trimmedNickname.length <= 20;
   const nicknameAvailable = isLogin ? true : nicknameAvailability?.available ?? false;
+
+  // Birth date validation - OBVEZNO pri registraciji
+  const parsedDay = parseInt(birthDay, 10);
+  const parsedMonth = parseInt(birthMonth, 10);
+  const parsedYear = parseInt(birthYear, 10);
+  const hasBirthDate = birthDay !== "" && birthMonth !== "" && birthYear !== "";
+  const birthDateValid = isLogin ? true : (
+    hasBirthDate &&
+    !isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31 &&
+    !isNaN(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12 &&
+    !isNaN(parsedYear) && parsedYear >= 1900 && parsedYear <= new Date().getFullYear()
+  );
+
   const canSubmit = isLogin
     ? emailValid && passwordValid
-    : emailValid && passwordValid && nicknameValid && nicknameAvailable && acceptedTerms;
+    : emailValid && passwordValid && nicknameValid && nicknameAvailable && acceptedTerms && birthDateValid;
   const isPrimaryDisabled = loading || resetLoading || !canSubmit;
 
   const passwordStrengthScore =
@@ -383,6 +466,16 @@ export default function AuthScreen() {
         shakeError();
         return;
       }
+      if (!hasBirthDate) {
+        setError("Datum rojstva je obvezen");
+        shakeError();
+        return;
+      }
+      if (!birthDateValid) {
+        setError("Vnesite veljaven datum rojstva");
+        shakeError();
+        return;
+      }
     }
 
     setLoading(true);
@@ -414,9 +507,11 @@ export default function AuthScreen() {
           setLoading(false);
           return;
         }
-        
-        openSuccessOverlay("Uspešna prijava!", "login");
-        // Router will redirect automatically via useEffect
+
+        // Trigger device check - success overlay will be shown after device check passes
+        deviceCheckDone.current = false;
+        setDeviceCheckPending(true);
+        // Note: setLoading(false) will be called after device check
       } else {
         // Register
         const result = await authClient.signUp.email({ 
@@ -457,6 +552,30 @@ export default function AuthScreen() {
           await requestEmailVerification({});
         } catch (emailErr) {
           console.warn("Failed to send verification email:", emailErr);
+        }
+
+        // Save birth date - OBVEZNO
+        try {
+          await updateBirthDate({
+            day: parsedDay,
+            month: parsedMonth,
+            year: parsedYear,
+          });
+        } catch (birthErr) {
+          console.warn("Failed to save birth date:", birthErr);
+        }
+
+        // Register device for new user
+        if (deviceInfo) {
+          try {
+            await registerDevice({
+              deviceName: deviceInfo.deviceName,
+              deviceHash: deviceInfo.deviceHash,
+              platform: deviceInfo.platform,
+            });
+          } catch (deviceErr) {
+            console.warn("Failed to register device:", deviceErr);
+          }
         }
 
         setLoading(false);
@@ -911,6 +1030,65 @@ export default function AuthScreen() {
                       >
                         {nicknameAvailable ? "Vzdevek je prost" : "Vzdevek je že zaseden"}
                       </Text>
+                    )}
+
+                    {/* Birth date fields - OBVEZNO za detekcijo upokojencev */}
+                    {!isLogin && (
+                      <>
+                        <View style={styles.birthDateLabel}>
+                          <Ionicons name="calendar-outline" size={16} color="#a78bfa" />
+                          <Text style={styles.birthDateLabelText}>Datum rojstva</Text>
+                        </View>
+                        <View style={styles.birthDateRow}>
+                          <View style={[styles.birthDateInput, focusedField === "birthDay" && styles.inputContainerFocused]}>
+                            <TextInput
+                              style={styles.birthDateTextInput}
+                              placeholder="Dan"
+                              placeholderTextColor="#6b7280"
+                              value={birthDay}
+                              onChangeText={(text) => setBirthDay(text.replace(/[^0-9]/g, "").slice(0, 2))}
+                              onFocus={() => setFocusedField("birthDay")}
+                              onBlur={() => setFocusedField(null)}
+                              keyboardType="number-pad"
+                              maxLength={2}
+                              returnKeyType="next"
+                            />
+                          </View>
+                          <View style={[styles.birthDateInput, focusedField === "birthMonth" && styles.inputContainerFocused]}>
+                            <TextInput
+                              style={styles.birthDateTextInput}
+                              placeholder="Mesec"
+                              placeholderTextColor="#6b7280"
+                              value={birthMonth}
+                              onChangeText={(text) => setBirthMonth(text.replace(/[^0-9]/g, "").slice(0, 2))}
+                              onFocus={() => setFocusedField("birthMonth")}
+                              onBlur={() => setFocusedField(null)}
+                              keyboardType="number-pad"
+                              maxLength={2}
+                              returnKeyType="next"
+                            />
+                          </View>
+                          <View style={[styles.birthDateInputYear, focusedField === "birthYear" && styles.inputContainerFocused]}>
+                            <TextInput
+                              style={styles.birthDateTextInput}
+                              placeholder="Leto"
+                              placeholderTextColor="#6b7280"
+                              value={birthYear}
+                              onChangeText={(text) => setBirthYear(text.replace(/[^0-9]/g, "").slice(0, 4))}
+                              onFocus={() => setFocusedField("birthYear")}
+                              onBlur={() => setFocusedField(null)}
+                              keyboardType="number-pad"
+                              maxLength={4}
+                              returnKeyType="next"
+                            />
+                          </View>
+                        </View>
+                        {!birthDateValid && (
+                          <Text style={styles.helperTextError}>
+                            {!hasBirthDate ? "Datum rojstva je obvezen" : "Vnesite veljaven datum"}
+                          </Text>
+                        )}
+                      </>
                     )}
 
                     <View
@@ -1525,6 +1703,43 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     gap: 12,
+  },
+  birthDateLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  birthDateLabelText: {
+    color: "#9ca3af",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  birthDateRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 8,
+  },
+  birthDateInput: {
+    flex: 1,
+    backgroundColor: "rgba(31, 41, 55, 0.5)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  birthDateInputYear: {
+    flex: 1.5,
+    backgroundColor: "rgba(31, 41, 55, 0.5)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  birthDateTextInput: {
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: "#fff",
+    textAlign: "center",
   },
   inputContainer: {
     marginBottom: 16,
