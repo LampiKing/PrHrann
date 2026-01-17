@@ -4,45 +4,117 @@ import { v } from "convex/values";
 const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
 
 /**
- * FUZZY MATCHING - Inteligentno iskanje
- * Najde izdelke tudi če uporabnik napiše besede v napačnem vrstnem redu
- * Primer: "jagodna milka" najde "MILKA JAGODA"
+ * Izračun velikosti izdelka - KRITIČNO za razvrščanje
+ * Večji paketi (1L, 1kg, 500g) imajo veliko prednost
  */
-function fuzzyMatch(productName: string, searchQuery: string): number {
-  const nameLower = productName.toLowerCase();
-  const queryLower = searchQuery.toLowerCase();
+function getSizeScore(name: string, unit: string): number {
+  const text = `${name} ${unit}`.toLowerCase();
 
-  // Exact match - najvišji score
-  if (nameLower === queryLower) return 1000;
-  if (nameLower.includes(queryLower)) return 900;
+  // PRIORITETNE velikosti - kar ljudje dejansko kupujejo
+  if (/\b1\s*kg\b|\b1000\s*g\b/i.test(text)) return 100;
+  if (/\b1\s*l\b|\b1000\s*ml\b|\b1\s*liter\b/i.test(text)) return 100;
+  if (/\b500\s*g\b|\b0[,.]5\s*kg\b/i.test(text)) return 95;
+  if (/\b500\s*ml\b|\b0[,.]5\s*l\b/i.test(text)) return 95;
+  if (/\b750\s*ml\b/i.test(text)) return 90;
+  if (/\b1[,.]5\s*l\b|\b1500\s*ml\b/i.test(text)) return 90;
+  if (/\b2\s*l\b|\b2000\s*ml\b/i.test(text)) return 85;
+  if (/\b250\s*g\b/i.test(text)) return 80;
+  if (/\b400\s*g\b/i.test(text)) return 75;
+  if (/\b330\s*ml\b/i.test(text)) return 70;
+  if (/\b300\s*g\b/i.test(text)) return 65;
 
-  // Split query into words
-  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
+  // SREDNJE velikosti
+  if (/\b200\s*g\b/i.test(text)) return 50;
+  if (/\b150\s*g\b/i.test(text)) return 45;
+  if (/\b250\s*ml\b/i.test(text)) return 40;
+
+  // MAJHNA pakiranja - MOČNA penalizacija
+  if (/\b200\s*ml\b/i.test(text)) return 15;
+  if (/\b100\s*ml\b/i.test(text)) return 8;
+  if (/\b50\s*ml\b/i.test(text)) return 5;
+  if (/\b100\s*g\b/i.test(text)) return 20;
+  if (/\b90\s*g\b/i.test(text)) return 18;
+  if (/\b80\s*g\b/i.test(text)) return 15;
+  if (/\b75\s*g\b/i.test(text)) return 15;
+  if (/\b70\s*g\b/i.test(text)) return 12;
+  if (/\b50\s*g\b/i.test(text)) return 10;
+  if (/\b40\s*g\b/i.test(text)) return 8;
+  if (/\b30\s*g\b/i.test(text)) return 5;
+
+  return 25; // neznana velikost
+}
+
+/**
+ * PAMETNO ISKANJE - Prioritizira enostavne izdelke
+ * "mleko" -> najprej "Mleko 1L", šele nato "Čokoladno mleko z vanilijo"
+ */
+function smartMatch(productName: string, searchQuery: string, unit: string): number {
+  const nameLower = productName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const queryLower = searchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const queryWords = queryLower.split(/\s+/).filter(w => w.length > 1);
+
   if (queryWords.length === 0) return 0;
 
-  // Preveri koliko besed se ujema
-  let matchCount = 0;
-  let positionBonus = 0;
+  // Besede v imenu izdelka (brez števil in enot)
+  const nameWords = nameLower
+    .replace(/\d+[,.]?\d*\s*(kg|g|l|ml|cl|dl|kos|kom|%)/gi, "")
+    .split(/[\s,]+/)
+    .filter(w => w.length > 1);
 
-  for (const word of queryWords) {
-    if (nameLower.includes(word)) {
-      matchCount++;
-      // Bonus če je beseda na začetku
-      if (nameLower.startsWith(word)) positionBonus += 100;
+  // 1. Preveri če se vse iskane besede ujemajo
+  let matchedWords = 0;
+  for (const qWord of queryWords) {
+    if (nameWords.some(nw => nw.includes(qWord) || qWord.includes(nw))) {
+      matchedWords++;
     }
   }
 
-  // Če se nobena beseda ne ujema, 0 score
-  if (matchCount === 0) return 0;
+  // Če se ne ujema nobena beseda, 0
+  if (matchedWords === 0) return 0;
 
-  // Score = (matched words / total words) * 100 + position bonus
-  const matchPercentage = (matchCount / queryWords.length) * 100;
-  return matchPercentage + positionBonus;
+  // Če se ne ujemajo VSE iskane besede, nizek score
+  const matchRatio = matchedWords / queryWords.length;
+  if (matchRatio < 1) return matchRatio * 50;
+
+  // 2. ENOSTAVNOST - manj besed = boljše
+  // "Mleko" (1 beseda) > "Čokoladno mleko" (2 besedi) > "Čokoladno mleko z vanilijo" (4 besede)
+  const simplicityScore = Math.max(0, 100 - (nameWords.length - queryWords.length) * 25);
+
+  // 3. POZICIJA - če iskana beseda je na začetku, bonus
+  let positionBonus = 0;
+  if (nameWords.length > 0 && queryWords.some(qw => nameWords[0].includes(qw))) {
+    positionBonus = 50;
+  }
+
+  // 4. VELIKOST - velik paket = boljše
+  const sizeScore = getSizeScore(productName, unit);
+
+  // 5. PENALIZACIJA za "okuse" ki jih uporabnik NI iskal
+  const FLAVOR_WORDS = [
+    "cokolad", "cokolada", "cokoladni", "cokoladna", "cokoladno",
+    "vanilij", "jagod", "lesnik", "karamel", "banana", "visnja",
+    "jagodna", "lesnikova", "karamelna", "bananina", "visnjeva",
+    "orehov", "mandljev", "pistacij", "kokos",
+    "sladka", "slana", "pecena", "prazen"
+  ];
+
+  let flavorPenalty = 0;
+  for (const flavor of FLAVOR_WORDS) {
+    // Če je okus v imenu ampak NI v iskalni poizvedbi
+    if (nameLower.includes(flavor) && !queryLower.includes(flavor)) {
+      flavorPenalty += 30;
+    }
+  }
+
+  // Končni score: enostavnost + pozicija + velikost - penalizacija
+  const finalScore = simplicityScore + positionBonus + sizeScore - flavorPenalty;
+
+  return Math.max(10, finalScore); // minimum 10 če se ujema
 }
 
-// Iskanje izdelkov
+// Iskanje izdelkov - PAMETNO razvrščanje
 export const search = query({
-  args: { 
+  args: {
     query: v.string(),
     isPremium: v.boolean(),
   },
@@ -72,64 +144,36 @@ export const search = query({
     })
   ),
   handler: async (ctx, args) => {
-    // Validate query
     if (!args.query || !args.query.trim() || args.query.trim().length < 2) {
       return [];
     }
 
     const searchQuery = args.query.trim();
 
-    // HYBRID SEARCH: Combine search index + fuzzy matching
-    // 1. Use search index to get candidates (fast)
+    // 1. Pridobi kandidate iz search indexa
     const searchCandidates = await ctx.db
       .query("products")
       .withSearchIndex("search_name", (q) => q.search("name", searchQuery.toLowerCase()))
-      .take(1000);
+      .take(500);
 
-    // 2. If not enough results, fallback to scanning all products (for fuzzy)
+    // 2. Fallback če premalo rezultatov
     let allProducts = searchCandidates;
-    if (searchCandidates.length < 20) {
-      allProducts = await ctx.db.query("products").take(5000);
+    if (searchCandidates.length < 50) {
+      allProducts = await ctx.db.query("products").take(3000);
     }
 
-    // 3. Score each product with fuzzy matching + brand/category boosts
-    const qNorm = searchQuery.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const BRAND_KEYWORDS = [
-      "milka", "alpsko", "barilla", "nutella", "kinder", "oreo",
-      "argeta", "zdenka", "fructal", "radenska", "coca", "pepsi", "fanta",
-      "spar", "mercator", "tus", "tuš"
-    ];
-    const CATEGORY_HINTS: Array<{ key: string; words: string[] }> = [
-      { key: "sladkarije", words: ["čoko", "coko", "čokolad", "cokolad", "kinder", "milka", "oreo", "bonbon", "sladk"] },
-      { key: "mlečni", words: ["mleko", "jogurt", "sir", "maslo", "skuta", "smetana", "alpsko"] },
-      { key: "pijače", words: ["cola", "pepsi", "fanta", "voda", "sok", "juice"] },
-      { key: "prigrizki", words: ["čips", "chips", "snack", "smoki", "flips"] },
-    ];
-    const hasBrand = BRAND_KEYWORDS.some((b) => qNorm.includes(b));
-    const brandMatched = (name: string) => BRAND_KEYWORDS.some((b) => name.toLowerCase().includes(b));
-    const categoryBoostFor = (name: string) => {
-      const n = name.toLowerCase();
-      let boost = 0;
-      for (const hint of CATEGORY_HINTS) {
-        if (hint.words.some((w) => qNorm.includes(w)) && (n.includes(hint.key) || n.includes("čokolad") || n.includes("cokolad"))) {
-          boost += 120; // category hint boost
-        }
-      }
-      return boost;
-    };
-
+    // 3. Oceni vsak izdelek s PAMETNIM algoritmom
     const scoredProducts = allProducts
-      .map(product => {
-        let score = fuzzyMatch(product.name, searchQuery);
-        if (hasBrand && brandMatched(product.name)) score += 400; // brand boost
-        score += categoryBoostFor(`${product.category} ${product.name}`);
-        return { product, score };
-      })
+      .map(product => ({
+        product,
+        score: smartMatch(product.name, searchQuery, product.unit),
+      }))
       .filter(item => item.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 50)
+      .slice(0, 100) // Več kandidatov
       .map(item => item.product);
 
+    // 4. Pridobi trgovine
     const stores = await ctx.db.query("stores").collect();
     const storeMap = new Map(
       stores
@@ -137,6 +181,7 @@ export const search = query({
         .map((store) => [store._id, store])
     );
 
+    // 5. Pridobi cene za vsak izdelek
     const results = await Promise.all(
       scoredProducts.map(async (product) => {
         const prices = await ctx.db
@@ -148,9 +193,7 @@ export const search = query({
           .map((price) => {
             const store = storeMap.get(price.storeId);
             if (!store) return null;
-            // Če ni premium, skrij premium trgovine
             if (!args.isPremium && store.isPremium) return null;
-            // Filtriraj neveljavne cene (odstrani 0.01 ipd.)
             if (!Number.isFinite(price.price) || price.price < 0.05) return null;
             return {
               storeId: price.storeId,
@@ -166,7 +209,6 @@ export const search = query({
           .filter((p): p is NonNullable<typeof p> => p !== null)
           .sort((a, b) => a.price - b.price);
 
-        // Če po filtriranju ni cen, preskoči izdelek
         if (pricesWithStores.length === 0) return null;
 
         const validPriceNumbers = pricesWithStores.map((p) => p.price);
@@ -180,65 +222,23 @@ export const search = query({
       })
     );
 
-    // Odstrani izdelke brez veljavnih cen
+    // 6. Filtriraj in končno razvrsti
     const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null && r.prices.length > 0);
 
-    // Funkcija za izračun "size score" - višji = bolj želena velikost
-    const getSizeScore = (name: string, unit: string): number => {
-      const text = `${name} ${unit}`.toLowerCase();
-
-      // PRIORITETNE velikosti - kar ljudje dejansko kupujejo (NAJVIŠJI SCORE)
-      if (/\b1\s*kg\b|\b1000\s*g\b/i.test(text)) return 100;                 // 1kg - NAJBOLJŠE
-      if (/\b1\s*l\b|\b1000\s*ml\b|\b1\s*liter\b/i.test(text)) return 100;  // 1L - NAJBOLJŠE
-      if (/\b500\s*g\b|\b0[,.]5\s*kg\b/i.test(text)) return 95;              // 500g
-      if (/\b500\s*ml\b|\b0[,.]5\s*l\b/i.test(text)) return 95;              // 500ml
-      if (/\b750\s*ml\b/i.test(text)) return 90;                              // 750ml (vino, sokovi)
-      if (/\b1[,.]5\s*l\b|\b1500\s*ml\b/i.test(text)) return 90;             // 1.5L
-      if (/\b2\s*l\b|\b2000\s*ml\b/i.test(text)) return 85;                  // 2L
-      if (/\b250\s*g\b/i.test(text)) return 80;                               // 250g (maslo, kava)
-      if (/\b400\s*g\b/i.test(text)) return 75;                               // 400g (konzerve)
-      if (/\b330\s*ml\b/i.test(text)) return 70;                              // 330ml (pločevinke)
-      if (/\b300\s*g\b/i.test(text)) return 65;                               // 300g
-
-      // SREDNJE velikosti - uporabne ampak ne prioriteta
-      if (/\b200\s*g\b/i.test(text)) return 50;                               // 200g
-      if (/\b150\s*g\b/i.test(text)) return 45;                               // 150g
-      if (/\b250\s*ml\b/i.test(text)) return 45;                              // 250ml
-
-      // MAJHNA pakiranja - MOČNA penalizacija (ljudje ne kupujejo)
-      if (/\b200\s*ml\b/i.test(text)) return 15;    // 200ml - premajhno
-      if (/\b100\s*ml\b/i.test(text)) return 8;     // 100ml - vzorec
-      if (/\b50\s*ml\b/i.test(text)) return 5;      // 50ml - vzorec
-      if (/\b100\s*g\b/i.test(text)) return 20;     // 100g - majhno
-      if (/\b80\s*g\b/i.test(text)) return 15;      // 80g - majhno
-      if (/\b75\s*g\b/i.test(text)) return 15;      // 75g - majhno
-      if (/\b50\s*g\b/i.test(text)) return 10;      // 50g - vzorec
-      if (/\b40\s*g\b/i.test(text)) return 8;       // 40g - mini
-      if (/\b30\s*g\b/i.test(text)) return 5;       // 30g - mini
-      if (/\b25\s*g\b/i.test(text)) return 5;       // 25g - mini
-
-      // Če ni zaznane velikosti, nizek score (penalizacija za neznano)
-      return 25;
-    };
-
-    // Sortiraj: NAJPREJ po velikosti, nato po ceni
+    // Končno razvrščanje: VELIKOST > ENOSTAVNOST > CENA
     return validResults.sort((a, b) => {
       const aSize = getSizeScore(a.name, a.unit);
       const bSize = getSizeScore(b.name, b.unit);
+      const aSmart = smartMatch(a.name, searchQuery, a.unit);
+      const bSmart = smartMatch(b.name, searchQuery, b.unit);
 
-      // Če je razlika v velikosti >15 točk, velikost VEDNO prevlada
-      if (Math.abs(aSize - bSize) > 15) {
-        return bSize - aSize; // Višji score = prvi
-      }
-
-      // Pri podobnih velikostih: VEDNO najcenejši prvi
-      // Kombiniraj: 60% velikost, 40% cena (več teže na ceno)
-      const maxPrice = 20;
+      // Kombiniran score: 50% pametnost, 40% velikost, 10% cena
+      const maxPrice = 30;
       const aPriceScore = 100 - Math.min(a.lowestPrice / maxPrice * 100, 100);
       const bPriceScore = 100 - Math.min(b.lowestPrice / maxPrice * 100, 100);
 
-      const aTotal = aSize * 0.6 + aPriceScore * 0.4;
-      const bTotal = bSize * 0.6 + bPriceScore * 0.4;
+      const aTotal = aSmart * 0.5 + aSize * 0.4 + aPriceScore * 0.1;
+      const bTotal = bSmart * 0.5 + bSize * 0.4 + bPriceScore * 0.1;
 
       return bTotal - aTotal;
     });
