@@ -1,0 +1,16 @@
+[build]
+  command = "npx expo export -p web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  EXPO_PUBLIC_CONVEX_URL = "https://vibrant-dolphin-871.convex.cloud"
+
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
+
+# SPA routing - vse poti redirectaj na index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
