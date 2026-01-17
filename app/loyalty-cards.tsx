@@ -170,6 +170,7 @@ export default function LoyaltyCardsScreen() {
   const [editingCard, setEditingCard] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [labelInput, setLabelInput] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [showBarcodeModal, setShowBarcodeModal] = useState<
     { cardId: string; number: string } | null
   >(null);
@@ -216,6 +217,9 @@ export default function LoyaltyCardsScreen() {
   const activeNumber = showBarcodeModal?.number;
 
   const handleSaveCard = async (cardId: string) => {
+    // Prepreči dvojni klik
+    if (isSaving) return;
+
     // Validacija - kartica mora imeti vsaj 8 številk
     if (inputValue.length < 8) {
       if (Platform.OS !== "web") {
@@ -229,6 +233,8 @@ export default function LoyaltyCardsScreen() {
       alert("Za shranjevanje kartic se morate prijaviti.");
       return;
     }
+
+    setIsSaving(true);
 
     try {
       const result = await addLoyaltyCard({
@@ -249,6 +255,8 @@ export default function LoyaltyCardsScreen() {
       }
     } catch {
       alert("Napaka pri shranjevanju kartice");
+    } finally {
+      setIsSaving(false);
     }
   };
 
