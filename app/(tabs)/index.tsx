@@ -5,6 +5,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ScrollView,
   Image,
@@ -237,9 +238,9 @@ export default function SearchScreen() {
   const [emailVerificationMessage, setEmailVerificationMessage] = useState("");
   const [emailVerificationError, setEmailVerificationError] = useState("");
   const [emailVerificationSending, setEmailVerificationSending] = useState(false);
-  const [cartToastMessage, setCartToastMessage] = useState("");
+  const [, setCartToastMessage] = useState("");
   const [showCartToast, setShowCartToast] = useState(false);
-  const [showCartPreview, setShowCartPreview] = useState(false);
+  const [showCartPreview] = useState(false);
   const [recentCartItems, setRecentCartItems] = useState<
     Array<{ key: string; name: string; store: string; quantity: number }>
   >([]);
@@ -463,26 +464,6 @@ export default function SearchScreen() {
     }, 1500);
   }, [cartToastAnim]);
 
-  const triggerCartPreview = useCallback(() => {
-    if (cartPreviewTimeoutRef.current) {
-      clearTimeout(cartPreviewTimeoutRef.current);
-    }
-    setShowCartPreview(true);
-    RNAnimated.timing(cartPreviewAnim, {
-      toValue: 1,
-      duration: 200,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
-    cartPreviewTimeoutRef.current = setTimeout(() => {
-      RNAnimated.timing(cartPreviewAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => setShowCartPreview(false));
-    }, 2000);
-  }, [cartPreviewAnim]);
-  
   // Debounce search input
   useEffect(() => {
     if (!isPremium) {
@@ -882,19 +863,33 @@ export default function SearchScreen() {
         alert("Tega izdelka trenutno ni možno dodati v košarico.");
         return;
       }
+
+      const cartKey = `${product._id}-${price.storeId}`;
+
+      // Immediate haptic feedback on press
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      // Optimistic UI - show adding state immediately
+      setAddingToCart(cartKey);
+
       try {
         await addToCart({
           productId: product._id,
           storeId: price.storeId,
           price: price.price,
         });
+
+        // Success haptic
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
-        setAddedToCart(`${product._id}-${price.storeId}`);
+
+        setAddedToCart(cartKey);
         setRecentCartItems((prev) => [
           {
-            key: `${product._id}-${price.storeId}-${Date.now()}`,
+            key: `${cartKey}-${Date.now()}`,
             name: product.name,
             store: price.storeName,
             quantity: 1,
@@ -905,6 +900,8 @@ export default function SearchScreen() {
         setTimeout(() => setAddedToCart(null), 1500);
       } catch (error) {
         console.error("Napaka pri dodajanju:", error);
+      } finally {
+        setAddingToCart(null);
       }
     },
     [addToCart, isGuestMode, triggerCartToast]
@@ -922,10 +919,17 @@ export default function SearchScreen() {
       }
 
       const cartKey = `sheet-${normalizeResultKey(product.name)}-${normalizeResultKey(price.storeName)}`;
+
+      // Immediate haptic feedback on press
+      if (Platform.OS !== "web") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      // Optimistic UI - show adding state immediately
       setAddingToCart(cartKey);
 
       try {
-        const result = await addToCartFromSearch({
+        await addToCartFromSearch({
           productName: product.name,
           productCategory: product.category,
           productUnit: product.unit,
@@ -1109,55 +1113,6 @@ export default function SearchScreen() {
     
     // DEFAULT
     return "🛒";
-  };
-
-  const getCategoryEmoji = (category: string) => {
-    const normalizeCategory = (value: string) => {
-      const lower = value.toLowerCase();
-      if (typeof lower.normalize === "function") {
-        return lower.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      }
-      return lower
-        .replace(/[čć]/g, "c")
-        .replace(/š/g, "s")
-        .replace(/ž/g, "z");
-    };
-    const categoryLower = normalizeCategory(category);
-    const has = (...needles: string[]) =>
-      needles.some((needle) => categoryLower.includes(needle));
-
-    if (has("mlec", "mleko", "jogurt", "sir", "maslo", "skuta", "smetana")) return "??";
-    if (has("pek", "kruh", "peciv", "bread", "zemlj", "burek", "croissant")) return "??";
-    if (has("meso", "pisc", "govedina", "svinjina", "salama", "prsut", "klobasa", "bacon", "ham")) return "??";
-    if (has("rib", "tuna", "losos", "sardel")) return "??";
-    if (has("sadje", "jabol", "banana", "pomaranc", "jagoda", "grozd", "kivi", "breskev", "ananas")) return "??";
-    if (has("zelenjava", "paradiz", "solata", "krompir", "korenj", "paprik", "kumara", "cebula", "cesen", "brokoli")) return "??";
-    if (has("voda", "water", "mineral")) return "??";
-    if (has("sok", "juice", "coca", "cola", "pepsi", "fanta", "sprite", "limonada", "gazir")) return "??";
-    if (has("kava", "coffee", "caj", "tea")) return "?";
-    if (has("pivo", "beer", "lager")) return "??";
-    if (has("vino", "wine")) return "??";
-    if (has("sladk", "cokolad", "milka", "nutella", "kinder", "bonbon", "desert", "dessert", "keks", "biskvit")) return "??";
-    if (has("sladoled", "ice cream", "gelato")) return "??";
-    if (has("zamrzn", "frozen")) return "??";
-    if (has("konzerv", "omaka", "juha", "canned", "fizol", "grah")) return "??";
-    if (has("testenin", "pasta", "spageti", "makaroni")) return "??";
-    if (has("riz", "rice", "zita", "zrn", "kuskus", "bulgur")) return "??";
-    if (has("moka", "flour")) return "??";
-    if (has("sladkor", "sugar")) return "??";
-    if (has("sol", "salt", "zacimb", "poper", "pepper")) return "??";
-    if (has("olje", "oil", "mascoba")) return "??";
-    if (has("kvas", "pecilni", "baking")) return "??";
-    if (has("jajca", "egg")) return "??";
-    if (has("zajtrk", "kosmi", "muesli", "cereal", "ovseni", "musli")) return "??";
-    if (has("prigriz", "chips", "snack", "smoki", "flips", "kreker")) return "??";
-    if (has("kokice", "popcorn")) return "??";
-    if (has("oresk", "nut", "lesnik", "mandel", "oreh")) return "??";
-    if (has("higie", "milo", "soap", "sampon", "shampoo", "gel", "zobna", "toalet", "dezodorant")) return "??";
-    if (has("cist", "prasek", "detergen", "pralno", "mehcalec", "clean")) return "??";
-    if (has("pet", "psa", "macka", "hrana za", "dog", "cat")) return "??";
-    if (has("ostalo", "drugo", "razno")) return "??";
-    return "??";
   };
 
   const calculateSavings = (product: ProductResult) => {
@@ -1498,27 +1453,34 @@ export default function SearchScreen() {
                           <Ionicons name="remove-circle-outline" size={20} color="#94a3b8" />
                         </View>
                       ) : canAdd ? (
-                        <TouchableOpacity
-                          style={[
+                        <Pressable
+                          style={({ pressed }) => [
                             styles.addButton,
                             isAdded && styles.addButtonSuccess,
+                            isAddingThis && styles.addButtonAdding,
                             cartLocked && styles.addButtonLocked,
+                            pressed && !cartLocked && styles.addButtonPressed,
                           ]}
                           onPress={() => handleAddToCart(product, price)}
-                          disabled={cartLocked}
+                          disabled={cartLocked || isAddingThis}
                         >
-                          <Ionicons
-                            name={cartLocked ? "lock-closed" : isAdded ? "checkmark" : "cart-outline"}
-                            size={20}
-                            color={cartLocked ? "#cbd5e1" : isAdded ? "#10b981" : "#a78bfa"}
-                          />
-                        </TouchableOpacity>
+                          {isAddingThis ? (
+                            <ActivityIndicator size={16} color="#a78bfa" />
+                          ) : (
+                            <Ionicons
+                              name={cartLocked ? "lock-closed" : isAdded ? "checkmark" : "cart-outline"}
+                              size={20}
+                              color={cartLocked ? "#cbd5e1" : isAdded ? "#10b981" : "#a78bfa"}
+                            />
+                          )}
+                        </Pressable>
                       ) : (
-                        <TouchableOpacity
-                          style={[
+                        <Pressable
+                          style={({ pressed }) => [
                             styles.addToCartButton,
                             isAdded && styles.addToCartButtonSuccess,
                             !isPremium && styles.addToCartButtonLocked,
+                            pressed && isPremium && !isAddingThis && styles.addToCartButtonPressed,
                           ]}
                           onPress={() => handleAddToCartFromSearch(product, price)}
                           disabled={isAddingThis || isGuestMode}
@@ -1550,7 +1512,7 @@ export default function SearchScreen() {
                               )}
                             </LinearGradient>
                           )}
-                        </TouchableOpacity>
+                        </Pressable>
                       )}
                     </View>
                   </View>
@@ -3086,6 +3048,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(148, 163, 184, 0.12)",
     borderColor: "rgba(148, 163, 184, 0.35)",
   },
+  addButtonPressed: {
+    transform: [{ scale: 0.9 }],
+    backgroundColor: "rgba(139, 92, 246, 0.25)",
+  },
+  addButtonAdding: {
+    backgroundColor: "rgba(139, 92, 246, 0.2)",
+    borderColor: "rgba(139, 92, 246, 0.4)",
+  },
   addToCartButton: {
     borderRadius: 12,
     overflow: "hidden",
@@ -3096,6 +3066,10 @@ const styles = StyleSheet.create({
   },
   addToCartButtonLocked: {
     opacity: 0.7,
+  },
+  addToCartButtonPressed: {
+    transform: [{ scale: 0.95 }],
+    opacity: 0.9,
   },
   addToCartGradient: {
     flexDirection: "row",

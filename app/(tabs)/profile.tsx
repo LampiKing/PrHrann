@@ -665,8 +665,6 @@ export default function ProfileScreen() {
       ? `Naročnina preklicana`
       : (profile.premiumType === "family" ? PLAN_FAMILY : PLAN_PLUS)
     : "Brezplačno";
-  const searchesLabel = profile.isPremium ? "Neomejeno iskanj" : "Iskanj danes";
-  const searchesValue = profile.isPremium ? "∞" : `${profile.searchesRemaining}`;
   const familyLeaderboardEntries: FamilyLeaderboardEntry[] = hasFamilyPlan
     ? [
         {

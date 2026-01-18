@@ -13,7 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { authClient } from "../lib/auth-client";
 import { createShadow } from "../lib/shadow-helper";
 import FloatingBackground from "../lib/FloatingBackground";
 import { useAction } from "convex/react";
