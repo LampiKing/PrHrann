@@ -25,46 +25,55 @@ function extractSize(text: string): { value: number; unit: string } | null {
 
 /**
  * Izračun velikosti izdelka - KRITIČNO za razvrščanje
- * Večji paketi (1L, 1kg, 500g) imajo veliko prednost
+ * Standardne velikosti (1L, 1kg) imajo OGROMNO prednost
+ * Majhna pakiranja (pod 500ml/g) so MOČNO penalizirana
+ *
+ * POMEMBNO: Majhne velikosti se preverjajo NAJPREJ da "0,2 l" ne ujema "2 l"!
  */
 function getSizeScore(name: string, unit: string): number {
   const text = `${name} ${unit}`.toLowerCase();
 
-  // PRIORITETNE velikosti - kar ljudje dejansko kupujejo
-  if (/\b1\s*kg\b|\b1000\s*g\b/i.test(text)) return 100;
-  if (/\b1\s*l\b|\b1000\s*ml\b|\b1\s*liter\b/i.test(text)) return 100;
-  if (/\b1[,.]5\s*l\b|\b1500\s*ml\b/i.test(text)) return 98; // 1.5L je zelo pogost
-  if (/\b2\s*l\b|\b2000\s*ml\b/i.test(text)) return 95;
-  if (/\b500\s*g\b|\b0[,.]5\s*kg\b/i.test(text)) return 90;
-  if (/\b500\s*ml\b|\b0[,.]5\s*l\b/i.test(text)) return 90;
-  if (/\b750\s*ml\b/i.test(text)) return 85;
-  if (/\b250\s*g\b/i.test(text)) return 80;
-  if (/\b400\s*g\b/i.test(text)) return 75;
-  if (/\b330\s*ml\b/i.test(text)) return 70;
-  if (/\b300\s*g\b/i.test(text)) return 65;
+  // === NAJPREJ PREVERI MAJHNA PAKIRANJA ===
+  // To prepreči da "0,2 l" ujema "2 l" regex!
+  // 200ml in manj je "potovalna velikost" - NE SME biti prvi rezultat!
+  if (/0[,.]2\s*l\b|\b200\s*ml\b/i.test(text)) return -200;
+  if (/0[,.]18\s*l\b|\b180\s*ml\b/i.test(text)) return -220;
+  if (/0[,.]15\s*l\b|\b150\s*ml\b/i.test(text)) return -240;
+  if (/0[,.]125\s*l\b|\b125\s*ml\b/i.test(text)) return -260;
+  if (/0[,.]1\s*l\b|\b100\s*ml\b/i.test(text)) return -300;
+  if (/0[,.]05\s*l\b|\b50\s*ml\b/i.test(text)) return -400;
 
-  // SREDNJE velikosti
-  if (/\b200\s*g\b/i.test(text)) return 50;
-  if (/\b150\s*g\b/i.test(text)) return 45;
-  if (/\b250\s*ml\b/i.test(text)) return 40;
+  // Majhna pakiranja v gramih
+  if (/\b100\s*g\b/i.test(text)) return -30;
+  if (/\b90\s*g\b/i.test(text)) return -40;
+  if (/\b80\s*g\b/i.test(text)) return -50;
+  if (/\b75\s*g\b/i.test(text)) return -60;
+  if (/\b70\s*g\b/i.test(text)) return -70;
+  if (/\b50\s*g\b/i.test(text)) return -80;
+  if (/\b40\s*g\b/i.test(text)) return -90;
+  if (/\b30\s*g\b/i.test(text)) return -100;
+  if (/\b25\s*g\b/i.test(text)) return -110;
+  if (/\b20\s*g\b/i.test(text)) return -120;
 
-  // MAJHNA pakiranja - MOČNA penalizacija
-  if (/\b200\s*ml\b/i.test(text)) return 15;
-  if (/\b100\s*ml\b/i.test(text)) return 8;
-  if (/\b50\s*ml\b/i.test(text)) return 5;
-  if (/\b100\s*g\b/i.test(text)) return 20;
-  if (/\b90\s*g\b/i.test(text)) return 18;
-  if (/\b80\s*g\b/i.test(text)) return 15;
-  if (/\b75\s*g\b/i.test(text)) return 15;
-  if (/\b70\s*g\b/i.test(text)) return 12;
-  if (/\b50\s*g\b/i.test(text)) return 10;
-  if (/\b40\s*g\b/i.test(text)) return 8;
-  if (/\b30\s*g\b/i.test(text)) return 5;
+  // === STANDARDNE VELIKOSTI - kar ljudje dejansko kupujejo ===
+  if (/\b1\s*kg\b|\b1000\s*g\b/i.test(text)) return 200;
+  if (/\b1\s*l\b|\b1000\s*ml\b|\b1\s*liter\b/i.test(text)) return 200;
+  if (/\b1[,.]5\s*l\b|\b1500\s*ml\b/i.test(text)) return 195;
+  if (/\b2\s*l\b|\b2000\s*ml\b/i.test(text)) return 190;
+  if (/\b500\s*g\b|\b0[,.]5\s*kg\b/i.test(text)) return 180;
+  if (/\b500\s*ml\b|\b0[,.]5\s*l\b/i.test(text)) return 180;
+  if (/\b750\s*ml\b/i.test(text)) return 170;
+  if (/\b400\s*g\b/i.test(text)) return 160;
+  if (/\b330\s*ml\b/i.test(text)) return 150;
+  if (/\b300\s*g\b/i.test(text)) return 140;
+  if (/\b250\s*g\b/i.test(text)) return 130;
+  if (/\b250\s*ml\b/i.test(text)) return 120;
 
-  // Zelo majhna pakiranja - zelo nizko
-  if (/\b2[02]\s*ml\b|\b0[,.]2\s*l\b/i.test(text)) return 3;
+  // === SREDNJE velikosti ===
+  if (/\b200\s*g\b/i.test(text)) return 80;
+  if (/\b150\s*g\b/i.test(text)) return 70;
 
-  return 25; // neznana velikost
+  return 50; // neznana velikost - srednje
 }
 
 /**
@@ -388,13 +397,30 @@ export const search = query({
     const MIN_SCORE_THRESHOLD = 50;
 
     const scoredProducts = allProducts
-      .map(product => ({
-        product,
-        score: smartMatch(product.name, searchQuery, product.unit),
-      }))
-      .filter(item => item.score >= MIN_SCORE_THRESHOLD)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 100) // Več kandidatov
+      .map(product => {
+        const smartScore = smartMatch(product.name, searchQuery, product.unit);
+        const sizeScore = getSizeScore(product.name, product.unit);
+        // Kombiniran score: relevantnost + velikost (majhne velikosti dobijo negativen score)
+        const combinedScore = smartScore + sizeScore;
+        return { product, smartScore, sizeScore, combinedScore };
+      })
+      .filter(item => item.smartScore >= MIN_SCORE_THRESHOLD)
+      .sort((a, b) => {
+        // NAJPREJ: Standardne velikosti pred majhnimi
+        const aIsStandard = a.sizeScore >= 100;
+        const bIsStandard = b.sizeScore >= 100;
+        const aIsTiny = a.sizeScore < 0;
+        const bIsTiny = b.sizeScore < 0;
+
+        if (aIsStandard && bIsTiny) return -1;
+        if (bIsStandard && aIsTiny) return 1;
+        if (a.sizeScore > 0 && bIsTiny) return -1;
+        if (b.sizeScore > 0 && aIsTiny) return 1;
+
+        // Potem po kombiniranem score
+        return b.combinedScore - a.combinedScore;
+      })
+      .slice(0, 100)
       .map(item => item.product);
 
     // 4. Pridobi trgovine
@@ -450,21 +476,36 @@ export const search = query({
     const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null && r.prices.length > 0);
 
     // Končno razvrščanje: RELEVANTNOST > VELIKOST > CENA
-    // Prioriteta: osnovni izdelki pred verzijami (Mleko pred Čokoladnim mlekom)
+    // POMEMBNO: Standardne velikosti (1L, 1kg) MORAJO biti pred majhnimi (200ml)
     return validResults.sort((a, b) => {
       const aSize = getSizeScore(a.name, a.unit);
       const bSize = getSizeScore(b.name, b.unit);
       const aSmart = smartMatch(a.name, searchQuery, a.unit);
       const bSmart = smartMatch(b.name, searchQuery, b.unit);
 
-      // Kombiniran score: 65% pametnost (relevantnost), 30% velikost, 5% cena
-      // Povečana teža za pametnost pomeni da osnovni izdelki pridejo prvi
+      // NAJPREJ: Ali je ena od velikosti "standardna" in druga "majhna"?
+      // Standardna = 500ml+ ali 250g+
+      // Majhna = pod 250ml ali pod 100g
+      const aIsStandard = aSize >= 100; // 1L, 1kg, 500ml, itd.
+      const bIsStandard = bSize >= 100;
+      const aIsTiny = aSize < 0; // 200ml in manj
+      const bIsTiny = bSize < 0;
+
+      // Standardni izdelki VEDNO pred majhnimi - NE GLEDE NA CENO
+      if (aIsStandard && bIsTiny) return -1;
+      if (bIsStandard && aIsTiny) return 1;
+
+      // Tudi med ne-standardnimi, večji pride pred manjšim
+      if (aSize > 0 && bIsTiny) return -1;
+      if (bSize > 0 && aIsTiny) return 1;
+
+      // Kombiniran score: 50% pametnost, 35% velikost, 15% cena (cenejši višje)
       const maxPrice = 30;
       const aPriceScore = 100 - Math.min(a.lowestPrice / maxPrice * 100, 100);
       const bPriceScore = 100 - Math.min(b.lowestPrice / maxPrice * 100, 100);
 
-      const aTotal = aSmart * 0.65 + aSize * 0.30 + aPriceScore * 0.05;
-      const bTotal = bSmart * 0.65 + bSize * 0.30 + bPriceScore * 0.05;
+      const aTotal = aSmart * 0.50 + aSize * 0.35 + aPriceScore * 0.15;
+      const bTotal = bSmart * 0.50 + bSize * 0.35 + bPriceScore * 0.15;
 
       return bTotal - aTotal;
     });

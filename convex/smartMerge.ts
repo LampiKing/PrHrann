@@ -223,7 +223,7 @@ export const runSmartMerge = action({
 
       // 1. SLIKOVNO UJEMANJE
       if (product.imageUrl) {
-        const imageMatch = allProducts.find(p =>
+        const imageMatch = allProducts.find((p: typeof product) =>
           p._id !== product._id &&
           p.imageUrl === product.imageUrl
         );
@@ -247,7 +247,7 @@ export const runSmartMerge = action({
       const productKeywords = extractKeywords(product.name);
 
       // Filtriraj kandidate - iščemo izdelke iz DRUGIH trgovin
-      const candidates = allProducts.filter(p => {
+      const candidates = allProducts.filter((p: typeof product) => {
         if (p._id === product._id) return false;
 
         const candidateBrand = extractBrand(p.name);

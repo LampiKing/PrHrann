@@ -24,4 +24,21 @@ crons.daily(
   internal.catalogManager.checkExpiredSales
 );
 
+// ============ SPAR KUPON SCRAPER ============
+// Posodobi kupone vsak PONEDELJEK ob 06:00 UTC (07:00 CET)
+crons.weekly(
+  "update-spar-coupons",
+  { dayOfWeek: "monday", hourUTC: 6, minuteUTC: 0 },
+  internal.couponScraper.fetchSparWeeklyData,
+  {}
+);
+
+// Backup scrape v SREDO (če ponedeljek ni uspel)
+crons.weekly(
+  "update-spar-coupons-backup",
+  { dayOfWeek: "wednesday", hourUTC: 6, minuteUTC: 0 },
+  internal.couponScraper.fetchSparWeeklyData,
+  {}
+);
+
 export default crons;

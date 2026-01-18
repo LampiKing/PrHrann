@@ -2,6 +2,33 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
+// ============ UPOKOJENEC DETECTION ============
+const RETIREMENT_AGE = 65; // Slovenija standard
+
+/**
+ * Izračuna starost iz datuma rojstva
+ */
+function calculateAge(birthDate: { day: number; month: number; year: number }): number {
+  const today = new Date();
+  const birth = new Date(birthDate.year, birthDate.month - 1, birthDate.day);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+
+  return age;
+}
+
+/**
+ * Ali je uporabnik upokojenec (65+ let)
+ */
+function isPensioner(birthDate?: { day: number; month: number; year: number }): boolean {
+  if (!birthDate) return false;
+  return calculateAge(birthDate) >= RETIREMENT_AGE;
+}
+
 // Tip za rezultat izračuna kupona
 interface CouponCalculation {
   couponId: Id<"coupons">;
@@ -576,7 +603,139 @@ export const calculateStackedCoupons = query({
   },
 });
 
-// Dodaj vzorčne kupone za vse trgovine
+// ============ PAMETNO PRIPOROČANJE KUPONOV ============
+// Predlaga prave kupone glede na profil uporabnika (upokojenec, kartica zvestobe, dan)
+export const getRecommendedCoupons = query({
+  args: {
+    storeId: v.id("stores"),
+    userId: v.optional(v.string()),
+    // Če ni userId, lahko direktno pošlješ podatke
+    birthDate: v.optional(v.object({
+      day: v.number(),
+      month: v.number(),
+      year: v.number(),
+    })),
+    hasLoyaltyCard: v.boolean(),
+    cartTotal: v.optional(v.number()), // Vrednost košarice
+  },
+  returns: v.object({
+    todayCoupons: v.array(v.object({
+      _id: v.id("coupons"),
+      code: v.string(),
+      description: v.string(),
+      discountValue: v.number(),
+      isRecommended: v.boolean(),
+      recommendReason: v.optional(v.string()),
+      requiresLoyaltyCard: v.boolean(),
+      minPurchase: v.optional(v.number()),
+      meetsMinPurchase: v.boolean(),
+    })),
+    userIsPensioner: v.boolean(),
+    currentDay: v.string(),
+    pensionerCouponAvailable: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    const now = new Date();
+    const currentDay = now.getDay(); // 0=nedelja, 1=ponedeljek, ...
+    const dayNames = ["nedelja", "ponedeljek", "torek", "sreda", "četrtek", "petek", "sobota"];
+
+    // Pridobi birthDate iz profila če je userId dan
+    let birthDate = args.birthDate;
+    if (args.userId && !birthDate) {
+      const profile = await ctx.db
+        .query("userProfiles")
+        .withIndex("by_user_id", (q) => q.eq("userId", args.userId!))
+        .first();
+      if (profile?.birthDate) {
+        birthDate = profile.birthDate;
+      }
+    }
+
+    const userIsPensioner = isPensioner(birthDate);
+    const cartTotal = args.cartTotal || 0;
+
+    // Pridobi kupone za to trgovino
+    const coupons = await ctx.db
+      .query("coupons")
+      .withIndex("by_store", (q) => q.eq("storeId", args.storeId))
+      .collect();
+
+    const nowMs = Date.now();
+
+    // Filtriraj veljavne kupone za danes
+    const todayCoupons = coupons
+      .filter((c) => {
+        if (c.validUntil < nowMs) return false;
+        if (c.validFrom && c.validFrom > nowMs) return false;
+        if (c.validDays && c.validDays.length > 0 && !c.validDays.includes(currentDay)) return false;
+        if (c.isActive === false) return false;
+        return true;
+      })
+      .map((c) => {
+        let isRecommended = false;
+        let recommendReason: string | undefined;
+        const meetsMinPurchase = !c.minPurchase || cartTotal >= c.minPurchase;
+
+        // Priporoči kupon za upokojence če je uporabnik upokojenec
+        if (c.code.includes("UPOK") || c.description.toLowerCase().includes("upokojen")) {
+          if (userIsPensioner) {
+            isRecommended = true;
+            recommendReason = "Ste upokojenec - ta kupon je za vas!";
+          }
+        }
+        // Priporoči 10% kupon če je dovolj velika košarica
+        else if (c.couponType === "percentage_total" && c.minPurchase && cartTotal >= c.minPurchase) {
+          isRecommended = true;
+          recommendReason = `Vaša košarica (${cartTotal.toFixed(2)}€) presega minimum (${c.minPurchase}€)`;
+        }
+        // Priporoči 25%/30% kupon za en izdelek
+        else if (c.couponType === "percentage_single_item" && c.discountValue >= 25) {
+          isRecommended = true;
+          recommendReason = "Uporabite na najdražji izdelek za največji prihranek!";
+        }
+
+        // Preveri ali uporabnik ima kartico
+        if (c.requiresLoyaltyCard && !args.hasLoyaltyCard) {
+          isRecommended = false;
+          recommendReason = "Potrebna kartica zvestobe";
+        }
+
+        return {
+          _id: c._id,
+          code: c.code,
+          description: c.description,
+          discountValue: c.discountValue,
+          isRecommended,
+          recommendReason,
+          requiresLoyaltyCard: c.requiresLoyaltyCard ?? false,
+          minPurchase: c.minPurchase,
+          meetsMinPurchase,
+        };
+      })
+      // Razvrsti: najprej priporočeni, potem po popustu
+      .sort((a, b) => {
+        if (a.isRecommended && !b.isRecommended) return -1;
+        if (!a.isRecommended && b.isRecommended) return 1;
+        return b.discountValue - a.discountValue;
+      });
+
+    // Ali je danes na voljo kupon za upokojence?
+    const pensionerCouponAvailable = coupons.some(
+      (c) =>
+        (c.code.includes("UPOK") || c.description.toLowerCase().includes("upokojen")) &&
+        c.validDays?.includes(currentDay)
+    );
+
+    return {
+      todayCoupons,
+      userIsPensioner,
+      currentDay: dayNames[currentDay],
+      pensionerCouponAvailable,
+    };
+  },
+});
+
+// Dodaj vzorčne kupone za vse trgovine - AKTUALNI KUPONI
 export const seedCoupons = mutation({
   args: {},
   returns: v.null(),
@@ -590,146 +749,284 @@ export const seedCoupons = mutation({
     const stores = await ctx.db.query("stores").collect();
     if (stores.length === 0) return null;
 
-    const oneMonth = 30 * 24 * 60 * 60 * 1000;
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
     for (const store of stores) {
       const storeName = store.name.toLowerCase();
 
-      // ========== SPAR - Brezplačni kuponi ==========
+      // ========== SPAR - Kuponi in akcije vsak dan ==========
+      // Vir: https://www.spar.si/promocije-in-projekti/aktualne-promocije
       if (storeName.includes("spar") || storeName === "špar") {
-        await ctx.db.insert("coupons", {
-          storeId: store._id,
-          code: "SPAR10",
-          description: "10% popust na celoten nakup",
-          couponType: "percentage_total",
-          discountValue: 10,
-          minPurchase: 30,
-          validDays: [4, 5, 6, 0], // Četrtek - Nedelja
-          validUntil: now + oneMonth,
-          excludeSaleItems: true,
-          requiresLoyaltyCard: false,
-          canCombine: false,
-          isPremiumOnly: false,
-        });
-
+        // Ponedeljek & Torek: 25% na en izdelek po izbiri
         await ctx.db.insert("coupons", {
           storeId: store._id,
           code: "SPAR25",
-          description: "25% popust na en izdelek",
+          description: "25% popust na en izdelek po vaši izbiri",
           couponType: "percentage_single_item",
           discountValue: 25,
-          validUntil: now + oneMonth,
-          excludeSaleItems: true,
-          requiresLoyaltyCard: false,
+          validDays: [1, 2], // Ponedeljek, Torek
+          validUntil: now + oneWeek,
+          excludeSaleItems: true, // Pri akcijskih se 25% odšteje od REDNE cene, NE od akcijske
+          requiresLoyaltyCard: true, // Potrebna SPAR plus kartica
           canCombine: false,
           isPremiumOnly: false,
+          maxUsesPerUser: 1, // Enkratna uporaba
+          excludedProducts: [
+            "tobak", "časopisi", "revije", "vinjete", "PAYSAFE", "Tchibo",
+            "knjige (<6 mes)", "SIM kartice", "peleti", "darilne kartice",
+            "Zvezdar", "Selectbox", "igre na srečo", "alkohol (razen pivo)",
+            "peneča vina", "koktejli", "race", "gosi", "sušeni pršuti s kostjo",
+            "Sodastream", "Urbana", "suši", "Joker Out puloverji"
+          ],
+          additionalNotes: "SPAR plus kartica obvezna. NE velja za: Noro znižanje, Gratis, Več je ceneje, Trajno znižano, Znižano, Točke zvestobe. Pri akcijskih izdelkih se 25% odšteje od REDNE cene. Max 5kg mesa ali 10kg sadje/zelenjave.",
         });
 
+        // Sreda: 30% na en NEŽIVILSKI izdelek
         await ctx.db.insert("coupons", {
           storeId: store._id,
-          code: "SPAR15VIP",
-          description: "15% popust na celoten nakup (Premium)",
-          couponType: "percentage_total",
-          discountValue: 15,
-          minPurchase: 25,
-          validUntil: now + oneMonth,
-          excludeSaleItems: false,
-          requiresLoyaltyCard: false,
+          code: "SPAR30NF",
+          description: "30% popust na en NEŽIVILSKI izdelek po vaši izbiri",
+          couponType: "percentage_single_item",
+          discountValue: 30,
+          validDays: [3], // Sreda
+          validUntil: now + oneWeek,
+          excludeSaleItems: true, // Pri akcijskih se 30% odšteje od REDNE cene
+          requiresLoyaltyCard: true, // Potrebna SPAR plus kartica
           canCombine: false,
-          isPremiumOnly: true,
+          isPremiumOnly: false,
+          maxUsesPerUser: 1,
+          additionalNotes: "Samo NEŽIVILSKI izdelki (kozmetika, čistila, gospodinjstvo). Potrebna SPAR plus kartica.",
+          applicableCategories: ["Neživila", "Kozmetika", "Čistila", "Gospodinjstvo", "Higiena"],
         });
-      }
 
-      // ========== MERCATOR - Brezplačni kuponi (zahteva Pika kartico) ==========
-      if (storeName.includes("mercator")) {
+        // Sreda: 10% za upokojence na celoten nakup
         await ctx.db.insert("coupons", {
           storeId: store._id,
-          code: "MERC10",
-          description: "10% popust na celoten nakup (s Pika kartico)",
+          code: "SPAR10UPOK",
+          description: "10% popust za upokojence na celoten nakup",
           couponType: "percentage_total",
           discountValue: 10,
-          minPurchase: 30,
-          validUntil: now + oneMonth,
+          minPurchase: 20, // Nakup nad 20 EUR
+          validDays: [3], // Sreda
+          validUntil: now + oneWeek,
+          excludeSaleItems: false, // Velja tudi za akcijske
+          requiresLoyaltyCard: true, // SPAR plus z urejenim statusom upokojenca
+          canCombine: false,
+          isPremiumOnly: false,
+          additionalNotes: "Samo za upokojence s SPAR plus kartico z urejenim statusom. Min. nakup 20€. Max osnova 500€.",
+        });
+
+        // Sreda: 20% za upokojence na SPAR TO GO jedi
+        await ctx.db.insert("coupons", {
+          storeId: store._id,
+          code: "SPAR20TOGO",
+          description: "20% popust na vse jedi SPAR TO GO (upokojenci)",
+          couponType: "category_discount",
+          discountValue: 20,
+          validDays: [3, 4, 5, 6, 0, 1, 2], // Velja cel teden po prejemu
+          validUntil: now + oneWeek,
           excludeSaleItems: false,
           requiresLoyaltyCard: true,
           canCombine: false,
           isPremiumOnly: false,
+          additionalNotes: "Kupon prejmete v sredo, velja do naslednje srede. Samo Interspar in izbrani Spar.",
+          applicableCategories: ["SPAR TO GO", "Pripravljene jedi"],
         });
 
+        // Petek & Sobota: 10% na celoten nakup nad 30€
+        await ctx.db.insert("coupons", {
+          storeId: store._id,
+          code: "SPAR10",
+          description: "10% popust na celoten nakup nad 30€",
+          couponType: "percentage_total",
+          discountValue: 10,
+          minPurchase: 30, // Nakup nad 30 EUR
+          validDays: [5, 6], // Petek, Sobota
+          validUntil: now + oneWeek,
+          excludeSaleItems: false, // VELJA tudi za izdelke v akciji!
+          requiresLoyaltyCard: true, // Potrebna SPAR plus kartica
+          canCombine: false,
+          isPremiumOnly: false,
+          additionalNotes: "Potrebna SPAR plus kartica. Min. nakup 30€. Velja TUDI za akcijske izdelke. Max osnova 500€.",
+        });
+
+        // Torek: Ribji torek - 20% na sveže in zamrznjene ribe
+        await ctx.db.insert("coupons", {
+          storeId: store._id,
+          code: "RIBJITOREK",
+          description: "20% popust na sveže in zamrznjene ribe ter morske sadeže",
+          couponType: "category_discount",
+          discountValue: 20,
+          validDays: [2], // Torek
+          validUntil: now + oneWeek,
+          excludeSaleItems: false,
+          requiresLoyaltyCard: false,
+          canCombine: false,
+          isPremiumOnly: false,
+          additionalNotes: "Velja za sveže ter zamrznjene postrežne ribe ter morske sadeže.",
+          applicableCategories: ["Ribe", "Morski sadeži", "Zamrznjene ribe"],
+        });
+
+      }
+
+      // ========== MERCATOR - Pika kartica kuponi ==========
+      // Vir: https://www.mercator.si/akcije-in-ugodnosti/
+      // Velja SAMO v fizičnih prodajalnah (živilske + franšizne), NE v spletni trgovini!
+      if (storeName.includes("mercator")) {
+        // Vikend: 25% popust na en izbrani izdelek
         await ctx.db.insert("coupons", {
           storeId: store._id,
           code: "MERC25",
-          description: "25% popust na en izdelek (s Pika kartico)",
+          description: "25% popust na en izbrani izdelek (vikend)",
           couponType: "percentage_single_item",
           discountValue: 25,
-          validUntil: now + oneMonth,
-          excludeSaleItems: false,
-          requiresLoyaltyCard: true,
-          canCombine: false,
+          minPurchase: 5, // Preostanek košarice mora biti nad 5€
+          validDays: [5, 6], // Petek, Sobota
+          validUntil: now + oneWeek,
+          excludeSaleItems: false, // Lahko tudi akcijski izdelek
+          requiresLoyaltyCard: true, // Pika kartica obvezna
+          canCombine: false, // NE kombinira z 10% kuponom
           isPremiumOnly: false,
+          maxUsesPerUser: 1,
+          excludedProducts: [
+            "tobak", "tobačni izdelki", "e-cigarete",
+            "časopisi", "revije", "knjige", "alkoholne pijače",
+            "darilne kartice", "položnice", "storitve", "vinjete",
+            "polnitve za telefone", "SIM kartice", "igre na srečo"
+          ],
+          additionalNotes: "Pika kartica obvezna. Preostanek košarice mora biti nad 5€. NE kombinira z 10% kuponom - izbereš enega! Velja SAMO v fizičnih prodajalnah, NE v spletni trgovini.",
         });
 
+        // Vikend: 10% popust na celoten nakup nad 30€
         await ctx.db.insert("coupons", {
           storeId: store._id,
-          code: "MERCVIKEND",
-          description: "20% popust na en izdelek (vikend)",
+          code: "MERC10",
+          description: "10% popust na celoten nakup nad 30€ (vikend)",
+          couponType: "percentage_total",
+          discountValue: 10,
+          minPurchase: 30, // Minimalni nakup 30€
+          validDays: [5, 6], // Petek, Sobota
+          validUntil: now + oneWeek,
+          excludeSaleItems: false, // VELJA tudi za akcijske izdelke!
+          requiresLoyaltyCard: true, // Pika kartica obvezna
+          canCombine: false, // NE kombinira z 25% kuponom
+          isPremiumOnly: false,
+          maxUsesPerUser: 1,
+          excludedProducts: [
+            "tobak", "tobačni izdelki", "e-cigarete",
+            "časopisi", "revije", "knjige", "alkoholne pijače",
+            "darilne kartice", "položnice", "storitve", "vinjete",
+            "polnitve za telefone", "SIM kartice", "igre na srečo"
+          ],
+          additionalNotes: "Pika kartica obvezna. Min. nakup 30€. VELJA tudi za akcijske izdelke! NE kombinira z 25% kuponom - izbereš enega! Velja SAMO v fizičnih prodajalnah.",
+        });
+
+        // INFORMATIVNO (ne seštevamo):
+        // - Super Pika kupon (12% za 300 pik) - uporabnik mora vedeti koliko pik ima
+        // - Moja izbira - personalizirani znižani izdelki, ne kupon
+      }
+
+      // ========== TUŠ - Tedenski kuponi ==========
+      // Vir: Tuš mobilna aplikacija
+      // Tuš klub ali Diners Club Tuš kartica obvezna!
+      // NE velja v spletnem supermarketu hitrinakup.com!
+      if (storeName.includes("tuš") || storeName === "tus") {
+        // 25% kupon za en izdelek
+        await ctx.db.insert("coupons", {
+          storeId: store._id,
+          code: "TUS25",
+          description: "25% popust za en kos izdelka po vaši izbiri",
+          couponType: "percentage_single_item",
+          discountValue: 25,
+          validDays: [2], // Torek (primer)
+          validUntil: now + oneWeek,
+          excludeSaleItems: false, // Pri akcijskih se unovči na REDNO ceno
+          requiresLoyaltyCard: true, // Tuš klub ali Diners Club Tuš kartica
+          canCombine: false,
+          isPremiumOnly: false,
+          maxUsesPerUser: 1,
+          excludedProducts: [
+            "Mojih 10", "STOP PODRAŽITVAM", "10 + 1 gratis", "BUM ponudba",
+            "Tuš klub -50%", "ZA KRATEK ČAS", "odprodaja", "super cena",
+            "znižano pred iztekom roka", "vina", "peneča vina", "žgane pijače",
+            "pivo v steklenici", "pivo v sodih", "časopisi", "revije", "knjige",
+            "cigarete", "tobačni izdelki", "SIM kartice", "začetne formule",
+            "darilni boni", "položnice", "Zvezdar", "Select Box"
+          ],
+          additionalNotes: "Tuš klub ali Diners Club Tuš kartica obvezna. Enkratna uporaba (letak/e-obveščanje/aplikacija). Max 5 kg pri tehtanih izdelkih. Opozoriti blagajnika PRED zaključkom računa! Pri akcijskih izdelkih se 25% unovči na REDNO ceno. NE velja v hitrinakup.com.",
+        });
+
+        // 20% kupon za en izdelek (vikend)
+        await ctx.db.insert("coupons", {
+          storeId: store._id,
+          code: "TUS20",
+          description: "20% popust za en kos izdelka po vaši izbiri (vikend)",
           couponType: "percentage_single_item",
           discountValue: 20,
           validDays: [5, 6], // Petek, Sobota
-          validUntil: now + oneMonth,
+          validUntil: now + oneWeek,
           excludeSaleItems: false,
           requiresLoyaltyCard: true,
           canCombine: false,
           isPremiumOnly: false,
-        });
-      }
-
-      // ========== TUŠ - Brezplačni kuponi ==========
-      if (storeName.includes("tuš") || storeName === "tus") {
-        await ctx.db.insert("coupons", {
-          storeId: store._id,
-          code: "TUS10",
-          description: "10% popust na celoten nakup",
-          couponType: "percentage_total",
-          discountValue: 10,
-          minPurchase: 25,
-          validUntil: now + oneMonth,
-          excludeSaleItems: true,
-          requiresLoyaltyCard: false,
-          canCombine: false,
-          isPremiumOnly: false,
+          maxUsesPerUser: 1,
+          excludedProducts: [
+            "Mojih 10", "STOP PODRAŽITVAM", "10 + 1 gratis", "BUM ponudba",
+            "Tuš klub -50%", "ZA KRATEK ČAS", "odprodaja", "super cena",
+            "vina", "peneča vina", "žgane pijače", "cigarete", "tobačni izdelki",
+            "SIM kartice", "darilni boni", "položnice"
+          ],
+          additionalNotes: "Tuš klub kartica obvezna. Enkratna uporaba. Max 5 kg pri tehtanih izdelkih. Opozoriti blagajnika PRED zaključkom računa!",
         });
 
+        // 15% kupon za en izdelek
         await ctx.db.insert("coupons", {
           storeId: store._id,
-          code: "TUSSREDA",
-          description: "15% popust na celoten nakup (sreda)",
-          couponType: "percentage_total",
-          discountValue: 15,
-          minPurchase: 30,
-          validDays: [3], // Sreda
-          validUntil: now + oneMonth,
-          excludeSaleItems: true,
-          requiresLoyaltyCard: false,
-          canCombine: false,
-          isPremiumOnly: false,
-        });
-
-        await ctx.db.insert("coupons", {
-          storeId: store._id,
-          code: "TUS20VIP",
-          description: "20% popust na en izdelek (Premium)",
+          code: "TUS15",
+          description: "15% popust za en kos izdelka po vaši izbiri",
           couponType: "percentage_single_item",
-          discountValue: 20,
-          validUntil: now + oneMonth,
+          discountValue: 15,
+          validUntil: now + oneWeek,
           excludeSaleItems: false,
-          requiresLoyaltyCard: false,
+          requiresLoyaltyCard: true,
           canCombine: false,
-          isPremiumOnly: true,
+          isPremiumOnly: false,
+          maxUsesPerUser: 1,
+          excludedProducts: [
+            "Mojih 10", "STOP PODRAŽITVAM", "BUM ponudba", "Tuš klub -50%",
+            "ZA KRATEK ČAS", "odprodaja", "super cena", "vina", "žgane pijače",
+            "cigarete", "tobačni izdelki", "SIM kartice", "darilni boni", "položnice"
+          ],
+          additionalNotes: "Tuš klub kartica obvezna. Enkratna uporaba. Max 5 kg pri tehtanih izdelkih.",
         });
-      }
 
+        // 11% kupon na celoten nakup nad 30€ (D*nar nazaj)
+        await ctx.db.insert("coupons", {
+          storeId: store._id,
+          code: "TUS11",
+          description: "11% popust na celoten nakup nad 30€ (D*nar nazaj)",
+          couponType: "percentage_total",
+          discountValue: 11,
+          minPurchase: 30,
+          validUntil: now + oneWeek,
+          excludeSaleItems: false, // Velja tudi za akcijske
+          requiresLoyaltyCard: true,
+          canCombine: false,
+          isPremiumOnly: false,
+          maxUsesPerUser: 1,
+          excludedProducts: [
+            "Mojih 10", "STOP PODRAŽITVAM", "BUM ponudba", "Tuš klub -50%",
+            "ZA KRATEK ČAS", "odprodaja", "super cena", "vina", "žgane pijače",
+            "cigarete", "tobačni izdelki", "SIM kartice", "darilni boni", "položnice"
+          ],
+          additionalNotes: "Tuš klub kartica obvezna. Popust vam v obliki D*narja vrnemo na TK kartico. Nakup nad 30€.",
+        });
+
+        // INFORMATIVNO (ne seštevamo):
+        // - Mojih 10 - personalizirani znižani izdelki, ne kupon
+        // - D*NAR - zbiranje točk, uporabnik mora vedeti koliko ima
+      }
     }
 
     return null;

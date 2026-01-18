@@ -1933,9 +1933,11 @@ export default function SearchScreen() {
           </View>
         ) : limitedResults.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={48} color="#6b7280" />
-            <Text style={styles.emptyTitle}>Ni zadetkov</Text>
-            <Text style={styles.emptyText}>Preveri zapis ali poskusi z drugim izdelkom.</Text>
+            <Ionicons name="alert-circle-outline" size={48} color="#f59e0b" />
+            <Text style={styles.emptyTitle}>Izdelka nismo našli</Text>
+            <Text style={styles.emptyText}>
+              Preveri črkovanje ali pa tega izdelka{"\n"}še nismo dodali v bazo.
+            </Text>
           </View>
         ) : (
           <View style={styles.resultsContainer}>

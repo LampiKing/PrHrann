@@ -69,6 +69,7 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "file-loader": "^6.2.0",
+    "playwright": "^1.57.0",
     "react-native-web": "^0.21.2",
     "sharp": "^0.34.5",
     "typescript": "~5.9.2",
