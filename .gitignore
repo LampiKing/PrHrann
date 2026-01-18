@@ -51,6 +51,9 @@ __pycache__/
 
 # Sensitive files
 automated_scraper/credentials.json
+google-play-service-account.json
+*.keystore
+*.jks
 
 # Claude settings
 .claude/settings.local.json

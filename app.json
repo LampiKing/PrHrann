@@ -15,14 +15,46 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.prhran.app"
+      "bundleIdentifier": "com.prhran.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "PrHran potrebuje dostop do kamere za skeniranje računov in črtnih kod.",
+        "NSPhotoLibraryUsageDescription": "PrHran potrebuje dostop do galerije za nalaganje slik računov.",
+        "NSLocationWhenInUseUsageDescription": "PrHran lahko uporabi vašo lokacijo za prikaz najbližjih trgovin.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./public/icon-512.png",
         "backgroundColor": "#10b981"
       },
-      "package": "com.prhran.app"
+      "package": "com.prhran.app",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "INTERNET",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ],
+      "blockedPermissions": [
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -31,10 +63,47 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Dovoli PrHran dostop do kamere za skeniranje računov."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Dovoli PrHran dostop do galerije za nalaganje slik računov."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Dovoli PrHran dostop do lokacije za prikaz najbližjih trgovin."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./public/icon-192.png",
+          "color": "#10b981"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "TVOJ_EAS_PROJECT_ID"
+      }
+    },
+    "owner": "prhran",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/TVOJ_EAS_PROJECT_ID"
     }
   }
 }
