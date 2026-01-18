@@ -1,14 +1,16 @@
 name: Refresh Product Data
 
 on:
-  schedule:
-    # Runs daily at 6:00 AM UTC (7:00 AM CET / 8:00 AM CEST)
-    - cron: '0 6 * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub UI
+  # DISABLED - Using catalog-scraper.yml instead (Playwright direct scraping)
+  # schedule:
+  #   - cron: '0 6 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI (only when credentials are set)
 
 jobs:
   refresh-data:
     runs-on: ubuntu-latest
+    # Only run if GOOGLE_CREDENTIALS is set
+    if: ${{ github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Checkout repository
@@ -19,7 +21,19 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Check for credentials
+        id: check-creds
+        run: |
+          if [ -z "${{ secrets.GOOGLE_CREDENTIALS }}" ]; then
+            echo "⚠️ GOOGLE_CREDENTIALS not set - skipping Google Sheets refresh"
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ GOOGLE_CREDENTIALS found"
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Refresh data from Google Sheets
+        if: steps.check-creds.outputs.has_creds == 'true'
         env:
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
           PRHRAN_INGEST_URL: ${{ secrets.PRHRAN_INGEST_URL }}

@@ -57,14 +57,14 @@ class PlaywrightCatalogScraper:
             await page.goto('https://mercatoronline.si/brskaj', wait_until='networkidle', timeout=60000)
             await asyncio.sleep(3)
 
-            # Infinite scroll to load products (limit to ~3000 products for speed)
-            print("Scrolling to load products...")
+            # Infinite scroll to load ALL products (no limit)
+            print("Scrolling to load ALL products...")
             last_count = 0
             no_change = 0
             scroll_count = 0
-            max_scrolls = 35  # ~3500 products is enough
+            max_scrolls = 200  # High limit to get all products (~20,000+)
 
-            while no_change < 3 and scroll_count < max_scrolls:
+            while no_change < 5 and scroll_count < max_scrolls:  # Wait for 5 unchanged scrolls
                 scroll_count += 1
                 await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                 await asyncio.sleep(1.5)
@@ -114,9 +114,25 @@ class PlaywrightCatalogScraper:
                     # Check for original price (if on sale)
                     original_price = None
                     sale_price = None
+                    bulk_price = None  # For "Kupi 2" deals
+                    bulk_quantity = None
+
+                    # Check for "Kupi 2" or "2 za" deals
+                    bulk_match = re.search(r'(?:kupi\s*(\d+)|(\d+)\s*za|(\d+)\s*kos)', text.lower())
+                    if bulk_match:
+                        qty = bulk_match.group(1) or bulk_match.group(2) or bulk_match.group(3)
+                        if qty and int(qty) >= 2:
+                            bulk_quantity = int(qty)
+                            # The lower price might be the bulk price
+                            if len(price_matches) >= 2:
+                                prices_all = [float(f"{m[0]}.{m[1]}") for m in price_matches]
+                                prices_sorted = sorted(set(prices_all))
+                                if len(prices_sorted) >= 2:
+                                    bulk_price = prices_sorted[0]  # Lower price for bulk
+                                    original_price = prices_sorted[-1]  # Regular single price
 
                     # Look for "prej" indicator or crossed out price
-                    if len(price_matches) >= 2:
+                    if len(price_matches) >= 2 and not bulk_price:
                         # Multiple prices - might be sale + original, or price + per-kg price
                         # Per-kg prices have "/kg" or "/1kg" after them
                         non_per_kg_prices = []
@@ -151,8 +167,18 @@ class PlaywrightCatalogScraper:
                         'catalogSource': f'{store_name} online {today.strftime("%d.%m.%Y")}'
                     }
 
+                    # Add bulk pricing info (Kupi 2, etc.)
+                    if bulk_price and bulk_quantity:
+                        product_data['bulkPrice'] = bulk_price
+                        product_data['bulkQuantity'] = bulk_quantity
+                        product_data['bulkLabel'] = f'Kupi {bulk_quantity}'
+                        # If no regular sale, use bulk as the effective sale
+                        if not sale_price and original_price:
+                            product_data['salePrice'] = bulk_price
+                            product_data['discountPercentage'] = round((original_price - bulk_price) / original_price * 100)
+
                     # Calculate discount if on sale
-                    if sale_price and original_price:
+                    if sale_price and original_price and 'discountPercentage' not in product_data:
                         product_data['discountPercentage'] = round((original_price - sale_price) / original_price * 100)
 
                     products.append(product_data)
@@ -395,16 +421,42 @@ class PlaywrightCatalogScraper:
         valid_from = today.strftime('%Y-%m-%d')
         valid_until = (today + timedelta(days=7)).strftime('%Y-%m-%d')
 
-        # Subcategories to scrape
+        # ALL subcategories to scrape - comprehensive list
         subcategories = [
-            "Zelenjava", "Sadje",
-            "Meso, delikatesa in ribe", "Ribe",
-            "Hlajeni in mlečni izdelki", "Siri", "Jajca",
-            "Kruh in pekovski izdelki", "Kruh",
-            "Shramba", "Testenine",
-            "Sladko in slano", "Slani prigrizki", "Sladki prigrizki",
+            # Sadje in zelenjava
+            "Zelenjava", "Sadje", "Sveže sadje", "Sveža zelenjava", "Solate", "Gobe",
+            # Meso in ribe
+            "Meso, delikatesa in ribe", "Ribe", "Goveje meso", "Svinjsko meso",
+            "Piščančje meso", "Puranje meso", "Mesni izdelki", "Delikatesa",
+            "Sveže meso", "Morski sadeži",
+            # Mlečni izdelki
+            "Hlajeni in mlečni izdelki", "Siri", "Jajca", "Mleko", "Jogurt",
+            "Skuta", "Maslo", "Smetana", "Mlečni namazi",
+            # Kruh
+            "Kruh in pekovski izdelki", "Kruh", "Pecivo", "Toast", "Žemlje",
+            # Shramba
+            "Shramba", "Testenine", "Riž", "Moka", "Sladkor", "Olje", "Kis",
+            "Konzerve", "Omake", "Začimbe", "Juhe", "Žita", "Kosmiči",
+            # Pijače
             "Brezalkoholne pijače", "Vode", "Sokovi, nektarji in pijače",
-            "Zamrznjeno",
+            "Energijske pijače", "Čaji", "Kava", "Kakav",
+            "Alkoholne pijače", "Pivo", "Vino",
+            # Zamrznjeno
+            "Zamrznjeno", "Zamrznjena zelenjava", "Zamrznjeno meso",
+            "Sladoled", "Zamrznjene jedi",
+            # Sladko in slano
+            "Sladko in slano", "Slani prigrizki", "Sladki prigrizki",
+            "Čokolada", "Bonboni", "Piškoti", "Čips",
+            # Otroška hrana
+            "Otroška hrana", "Mlečne formule", "Kašice",
+            # Hrana za živali
+            "Hrana za živali", "Hrana za pse", "Hrana za mačke",
+            # Čistila
+            "Čistila", "Pralni praški", "Mehčalci",
+            # Osebna nega
+            "Osebna nega", "Šamponi", "Mila", "Zobne paste",
+            # BUM akcije
+            "BUM", "Akcija", "Znižano",
         ]
 
         try:
@@ -476,12 +528,27 @@ class PlaywrightCatalogScraper:
                             if not prices:
                                 continue
 
+                            # Check for BUM price (Tuš special)
+                            is_bum = False
+                            bum_elem = await card.query_selector('[class*="bum"], [class*="BUM"], [class*="akci"]')
+                            if bum_elem or 'bum' in card_text.lower() or 'BUM' in card_text:
+                                is_bum = True
+
                             # Check for dashed (original) price
                             dashed_elem = await card.query_selector('[class*="dashed"], [class*="old-price"], del, s')
                             original_price = None
                             sale_price = None
 
-                            if dashed_elem:
+                            if is_bum and len(prices) >= 1:
+                                # BUM price - the displayed price is the BUM (sale) price
+                                sale_price = min(prices)
+                                # Try to find original price
+                                if len(prices) >= 2:
+                                    original_price = max(prices)
+                                else:
+                                    # Estimate original as ~20% higher if not shown
+                                    original_price = round(sale_price * 1.2, 2)
+                            elif dashed_elem:
                                 dashed_text = await dashed_elem.inner_text()
                                 orig_match = re.search(r'(\d+),(\d{2})', dashed_text)
                                 if orig_match:
@@ -508,6 +575,10 @@ class PlaywrightCatalogScraper:
                                 'catalogSource': f'{store_name} online {today.strftime("%d.%m.%Y")}'
                             }
 
+                            # Add BUM label if applicable
+                            if is_bum:
+                                product_data['promoLabel'] = 'BUM CENA'
+
                             if sale_price and original_price:
                                 product_data['discountPercentage'] = round((original_price - sale_price) / original_price * 100)
 
@@ -517,7 +588,8 @@ class PlaywrightCatalogScraper:
                         except Exception:
                             continue
 
-                    print(f"    Products: {category_products}")
+                    bum_count = sum(1 for p in products if p.get('promoLabel') == 'BUM CENA')
+                    print(f"    Products: {category_products} (BUM: {bum_count})")
 
                 except Exception as e:
                     print(f"    Error: {e}")
