@@ -396,6 +396,14 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   // Splošno
   "čokolada": ["čokolada", "cokolada", "chocolate", "milka", "kinder"],
   "cokolada": ["čokolada", "cokolada", "chocolate", "milka"],
+
+  // Hrana
+  "pica": ["pizza", "pica"],
+  "pizza": ["pizza", "pica"],
+  "nutella": ["nutella", "namaz", "lešnik", "ferrero", "krema čokolad"],
+  "namaz čokolada": ["nutella", "namaz", "čokoladni namaz", "ferrero"],
+  "sendvič": ["sendvič", "sendvic", "sandwich", "toast"],
+  "sendvic": ["sendvič", "sendvic", "sandwich", "toast"],
 };
 
 /**
@@ -493,7 +501,16 @@ export const search = query({
 
     const scoredProducts = allProducts
       .map(product => {
-        const smartScore = smartMatch(product.name, searchQuery, product.unit);
+        // Uporabi NAJBOLJŠI score med originalnim query IN vsemi sinonimi
+        // To omogoča da "pica" najde "pizza" izdelke
+        let bestSmartScore = smartMatch(product.name, searchQuery, product.unit);
+        for (const term of searchTerms) {
+          const termScore = smartMatch(product.name, term, product.unit);
+          if (termScore > bestSmartScore) {
+            bestSmartScore = termScore;
+          }
+        }
+        const smartScore = bestSmartScore;
         const sizeScore = getSizeScore(product.name, product.unit);
         // Kombiniran score: relevantnost + velikost (majhne velikosti dobijo negativen score)
         const combinedScore = smartScore + sizeScore;
