@@ -342,6 +342,83 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
   return Math.max(1, finalScore);
 }
 
+/**
+ * SINONIMI - Slovenski izrazi → kako so shranjeni v bazi
+ * Ko uporabnik išče "čaj", najdemo "tea" izdelke
+ */
+const SEARCH_SYNONYMS: Record<string, string[]> = {
+  // Pijače
+  "čaj": ["čaj", "caj", "tea", "zeliščni", "zelišč"],
+  "caj": ["čaj", "caj", "tea", "zeliščni"],
+  "kava": ["kava", "coffee", "espresso", "barcaffe"],
+
+  // Otroški izdelki
+  "plenice": ["plenice", "pampers", "huggies", "babylove", "pelene", "baby"],
+  "pelene": ["plenice", "pampers", "pelene", "baby"],
+  "dude": ["duda", "dudka", "cucelj", "avent", "nuk"],
+
+  // Čistila
+  "pralni prašek": ["pralni", "detergent", "persil", "ariel", "tide"],
+  "pralni prasek": ["pralni", "detergent", "persil", "ariel"],
+  "detergent": ["detergent", "pralni", "persil", "ariel"],
+  "mehčalec": ["mehčalec", "mehcalec", "lenor", "silan"],
+
+  // Sadje
+  "pomaranče": ["pomaranča", "pomaranče", "oranža", "orange", "citrus"],
+  "pomaranca": ["pomaranča", "pomaranče", "oranža", "orange"],
+  "banane": ["banana", "banane"],
+  "banana": ["banana", "banane"],
+  "jabolka": ["jabolka", "jabolko", "apple"],
+  "limone": ["limona", "limone", "lemon"],
+
+  // Meso
+  "piščanec": ["piščanc", "pišcanc", "piščančje", "chicken", "perutnina"],
+  "piscancje meso": ["piščanc", "pišcanc", "piščančje", "perutnina"],
+  "govedina": ["goveje", "govedina", "beef", "juneće"],
+  "svinjina": ["svinjsko", "svinjina", "pork"],
+
+  // Mlečni izdelki
+  "jogurt": ["jogurt", "yogurt", "activia", "ego"],
+  "skuta": ["skuta", "cottage", "ricotta"],
+  "smetana": ["smetana", "cream", "kisla smetana"],
+
+  // Paštete
+  "pašteta": ["pašteta", "pasteta", "argeta", "pate"],
+  "pasteta": ["pašteta", "pasteta", "argeta", "pate"],
+
+  // Higiena
+  "toaletni papir": ["toaletni papir", "wc papir", "toilet"],
+  "wc papir": ["toaletni papir", "wc papir", "toilet"],
+  "zobna pasta": ["zobna pasta", "colgate", "sensodyne", "oral"],
+  "šampon": ["šampon", "sampon", "shampoo", "head"],
+  "milo": ["milo", "soap", "dove", "nivea"],
+
+  // Splošno
+  "čokolada": ["čokolada", "cokolada", "chocolate", "milka", "kinder"],
+  "cokolada": ["čokolada", "cokolada", "chocolate", "milka"],
+};
+
+/**
+ * Razširi iskalni pojem s sinonimi
+ */
+function expandSearchQuery(query: string): string[] {
+  const queryLower = query.toLowerCase().trim();
+  const synonyms = SEARCH_SYNONYMS[queryLower];
+
+  if (synonyms) {
+    return [queryLower, ...synonyms];
+  }
+
+  // Preveri tudi delne ujemanja
+  for (const [key, values] of Object.entries(SEARCH_SYNONYMS)) {
+    if (queryLower.includes(key) || key.includes(queryLower)) {
+      return [queryLower, ...values];
+    }
+  }
+
+  return [queryLower];
+}
+
 // Iskanje izdelkov - PAMETNO razvrščanje
 export const search = query({
   args: {
@@ -380,14 +457,32 @@ export const search = query({
 
     const searchQuery = args.query.trim();
 
-    // 1. Pridobi kandidate iz search indexa
-    const searchCandidates = await ctx.db
-      .query("products")
-      .withSearchIndex("search_name", (q) => q.search("name", searchQuery.toLowerCase()))
-      .take(500);
+    // 1. Razširi iskalni pojem s sinonimi
+    const searchTerms = expandSearchQuery(searchQuery);
 
-    // 2. Fallback če premalo rezultatov
-    let allProducts = searchCandidates;
+    // 2. Pridobi kandidate iz search indexa za VSE sinonime
+    const seenIds = new Set<string>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const searchCandidates: any[] = [];
+
+    for (const term of searchTerms) {
+      const candidates = await ctx.db
+        .query("products")
+        .withSearchIndex("search_name", (q) => q.search("name", term.toLowerCase()))
+        .take(200);
+
+      for (const candidate of candidates) {
+        const idStr = String(candidate._id);
+        if (!seenIds.has(idStr)) {
+          seenIds.add(idStr);
+          searchCandidates.push(candidate);
+        }
+      }
+    }
+
+    // 3. Fallback če premalo rezultatov
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let allProducts: any[] = searchCandidates;
     if (searchCandidates.length < 50) {
       allProducts = await ctx.db.query("products").take(3000);
     }
