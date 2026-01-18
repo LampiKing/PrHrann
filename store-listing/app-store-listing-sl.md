@@ -61,7 +61,7 @@ Verzija 1.0.0:
 4+ (Brez omejitev)
 
 ## Avtorske pravice
-© 2026 PrHran
+© 2026 PrHran | Coded by LampiPizza
 
 ## URL-ji
 - Podpora: https://prhran.si/podpora

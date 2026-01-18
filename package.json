@@ -2,6 +2,8 @@
   "name": "prhran",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "author": "LampiPizza",
+  "description": "Primerjava cen živil v slovenskih trgovinah",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",

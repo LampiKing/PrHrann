@@ -243,4 +243,4 @@ eas update --branch production --message "Fixed search bug"
 
 ---
 
-*Zadnja posodobitev: Januar 2026*
+**Coded by LampiPizza**
