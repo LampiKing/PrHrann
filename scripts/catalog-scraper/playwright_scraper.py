@@ -57,14 +57,14 @@ class PlaywrightCatalogScraper:
             await page.goto('https://mercatoronline.si/brskaj', wait_until='networkidle', timeout=60000)
             await asyncio.sleep(3)
 
-            # Infinite scroll to load ALL products (no limit)
-            print("Scrolling to load ALL products...")
+            # Infinite scroll to load products (optimized limit)
+            print("Scrolling to load products...")
             last_count = 0
             no_change = 0
             scroll_count = 0
-            max_scrolls = 200  # High limit to get all products (~20,000+)
+            max_scrolls = 80  # ~8000 products - good balance of speed vs coverage
 
-            while no_change < 5 and scroll_count < max_scrolls:  # Wait for 5 unchanged scrolls
+            while no_change < 4 and scroll_count < max_scrolls:  # Wait for 4 unchanged scrolls
                 scroll_count += 1
                 await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                 await asyncio.sleep(1.5)

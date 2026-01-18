@@ -164,6 +164,43 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
   // === BONUS ZA TOČNO UJEMANJE ===
   let exactMatchBonus = exactMatches * 100;
 
+  // === MEGA BONUS: Iskalna beseda je PRVA beseda v imenu izdelka ===
+  // "Mleko" → "Mleko polnomastno 1L" dobi OGROMEN bonus
+  // "Mleko" → "Čokoladno mleko" dobi OGROMNO penalizacijo
+  let primaryWordBonus = 0;
+  let secondaryWordPenalty = 0;
+
+  if (nameWords.length > 0 && queryWords.length === 1) {
+    // Enobesedna poizvedba - preveri ali je to primarna beseda
+    const queryRoot = queryRoots[0];
+    const firstNameRoot = nameRoots[0];
+    const queryWord = queryWords[0];
+    const firstNameWord = nameWords[0];
+
+    // Ali je iskalna beseda PRVA beseda v imenu?
+    const isFirstWord = firstNameWord === queryWord ||
+                        firstNameRoot === queryRoot ||
+                        firstNameWord.startsWith(queryWord) ||
+                        firstNameWord.startsWith(queryRoot);
+
+    if (isFirstWord) {
+      // OGROMEN bonus - to je osnovni izdelek
+      primaryWordBonus = 300;
+    } else {
+      // Iskalna beseda je nekje drugje v imenu - to je verzija/okus
+      // npr. "Čokoladno MLEKO", "Vaniljev JOGURT"
+      const foundLater = nameWords.slice(1).some((nw, idx) => {
+        const nRoot = nameRoots[idx + 1];
+        return nw === queryWord || nRoot === queryRoot || nw.includes(queryRoot);
+      });
+
+      if (foundLater) {
+        // Penaliziraj - to NI primarni izdelek
+        secondaryWordPenalty = 250;
+      }
+    }
+  }
+
   // === BONUS ZA VELIKOST ===
   let sizeMatchBonus = 0;
   const querySize = extractSize(queryLower);
@@ -289,9 +326,9 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
 
   // === KONČNI SCORE ===
   const finalScore = exactMatchBonus + sizeMatchBonus + simplicityScore + positionBonus + sizeScore
-                     + babyBonus + targetAudienceBonus
+                     + babyBonus + targetAudienceBonus + primaryWordBonus
                      - adjectivePenalty - flavorPenalty - derivativePenalty
-                     - adultProductPenalty - irrelevantPenalty;
+                     - adultProductPenalty - irrelevantPenalty - secondaryWordPenalty;
 
   return Math.max(1, finalScore);
 }
@@ -412,20 +449,22 @@ export const search = query({
     // 6. Filtriraj in končno razvrsti
     const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null && r.prices.length > 0);
 
-    // Končno razvrščanje: VELIKOST > ENOSTAVNOST > CENA
+    // Končno razvrščanje: RELEVANTNOST > VELIKOST > CENA
+    // Prioriteta: osnovni izdelki pred verzijami (Mleko pred Čokoladnim mlekom)
     return validResults.sort((a, b) => {
       const aSize = getSizeScore(a.name, a.unit);
       const bSize = getSizeScore(b.name, b.unit);
       const aSmart = smartMatch(a.name, searchQuery, a.unit);
       const bSmart = smartMatch(b.name, searchQuery, b.unit);
 
-      // Kombiniran score: 50% pametnost, 40% velikost, 10% cena
+      // Kombiniran score: 65% pametnost (relevantnost), 30% velikost, 5% cena
+      // Povečana teža za pametnost pomeni da osnovni izdelki pridejo prvi
       const maxPrice = 30;
       const aPriceScore = 100 - Math.min(a.lowestPrice / maxPrice * 100, 100);
       const bPriceScore = 100 - Math.min(b.lowestPrice / maxPrice * 100, 100);
 
-      const aTotal = aSmart * 0.5 + aSize * 0.4 + aPriceScore * 0.1;
-      const bTotal = bSmart * 0.5 + bSize * 0.4 + bPriceScore * 0.1;
+      const aTotal = aSmart * 0.65 + aSize * 0.30 + aPriceScore * 0.05;
+      const bTotal = bSmart * 0.65 + bSize * 0.30 + bPriceScore * 0.05;
 
       return bTotal - aTotal;
     });
