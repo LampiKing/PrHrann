@@ -195,7 +195,7 @@ export default function HelpScreen() {
           {/* App Info */}
           <View style={styles.appInfo}>
             <Text style={styles.appVersion}>Pr'Hran verzija 1.3.0</Text>
-            <Text style={styles.appCopyright}>© 2026 PrHran | Coded by LampiPizza</Text>
+            <Text style={styles.appCopyright}>© 2026 PrHran</Text>
           </View>
 
           {canReset && (

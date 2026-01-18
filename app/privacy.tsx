@@ -436,7 +436,7 @@ export default function PrivacyScreen() {
             <Text style={styles.footerText}>
               Z uporabo PrHran se strinjate s to politiko zasebnosti.
             </Text>
-            <Text style={styles.footerText}>PrHran © 2026 | Coded by LampiPizza</Text>
+            <Text style={styles.footerText}>PrHran © 2026</Text>
           </View>
         </ScrollView>
       </SafeAreaView>

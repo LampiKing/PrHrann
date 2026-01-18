@@ -1,3 +1,8 @@
+/**
+ * PrHran - Primerjava cen
+ * Coded by LampiPizza
+ * © 2026
+ */
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
