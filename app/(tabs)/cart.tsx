@@ -142,9 +142,11 @@ export default function CartScreen() {
     api.leaderboard.getMySeasonSummary,
     isAuthenticated ? {} : "skip"
   );
+  // Skip expensive leaderboard query when cart is empty
+  const hasCartItems = cart && cart.items && cart.items.length > 0;
   const leaderboard = useQuery(
     api.leaderboard.getLeaderboard,
-    isAuthenticated ? { limit: 100 } : "skip"
+    isAuthenticated && hasCartItems ? { limit: 100 } : "skip"
   );
   const updateQuantity = useMutation(api.cart.updateQuantity);
   const removeFromCart = useMutation(api.cart.removeFromCart);

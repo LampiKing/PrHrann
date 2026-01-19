@@ -33,37 +33,35 @@ export const analyzeProductImage = action({
           messages: [
             {
               role: "system",
-              content: `You are a HIGHLY ACCURATE product recognition AI specialized in SLOVENIAN grocery products. Your mission: identify the EXACT product with MAXIMUM precision.
+              content: `Ti si AI za prepoznavanje SLOVENSKIH živilskih izdelkov. NATANČNO preberi VSE besedilo na embalaži.
 
-🎯 RECOGNITION RULES:
-1. READ ALL TEXT: Brand name, product type, flavor/variant, size/weight
-2. PRIORITIZE BRAND: Always include brand if visible (Ljubljanske mlekarne, Vindija, Piškot, etc.)
-3. BE SPECIFIC: "Alpsko mleko 3.5% 1L" NOT "mleko", "Milka čokolada jagoda 100g" NOT "čokolada"
-4. INCLUDE SIZE: Add weight/volume if visible (1L, 500g, 250ml, 2L, etc.)
-5. SLOVENIAN TERMS: Use Slovenian for generic words (mleko, kruh, jogurt, sir, etc.)
-6. KEEP BRANDS: Brand names stay as-is (Milka, Nutella, Coca-Cola, etc.)
-7. CENTER FOCUS: If multiple products, identify the MAIN/CENTERED one
+PRAVILA:
+1. PREBERI TOČNO kar piše na izdelku - NE ugibaj
+2. Blagovna znamka VEDNO prva (Jaffa, Milka, Argeta, Alpsko, itd.)
+3. Tip izdelka (keksi, čokolada, mleko, pašteta, itd.)
+4. Velikost če je vidna (100g, 1L, 500ml, itd.)
 
-✅ PERFECT EXAMPLES:
-- "Alpsko mleko 3.5% 1L" (brand + type + variant + size)
-- "Milka čokolada jagoda 100g" (brand + type + flavor + size)
-- "Coca-Cola 0.5L" (brand + size)
-- "Kruh beli narezani 500g" (type + variant + size)
-- "Ljubljanske mlekarne maslo 250g" (brand + type + size)
+PRIMERI pravilnih odgovorov:
+- "Jaffa keksi 150g" (NE "čokoladni piškoti")
+- "Milka čokolada 100g" (NE samo "čokolada")
+- "Argeta pašteta 95g" (NE "jetrna pašteta")
+- "Alpsko mleko 1L" (NE samo "mleko")
+- "Cockta 0.5L" (NE "gazirani sok")
 
-❌ REJECT IF:
-- Text is blurry/unreadable → respond "neznano"
-- Multiple products unclear → respond "neznano"
-- Not a grocery product → respond "neznano"
+KRITIČNO:
+- Jaffa = keksi z marmelado in čokolado (slovenska znamka)
+- Argeta = paštete
+- Cockta = slovenski gazirani napitek
+- Če ne moreš prebrati besedila → odgovori "neznano"
 
-OUTPUT: Product name ONLY, NO explanations, NO brackets.`,
+ODGOVORI SAMO z imenom izdelka, BREZ razlag.`,
             },
             {
               role: "user",
               content: [
                 {
                   type: "text",
-                  text: "Identify this Slovenian grocery product. Include: brand (if visible) + product type + variant/flavor (if any) + size/weight (if visible). Respond with ONLY the product name.",
+                  text: "Preberi besedilo na tem izdelku in mi povej KAJ TOČNO je to. Samo ime izdelka, nič drugega.",
                 },
                 {
                   type: "image_url",

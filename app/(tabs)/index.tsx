@@ -263,6 +263,8 @@ export default function SearchScreen() {
   // Scanner animation
   const scanLineAnim = useRef(new RNAnimated.Value(0)).current;
   const pulseAnim = useRef(new RNAnimated.Value(1)).current;
+  const scanAnimationRef = useRef<RNAnimated.CompositeAnimation | null>(null);
+  const pulseAnimationRef = useRef<RNAnimated.CompositeAnimation | null>(null);
   const cartToastAnim = useRef(new RNAnimated.Value(0)).current;
   const cartPreviewAnim = useRef(new RNAnimated.Value(0)).current;
   const errorToastAnim = useRef(new RNAnimated.Value(0)).current;
@@ -687,11 +689,11 @@ export default function SearchScreen() {
     };
   }, [isPremium, shakeAnim]);
 
-  // Glow pulse animation
+  // Glow pulse animation - properly stop when not needed
   useEffect(() => {
     if (isPremium) return;
 
-    RNAnimated.loop(
+    const animation = RNAnimated.loop(
       RNAnimated.sequence([
         RNAnimated.timing(glowAnim, {
           toValue: 1,
@@ -706,7 +708,10 @@ export default function SearchScreen() {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    animation.start();
+
+    return () => animation.stop();
   }, [isPremium, glowAnim]);
 
   useEffect(() => {
@@ -767,8 +772,8 @@ export default function SearchScreen() {
     setIsAnalyzing(true);
     setScanResult(null);
 
-    // Start scan line animation
-    RNAnimated.loop(
+    // Start scan line animation - store ref to stop later
+    scanAnimationRef.current = RNAnimated.loop(
       RNAnimated.sequence([
         RNAnimated.timing(scanLineAnim, {
           toValue: 1,
@@ -783,10 +788,11 @@ export default function SearchScreen() {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    scanAnimationRef.current.start();
 
-    // Pulse animation
-    RNAnimated.loop(
+    // Pulse animation - store ref to stop later
+    pulseAnimationRef.current = RNAnimated.loop(
       RNAnimated.sequence([
         RNAnimated.timing(pulseAnim, {
           toValue: 1.05,
@@ -799,7 +805,8 @@ export default function SearchScreen() {
           useNativeDriver: true,
         }),
       ])
-    ).start();
+    );
+    pulseAnimationRef.current.start();
 
     try {
       // Convert image to base64
@@ -825,9 +832,12 @@ export default function SearchScreen() {
       const result = await analyzeImage({ imageBase64: base64Image });
 
       setIsAnalyzing(false);
+      // Stop scan animations
+      scanAnimationRef.current?.stop();
+      pulseAnimationRef.current?.stop();
 
-      if (result.success && result.productName && result.confidence && result.confidence > 0.4) {
-        // Only accept results with reasonable confidence
+      if (result.success && result.productName && result.confidence && result.confidence > 0.6) {
+        // Only accept results with good confidence
         setScanResult(result.productName);
         if (Platform.OS !== "web") {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -842,6 +852,9 @@ export default function SearchScreen() {
     } catch (error) {
       console.error("Error analyzing image:", error);
       setIsAnalyzing(false);
+      // Stop scan animations
+      scanAnimationRef.current?.stop();
+      pulseAnimationRef.current?.stop();
       setScanResult("❌ Napaka pri analizi - poskusi ponovno");
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -872,6 +885,9 @@ export default function SearchScreen() {
     setScanningImage(null);
     setScanResult(null);
     setIsAnalyzing(false);
+    // Stop scan animations
+    scanAnimationRef.current?.stop();
+    pulseAnimationRef.current?.stop();
   };
 
   const handleAddToCart = useCallback(
