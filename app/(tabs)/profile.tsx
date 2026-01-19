@@ -746,7 +746,7 @@ export default function ProfileScreen() {
                   <ActivityIndicator size="large" color="#fff" />
                 </LinearGradient>
               ) : profile.profilePictureUrl ? (
-                <Image source={{ uri: profile.profilePictureUrl }} style={styles.heroAvatar} />
+                <Image source={{ uri: profile.profilePictureUrl }} style={styles.heroAvatar} resizeMode="cover" />
               ) : (
                 <LinearGradient colors={["#a855f7", "#7c3aed"]} style={styles.heroAvatarGradient}>
                   <Text style={styles.heroAvatarInitial}>
@@ -920,7 +920,7 @@ export default function ProfileScreen() {
                 >
                   <View style={styles.familyAvatarContainer}>
                     {member.profilePictureUrl ? (
-                      <Image source={{ uri: member.profilePictureUrl }} style={styles.familyAvatar} />
+                      <Image source={{ uri: member.profilePictureUrl }} style={styles.familyAvatar} resizeMode="cover" />
                     ) : (
                       <LinearGradient colors={["#6366f1", "#4f46e5"]} style={styles.familyAvatarGradient}>
                         <Text style={styles.familyAvatarInitial}>
@@ -1031,7 +1031,7 @@ export default function ProfileScreen() {
                     </View>
                     <View style={styles.familyLeaderboardAvatar}>
                       {member.profilePictureUrl ? (
-                        <Image source={{ uri: member.profilePictureUrl }} style={styles.familyLeaderboardImage} />
+                        <Image source={{ uri: member.profilePictureUrl }} style={styles.familyLeaderboardImage} resizeMode="cover" />
                       ) : (
                         <LinearGradient
                           colors={["#6366f1", "#4f46e5"]}
@@ -1263,7 +1263,7 @@ export default function ProfileScreen() {
                 <View style={styles.memberDetail}>
                   <View style={styles.memberDetailAvatar}>
                     {selectedMember.profilePictureUrl ? (
-                      <Image source={{ uri: selectedMember.profilePictureUrl }} style={styles.memberDetailImage} />
+                      <Image source={{ uri: selectedMember.profilePictureUrl }} style={styles.memberDetailImage} resizeMode="cover" />
                     ) : (
                       <LinearGradient colors={["#6366f1", "#4f46e5"]} style={styles.memberDetailPlaceholder}>
                         <Text style={styles.memberDetailInitial}>

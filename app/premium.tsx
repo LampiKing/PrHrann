@@ -160,6 +160,7 @@ export default function PremiumScreen() {
         <View style={styles.successContainer}>
           <Animated.View
             style={[
+              styles.successContent,
               {
                 opacity: successAnim,
                 transform: [
@@ -914,6 +915,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 40,
+  },
+  successContent: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   successBadge: {
     width: 140,

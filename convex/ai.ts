@@ -123,39 +123,18 @@ OUTPUT: Product name ONLY, NO explanations, NO brackets.`,
   },
 });
 
-// Simulacija prepoznavanja za demo namene
-function simulateProductRecognition(imageBase64: string): {
+// Ko AI ni nastavljen - povej uporabniku
+function simulateProductRecognition(_imageBase64: string): {
   success: boolean;
   productName?: string;
   confidence?: number;
   error?: string;
 } {
-  // Simuliraj prepoznavanje z naključnim izdelkom
-  const demoProducts = [
-    "Alpsko mleko 1L",
-    "Coca-Cola 0.5L",
-    "Nutella 400g",
-    "Kruh beli 500g",
-    "Jogurt Activia 150g",
-    "Maslo Ljubljanske mlekarne 250g",
-    "Jajca M 10 kom",
-    "Banane 1kg",
-    "Piščančje prsi 500g",
-    "Sir Edamec 200g",
-    "Čokolada Milka 100g",
-    "Testenine Barilla 500g",
-    "Paradižnikova omaka 400g",
-    "Mineralna voda Radenska 1.5L",
-    "Kava Barcaffe 250g",
-  ];
-
-  // Uporabi hash slike za konsistentno izbiro
-  const hash = imageBase64.length % demoProducts.length;
-  const selectedProduct = demoProducts[hash];
-
+  // NE daj naključnih rezultatov - povej uporabniku da AI ni na voljo
   return {
-    success: true,
-    productName: selectedProduct,
-    confidence: 0.75 + Math.random() * 0.2,
+    success: false,
+    productName: undefined,
+    confidence: 0,
+    error: "Prepoznava slik trenutno ni na voljo. Vpiši ime izdelka ročno.",
   };
 }

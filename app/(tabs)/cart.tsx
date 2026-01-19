@@ -80,8 +80,8 @@ type StoreBrand = {
 
 const STORE_BRANDS: Record<string, StoreBrand> = {
   mercator: {
-    bg: "#d3003c",
-    border: "#b60035",
+    bg: "#003b7b",
+    border: "#002d5f",
     text: "#fff",
     logo: "mercator",
   },

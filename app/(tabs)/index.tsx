@@ -72,8 +72,8 @@ type StoreBrand = {
 
 const STORE_BRANDS: Record<string, StoreBrand> = {
   mercator: {
-    bg: "#d3003c",
-    border: "#b60035",
+    bg: "#003b7b",
+    border: "#002d5f",
     text: "#fff",
     logo: "mercator",
   },
@@ -246,6 +246,9 @@ export default function SearchScreen() {
   const [recentCartItems, setRecentCartItems] = useState<
     Array<{ key: string; name: string; store: string; quantity: number }>
   >([]);
+
+  // Image preview modal
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
 
   // Animations
   const searchBarScale = useRef(new RNAnimated.Value(1)).current;
@@ -1224,7 +1227,15 @@ export default function SearchScreen() {
             {/* Product Image & Info */}
             <View style={styles.productHeader}>
               <View style={styles.productInfoRow}>
-                <View style={styles.productImageContainer}>
+                <Pressable
+                  style={styles.productImageContainer}
+                  onPress={() => {
+                    if (product.imageUrl) {
+                      setPreviewImage({ url: product.imageUrl, name: product.name });
+                    }
+                  }}
+                  disabled={!product.imageUrl}
+                >
                   {product.imageUrl ? (
                     <Image
                       source={{ uri: product.imageUrl }}
@@ -1241,7 +1252,7 @@ export default function SearchScreen() {
                       </Text>
                     </LinearGradient>
                   )}
-                </View>
+                </Pressable>
 
                 <View style={styles.productInfo}>
                   <Text style={styles.productName} numberOfLines={3} ellipsizeMode="tail" minimumFontScale={0.9}>
@@ -1250,11 +1261,6 @@ export default function SearchScreen() {
                   <Text style={styles.productUnit} numberOfLines={1} ellipsizeMode="tail">
                     {product.unit}
                   </Text>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText} numberOfLines={1} ellipsizeMode="tail">
-                      {product.category}
-                    </Text>
-                  </View>
                 </View>
               </View>
 
@@ -1923,10 +1929,10 @@ export default function SearchScreen() {
           </View>
         ) : limitedResults.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="alert-circle-outline" size={48} color="#f59e0b" />
+            <Ionicons name="search-outline" size={48} color="#94a3b8" />
             <Text style={styles.emptyTitle}>Izdelka nismo našli</Text>
             <Text style={styles.emptyText}>
-              Preveri črkovanje ali pa tega izdelka{"\n"}še nismo dodali v bazo.
+              Preveri kaj si napisal ali pa tega izdelka{"\n"}še nimamo v bazi.
             </Text>
           </View>
         ) : (
@@ -2456,6 +2462,40 @@ export default function SearchScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Image Preview Modal */}
+      <Modal
+        visible={!!previewImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewImage(null)}
+      >
+        <Pressable
+          style={styles.imagePreviewOverlay}
+          onPress={() => setPreviewImage(null)}
+        >
+          <View style={styles.imagePreviewContainer}>
+            {previewImage && (
+              <>
+                <Image
+                  source={{ uri: previewImage.url }}
+                  style={styles.imagePreviewImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.imagePreviewName} numberOfLines={2}>
+                  {previewImage.name}
+                </Text>
+              </>
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.imagePreviewClose}
+            onPress={() => setPreviewImage(null)}
+          >
+            <Ionicons name="close-circle" size={40} color="#fff" />
+          </TouchableOpacity>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -4192,6 +4232,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.5)",
     textAlign: "center",
+  },
+  // Image Preview Modal
+  imagePreviewOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imagePreviewContainer: {
+    width: "90%",
+    maxWidth: 400,
+    alignItems: "center",
+  },
+  imagePreviewImage: {
+    width: "100%",
+    height: 350,
+    borderRadius: 16,
+    backgroundColor: "#1a1a2e",
+  },
+  imagePreviewName: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+    textAlign: "center",
+    paddingHorizontal: 20,
+  },
+  imagePreviewClose: {
+    position: "absolute",
+    top: 60,
+    right: 20,
   },
 });
 
