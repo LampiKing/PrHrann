@@ -32,8 +32,8 @@ export const seedStores = mutation({
     if (existingStores.length > 0) return null;
 
     const stores = [
-      { name: "Spar", color: "#FDB913", isPremium: false }, // Rumeno-rdeč
-      { name: "Mercator", color: "#E31E24", isPremium: false }, // Belo-rdeč s pikicami
+      { name: "Spar", color: "#FDB913", isPremium: false }, // Rumena/oranžna
+      { name: "Mercator", color: "#003DA5", isPremium: false }, // Modra - Pika kartica
       { name: "Tus", color: "#1B5E20", isPremium: false }, // Temno zelen
     ];
 

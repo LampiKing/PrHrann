@@ -4,9 +4,9 @@ import { v } from "convex/values";
 const ALLOWED_STORE_NAMES = new Set(["Spar", "Mercator", "Tus"]);
 const CLEAR_BATCH_SIZE = 1000;
 const STORE_COLORS: Record<string, string> = {
-  Spar: "#c8102e",
-  Mercator: "#d3003c",
-  Tus: "#0d8a3c",
+  Spar: "#FDB913",      // Rumena/oranžna - SPAR brand
+  Mercator: "#003DA5",  // Modra - Mercator Pika kartica
+  Tus: "#1B5E20",       // Temno zelena - Tuš brand
 };
 
 const STORE_NAME_MAP: Record<string, string> = {

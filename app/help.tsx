@@ -36,9 +36,9 @@ const FAQ_ITEMS = [
       `${PLAN_PLUS} vključuje: neomejeno iskanje, slikanje izdelkov, pametne kupone, pregled prihrankov in lestvice. ${PLAN_FAMILY} vključuje vse iz Plus + možnost povabila do 2 članov (skupaj 3 profili) in družinsko mini ligo.`,
   },
   {
-    question: "Kako dodam izdelek v košarico?",
+    question: "Kako dodam izdelek na seznam?",
     answer:
-      "Ko najdeš izdelek, klikni na gumb 'Dodaj v košarico' pri izbrani trgovini. V košarici potem vidiš skupno ceno in prihranke za vsako trgovino posebej.",
+      "Ko najdeš izdelek, klikni na gumb 'Dodaj na seznam' pri izbrani trgovini. Na seznamu potem vidiš skupno ceno in prihranke za vsako trgovino posebej.",
   },
   {
     question: "Ali so cene vedno točne?",

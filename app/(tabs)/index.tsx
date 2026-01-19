@@ -177,14 +177,14 @@ const buildDisplayPrices = (prices: PriceInfo[]): DisplayPriceInfo[] => {
 const FUN_FACTS = [
   "Ali veš, da primerjava cen pred tedenskim nakupom prinese največ prihrankov?",
   "Ali veš, da se prihranek na lestvici šteje le iz potrjenih računov?",
-  "Ali veš, da košarica pokaže potencialni prihranek, račun pa potrdi dejanski?",
+  "Ali veš, da seznam pokaže potencialni prihranek, račun pa potrdi dejanski?",
   "Ali veš, da se akcije in cene pogosto zamenjajo čez vikend?",
   "Ali veš, da redno preverjanje cen zmanjša nepotrebne nakupe?",
   "Ali veš, da je slikanje računa dovoljeno le isti dan do 23:00?",
   "Ali veš, da tudi majhni prihranki skozi leto ustvarijo velik rezultat?",
-  "Ali veš, da načrtovana košarica pomaga pri pametnem nakupu?",
+  "Ali veš, da načrtovan seznam pomaga pri pametnem nakupu?",
   "Ali veš, da lahko preveriš cene tik pred odhodom v trgovino?",
-  "Ali veš, da prihranek temelji na dejanskem nakupu, ne na košarici?",
+  "Ali veš, da prihranek temelji na dejanskem nakupu, ne na seznamu?",
   "Ali veš, da je tvoj rezultat vedno pošten, ker upošteva le račune?",
   "Ali veš, da pameten načrt nakupa zmanjša impulzivne odločitve?",
   "Ali veš, da primerjava cen pogosto prihrani več, kot pričakuješ?",
@@ -194,14 +194,14 @@ const FUN_FACTS = [
 const FUN_FACTS_LEGACY = [
   "Ali veš, da primerjava cen pred tedenskim nakupom prinese največ prihrankov?",
   "Ali veš, da se prihranek na lestvici šteje le iz potrjenih računov?",
-  "Ali veš, da košarica pokaže potencialni prihranek, račun pa potrdi dejanski?",
+  "Ali veš, da seznam pokaže potencialni prihranek, račun pa potrdi dejanski?",
   "Ali veš, da se akcije in cene pogosto zamenjajo čez vikend?",
   "Ali veš, da redno preverjanje cen zmanjša nepotrebne nakupe?",
   "Ali veš, da je slikanje računa dovoljeno le isti dan do 23:00?",
   "Ali veš, da tudi majhni prihranki skozi leto ustvarijo velik rezultat?",
-  "Ali veš, da načrtovana košarica pomaga pri pametnem nakupu?",
+  "Ali veš, da načrtovan seznam pomaga pri pametnem nakupu?",
   "Ali veš, da lahko preveriš cene tik pred odhodom v trgovino?",
-  "Ali veš, da prihranek temelji na dejanskem nakupu, ne na košarici?",
+  "Ali veš, da prihranek temelji na dejanskem nakupu, ne na seznamu?",
   "Ali veš, da je tvoj rezultat vedno pošten, ker upošteva le račune?",
   "Ali veš, da pameten načrt nakupa zmanjša impulzivne odločitve?",
   "Ali veš, da primerjava cen pogosto prihrani več, kot pričakuješ?",
@@ -283,7 +283,7 @@ export default function SearchScreen() {
   const guestModalTitle = isGuestLimitContext
     ? "Dosegel si dnevni limit iskanj"
     : isGuestCartContext
-    ? "Košarica je na voljo prijavljenim"
+    ? "Seznam je na voljo prijavljenim"
     : "Kamera je na voljo prijavljenim";
   const guestModalSubtitle = isGuestLimitContext
     ? "Odštevalnik do polnoči"
@@ -307,7 +307,7 @@ export default function SearchScreen() {
   const authFabLabel = isCompact ? "Prijava" : "Prijava / Registracija";
   const fabScaleMin = isCompact ? 0.92 : 0.98;
   const fabScaleMax = isCompact ? 1.02 : 1.04;
-  const scrollTopPadding = insets.top + (showTopFabs ? (isCompact ? 140 : 104) : 20);
+  const scrollTopPadding = insets.top + (showTopFabs ? (isCompact ? 60 : 50) : 10);
   const cart = useQuery(
     api.cart.getCart,
     isAuthenticated && !isGuestMode ? {} : "skip"
@@ -860,7 +860,7 @@ export default function SearchScreen() {
         return;
       }
       if (!product._id || !price.storeId) {
-        alert("Tega izdelka trenutno ni možno dodati v košarico.");
+        alert("Tega izdelka trenutno ni možno dodati na seznam.");
         return;
       }
 
@@ -896,7 +896,7 @@ export default function SearchScreen() {
           },
           ...prev,
         ].slice(0, 3));
-        triggerCartToast("Dodano v košarico!");
+        triggerCartToast("Dodano na seznam!");
         setTimeout(() => setAddedToCart(null), 1500);
       } catch (error) {
         console.error("Napaka pri dodajanju:", error);
@@ -953,11 +953,11 @@ export default function SearchScreen() {
           },
           ...prev,
         ].slice(0, 3));
-        triggerCartToast("Dodano v košarico!");
+        triggerCartToast("Dodano na seznam!");
         setTimeout(() => setAddedToCart(null), 1500);
       } catch (error) {
         console.error("Napaka pri dodajanju:", error);
-        const errorMessage = error instanceof Error ? error.message : "Napaka pri dodajanju v košarico";
+        const errorMessage = error instanceof Error ? error.message : "Napaka pri dodajanju na seznam";
         alert(errorMessage);
       } finally {
         setAddingToCart(null);
@@ -1329,11 +1329,11 @@ export default function SearchScreen() {
                 />
                 <Text style={styles.quickAddText}>
                   {cartLocked
-                    ? "Prijava za Košarico"
+                    ? "Prijava za Seznam"
                     : lowestPriceStore
                       ? isQuickAdded
                         ? "Dodano!"
-                        : "Dodaj najcenejše"
+                        : "Dodaj na seznam"
                       : "--"}
                 </Text>
               </LinearGradient>
@@ -1661,10 +1661,10 @@ export default function SearchScreen() {
                   <Text style={styles.guestBannerBadgeText}>GOST</Text>
                 </View>
                 <Text style={[styles.guestBannerTitle, isCompact && styles.guestBannerTitleCompact]}>
-                  Odkleni košarico in profil
+                  Odkleni seznam in profil
                 </Text>
                 <Text style={[styles.guestBannerText, isCompact && styles.guestBannerTextCompact]}>
-                  Registracija odklene še 2 iskanja danes + Košarica + Profil.
+                  Registracija odklene še 2 iskanja danes + Seznam + Profil.
                 </Text>
               </View>
               <TouchableOpacity
@@ -1815,7 +1815,7 @@ export default function SearchScreen() {
             ) : (
               <Text style={styles.searchLimitTextEmpty}>
                 {isGuestMode
-                  ? "Registracija odklene še 2 iskanji danes + Košarica + Profil."
+                  ? "Registracija odklene še 2 iskanji danes + Seznam + Profil."
                   : `Dosegel si dnevni limit iskanj. Nadgradi na ${PLAN_PLUS} za neomejeno iskanje.`}
               </Text>
             )}
@@ -1922,7 +1922,7 @@ export default function SearchScreen() {
                   <Text style={styles.guestLimitTitle}>Odkleni več možnosti</Text>
                   <Text style={styles.guestLimitText}>
                     Kot gost imaš 1 iskanje na dan.{"\n"}
-                    Registracija odklene še 2 iskanja danes + Košarica + Profil.
+                    Registracija odklene še 2 iskanja danes + Seznam + Profil.
                   </Text>
                   <View style={styles.guestLimitButton}>
                     <Text style={styles.guestLimitButtonText}>Prijava / Registracija</Text>
@@ -1990,7 +1990,7 @@ export default function SearchScreen() {
             <View style={styles.cartPreviewHeader}>
               <View style={styles.cartPreviewTitleRow}>
                 <Ionicons name="cart-outline" size={18} color="#a78bfa" />
-                <Text style={styles.cartPreviewTitle}>Košarica posodobljena</Text>
+                <Text style={styles.cartPreviewTitle}>Seznam posodobljen</Text>
               </View>
               <Text style={styles.cartPreviewCount}>
                 {cart?.itemCount ?? previewItems.length} izdelkov
@@ -2021,7 +2021,7 @@ export default function SearchScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.cartPreviewButtonGradient}
               >
-                <Text style={styles.cartPreviewButtonText}>Poglej Košarico</Text>
+                <Text style={styles.cartPreviewButtonText}>Poglej Seznam</Text>
                 <Ionicons name="arrow-forward" size={16} color="#fff" />
               </LinearGradient>
             </TouchableOpacity>
@@ -2211,7 +2211,7 @@ export default function SearchScreen() {
                     <Text style={styles.guestOptionBadgeText}>BREZPLAČNO</Text>
                     </View>
                     <Text style={styles.guestOptionTitle}>Registracija</Text>
-                    <Text style={styles.guestOptionDesc}>+2 iskanja danes + Košarica + Profil</Text>
+                    <Text style={styles.guestOptionDesc}>+2 iskanja danes + Seznam + Profil</Text>
                     <TouchableOpacity
                       style={styles.guestOptionBtn}
                       onPress={handleGuestAuthPress}
@@ -2424,8 +2424,8 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   logo: {
-    width: 100,
-    height: 200,
+    width: 80,
+    height: 120,
     marginBottom: 2,
   },
   searchingHint: {

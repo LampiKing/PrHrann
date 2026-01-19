@@ -27,7 +27,7 @@ import { getDeviceFingerprint } from "../lib/device-fingerprint";
 const FACTS = [
   "Pametna primerjava cen ti prihrani čas in denar.",
   "Prihranek na lestvici se šteje samo iz potrjenih računov.",
-  "Košarica pokaže potencialni prihranek pred nakupom.",
+  "Seznam pokaže potencialni prihranek pred nakupom.",
   "Slikanje računa traja manj kot minuto.",
   "Cene istega izdelka se razlikujejo med trgovinami.",
   "Z rednim spremljanjem cen hitreje opaziš prave akcije.",
@@ -37,7 +37,7 @@ const FACTS = [
 const FACTS_LEGACY = [
   "Pametna primerjava cen ti prihrani čas in denar.",
   "Prihranek na lestvici se šteje samo iz potrjenih računov.",
-  "Košarica pokaže potencialni prihranek pred nakupom.",
+  "Seznam pokaže potencialni prihranek pred nakupom.",
   "Slikanje računa traja manj kot minuto.",
   "Cene istega izdelka se razlikujejo med trgovinami.",
   "Z rednim spremljanjem cen hitreje opaziš prave akcije.",

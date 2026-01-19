@@ -152,12 +152,12 @@ export default function NotificationsScreen() {
               <View style={[styles.settingItem, { borderBottomWidth: 0 }]}>
                 <View style={styles.settingLeft}>
                   <View style={[styles.settingIcon, { backgroundColor: "rgba(239, 68, 68, 0.15)" }]}>
-                    <Ionicons name="cart" size={20} color="#ef4444" />
+                    <Ionicons name="list" size={20} color="#ef4444" />
                   </View>
                   <View style={styles.settingInfo}>
-                    <Text style={styles.settingTitle}>Opomniki košarice</Text>
+                    <Text style={styles.settingTitle}>Opomniki seznama</Text>
                     <Text style={styles.settingDescription}>
-                      Opomnik, če imaš izdelke v košarici
+                      Opomnik, če imaš izdelke na seznamu
                     </Text>
                   </View>
                 </View>

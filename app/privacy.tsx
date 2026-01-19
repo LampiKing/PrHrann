@@ -55,7 +55,7 @@ export default function PrivacyScreen() {
           <Text style={styles.subsectionTitle}>1.3. Podatki o Uporabi</Text>
           <Text style={styles.paragraph}>
             • Zgodovina iskanj izdelkov{"\n"}
-            • Košarica in nakupovalni seznami{"\n"}
+            • Nakupovalni seznami{"\n"}
             • Slike računov (za analizo prihrankov){"\n"}
             • Interakcije z aplikacijo (kliki, navigacija)
           </Text>

@@ -148,10 +148,10 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="cart"
           options={{
-            title: "Košarica",
+            title: "Seznam",
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="cart" size={size} color={color} />
+              <Ionicons name="list" size={size} color={color} />
             ),
           }}
         />

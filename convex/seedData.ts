@@ -10,8 +10,8 @@ import { internal } from "./_generated/api";
 
 // 🏪 TRGOVINE - Spremeni logo URL-je ko imas prave slike
 export const STORES_DATA = [
-  { name: "Spar", color: "#FDB913", logo: "", isPremium: false }, // Rumeno-rdeč
-  { name: "Mercator", color: "#E31E24", logo: "", isPremium: false }, // Belo-rdeč
+  { name: "Spar", color: "#FDB913", logo: "", isPremium: false }, // Rumena/oranžna
+  { name: "Mercator", color: "#003DA5", logo: "", isPremium: false }, // Modra - Pika kartica
   { name: "Tus", color: "#1B5E20", logo: "", isPremium: false }, // Temno zelen
 ];
 

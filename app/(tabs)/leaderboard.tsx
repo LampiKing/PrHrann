@@ -64,7 +64,7 @@ export default function LeaderboardScreen() {
           </View>
           <Text style={styles.guestTitle}>Lestvica je zaklenjena</Text>
           <Text style={styles.guestText}>
-            Registracija odklene lestvico, Košarico in Profil ter še 2 iskanja danes.
+            Registracija odklene lestvico, Seznam in Profil ter še 2 iskanja danes.
           </Text>
           <TouchableOpacity
             style={styles.guestButton}
@@ -381,7 +381,7 @@ export default function LeaderboardScreen() {
               {"\n\n"}
               💰 <Text style={styles.infoBold}>Zberi prihranke</Text> – Tvoj letni prihranek se posodablja z vsakim potrjenim računom. Več računov = večji prihranek = višja pozicija!
               {"\n\n"}
-              🎯 <Text style={styles.infoBold}>Kaj ne šteje?</Text> Košarica in primerjava cen brez nakupa ne vplivata na lestvico. Štejejo samo potrjeni računi iz Mercatorja, Spara ali Tuša.
+              🎯 <Text style={styles.infoBold}>Kaj ne šteje?</Text> Seznam in primerjava cen brez nakupa ne vplivata na lestvico. Štejejo samo potrjeni računi iz Mercatorja, Spara ali Tuša.
               {"\n\n"}
               🏅 <Text style={styles.infoBold}>Nagrade</Text> – Top 10 prejme značke (zlato, srebrno, bronasto). Top 100 dobi posebno značko. Nagrade se podelijo 25. decembra (od sezone 2026 naprej).
               {"\n\n"}

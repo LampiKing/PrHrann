@@ -56,9 +56,9 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>2. Uporabniski statusi</Text>
             <Text style={styles.sectionText}>
-              Gost: 1 iskanje na dan, brez dostopa do košarice, profila, lestvice in računov.
+              Gost: 1 iskanje na dan, brez dostopa do seznama, profila, lestvice in računov.
               {"\n"}
-              Free: 3 iskanja na dan, dostop do košarice, profila in skupne lestvice.
+              Free: 3 iskanja na dan, dostop do seznama, profila in skupne lestvice.
               {"\n"}
               {PLAN_PLUS}: neomejeno iskanje in slikanje izdelkov.
               {"\n"}
@@ -69,7 +69,7 @@ export default function TermsScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>3. Prihranek in računi</Text>
             <Text style={styles.sectionText}>
-              Prihranek se računa izključno iz potrjenih računov. Košarica in primerjava cen
+              Prihranek se računa izključno iz potrjenih računov. Seznam in primerjava cen
               brez nakupa ne vplivata na letni prihranek ali lestvico.
               {"\n\n"}
               Veljaven račun mora biti dodan isti dan do 23:00, potrjen s checkboxom in ne sme

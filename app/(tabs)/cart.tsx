@@ -172,7 +172,7 @@ export default function CartScreen() {
         />
         <View style={[styles.guestLockCard, { paddingTop: insets.top + 40 }]}>
           <Ionicons name="lock-closed" size={48} color="#a78bfa" />
-          <Text style={styles.guestLockTitle}>Košarica je zaklenjena</Text>
+          <Text style={styles.guestLockTitle}>Seznam je zaklenjen</Text>
           <Text style={styles.guestLockText}>
             Za nadaljevanje se prijavi ali registriraj.
           </Text>
@@ -300,7 +300,7 @@ export default function CartScreen() {
             resizeMode="contain"
           />
           <Text style={styles.title}>
-            {isPremium ? "Premium košarica" : "Tvoja košarica"}
+            {isPremium ? "Premium seznam" : "Nakupovalni seznam"}
           </Text>
           {isPremium && (
             <View style={styles.premiumBadgeContainer}>
@@ -324,10 +324,10 @@ export default function CartScreen() {
                 colors={["rgba(139, 92, 246, 0.3)", "rgba(59, 7, 100, 0.2)"]}
                 style={styles.emptyIconBg}
               >
-                <Ionicons name="cart-outline" size={48} color="#a78bfa" />
+                <Ionicons name="list-outline" size={48} color="#a78bfa" />
               </LinearGradient>
             </View>
-            <Text style={styles.emptyTitle}>Košarica je prazna</Text>
+            <Text style={styles.emptyTitle}>Seznam je prazen</Text>
             <Text style={styles.emptyText}>
               Dodaj izdelke iz iskalnika in{"\n"}primerjaj cene med trgovinami
             </Text>
@@ -607,7 +607,7 @@ export default function CartScreen() {
             <View style={styles.actionButtons}>
               <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
                 <Ionicons name="share-outline" size={20} color="#a78bfa" />
-                <Text style={styles.shareButtonText}>Deli košarico</Text>
+                <Text style={styles.shareButtonText}>Deli seznam</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.clearButton} onPress={handleClearCart}>
