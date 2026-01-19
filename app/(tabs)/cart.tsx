@@ -1,4 +1,4 @@
-﻿import { useRef, useEffect } from "react";
+﻿import { useRef, useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Animated,
   Share,
+  RefreshControl,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +23,7 @@ import { createShadow } from "../../lib/shadow-helper";
 import { useRouter } from "expo-router";
 import FloatingBackground from "../../lib/FloatingBackground";
 import { PLAN_FAMILY, PLAN_PLUS } from "../../lib/branding";
+import { getStoreBrand } from "../../lib/store-brands";
 
 interface CartItemType {
   _id: Id<"cartItems">;
@@ -65,63 +67,7 @@ interface StoreGroup {
   stackingStrategy?: string;
 }
 
-type BrandAccent = { color: string; position?: "left" | "right"; width?: number };
-type BrandRing = { color: string; width?: number };
-type BrandLogo = "mercator";
-type StoreBrand = {
-  bg: string;
-  border: string;
-  text: string;
-  accent?: BrandAccent;
-  ring?: BrandRing;
-  cornerIcon?: { char: string; color: string; top: number; left: number; fontSize: number };
-  logo?: BrandLogo;
-};
-
-const STORE_BRANDS: Record<string, StoreBrand> = {
-  mercator: {
-    bg: "#003b7b",
-    border: "#002d5f",
-    text: "#fff",
-    logo: "mercator",
-  },
-  spar: {
-    bg: "#c8102e",
-    border: "#a70e27",
-    text: "#fff",
-  },
-  tus: {
-    bg: "#0d8a3c",
-    border: "#0b6e30",
-    text: "#fff",
-    cornerIcon: { char: "%", color: "#facc15", top: 2, left: 20, fontSize: 9 },
-  },
-  hofer: {
-    bg: "#0b3d7a",
-    border: "#0b3d7a",
-    text: "#fff",
-    ring: { color: "#fbbf24", width: 1.2 },
-  },
-  lidl: {
-    bg: "#0047ba",
-    border: "#0047ba",
-    text: "#fff",
-  },
-  jager: {
-    bg: "#1f8a3c",
-    border: "#b91c1c",
-    text: "#fff",
-    accent: { color: "#b91c1c", position: "left", width: 4 },
-  },
-};
-
-const getStoreBrand = (name?: string, fallbackColor?: string) => {
-  const key = (name || "").toLowerCase();
-  const brand = STORE_BRANDS[key as keyof typeof STORE_BRANDS];
-  if (brand) return brand;
-  const color = fallbackColor || "#8b5cf6";
-  return { bg: color, border: color, text: "#fff" };
-};
+// Store brands helper imported from ../../lib/store-brands
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
@@ -129,6 +75,17 @@ export default function CartScreen() {
   const { isAuthenticated } = useConvexAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setRefreshing(false);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, []);
 
   const cart = useQuery(
     api.cart.getCart,
@@ -293,6 +250,15 @@ export default function CartScreen() {
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#a78bfa"
+            colors={["#8b5cf6", "#a78bfa"]}
+            progressBackgroundColor="rgba(15, 10, 30, 0.9)"
+          />
+        }
       >
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>

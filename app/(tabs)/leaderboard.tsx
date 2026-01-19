@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, ActivityIndicator } from "react-native";
+import { useState, useCallback } from "react";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, ActivityIndicator, RefreshControl, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useConvexAuth } from "convex/react";
@@ -9,6 +9,7 @@ import { useRouter } from "expo-router";
 import { getSeasonalLogoSource } from "../../lib/Logo";
 import FloatingBackground from "../../lib/FloatingBackground";
 import { PLAN_FAMILY, PLAN_PLUS } from "../../lib/branding";
+import * as Haptics from "expo-haptics";
 
 const formatCurrency = (value: number) => {
   if (!Number.isFinite(value)) return "0.00 EUR";
@@ -20,6 +21,18 @@ export default function LeaderboardScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useConvexAuth();
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setRefreshing(false);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, []);
+
   const profile = useQuery(
     api.userProfiles.getProfile,
     isAuthenticated ? {} : "skip"
@@ -130,6 +143,15 @@ export default function LeaderboardScreen() {
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 20 }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#fbbf24"
+            colors={["#fbbf24", "#f59e0b"]}
+            progressBackgroundColor="rgba(15, 10, 30, 0.9)"
+          />
+        }
       >
         <View style={styles.header}>
           <View style={styles.trophyContainer}>

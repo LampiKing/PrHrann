@@ -35,37 +35,37 @@ const slides: OnboardingSlide[] = [
   {
     id: 1,
     icon: "cash-outline",
-    title: "Hrana je draga.",
-    subtitle: "Mi ti pomagamo prihraniti!",
-    description: "Mi primerjamo cene v trgovinah\nnamesto tebe.",
-    highlight: "Brezplačno.",
+    title: "Koliko denarja\nzapraviš preveč?",
+    subtitle: "Verjetno več kot misliš.",
+    description: "Ista hrana, različne cene.\nMi najdemo najnižjo.",
+    highlight: "100% brezplačno.",
     gradient: ["#dc2626", "#ef4444"],
   },
   {
     id: 2,
     icon: "search",
-    title: "Vpiši izdelek.",
-    subtitle: "V sekundi poiščemo najnižjo ceno.",
-    description: "Spar, Mercator, Tuš...\nVse na enem mestu.",
-    highlight: "Hitro in enostavno.",
+    title: "Ena sekunda.",
+    subtitle: "Toliko rabiš za najnižjo ceno.",
+    description: "Spar, Mercator, Tuš...\nVse primerjano v realnem času.",
+    highlight: "Brez dela.",
     gradient: ["#7c3aed", "#a855f7"],
   },
   {
     id: 3,
     icon: "bag-check",
-    title: "Naredi seznam.",
-    subtitle: "Vidiš, kje je najceneje.",
-    description: "Dodaj vse kar rabiš.\nAplikacija izračuna prihranek.",
-    highlight: "Avtomatsko.",
+    title: "Tvoj pameten seznam.",
+    subtitle: "Avtomatsko izračuna prihranek.",
+    description: "Dodaj izdelke.\nMi ti povemo kje kupit.",
+    highlight: "Pametno nakupovanje.",
     gradient: ["#059669", "#10b981"],
   },
   {
     id: 4,
     icon: "wallet",
-    title: "Prihrani denar!",
-    subtitle: "Vsak teden. Vsak mesec. Vsako leto.",
-    description: "Povprečen uporabnik prihrani\ndo 30% na mesečnih nakupih.",
-    highlight: "Začni in pr'hran!",
+    title: "Do 30% prihranka.",
+    subtitle: "Vsak mesec. Brez napora.",
+    description: "Tisoči Slovencev že varčujejo.\nZakaj ne bi tudi ti?",
+    highlight: "Začni zdaj!",
     gradient: ["#d97706", "#f59e0b"],
   },
 ];
@@ -455,7 +455,7 @@ export default function OnboardingScreen() {
             },
           ]}
         >
-          <Text style={styles.celebrationTitle}>PRIHRANI!</Text>
+          <Text style={styles.celebrationTitle}>PR'HRANI!</Text>
           <Text style={styles.celebrationSubtitle}>Gremo varčevat!</Text>
         </Animated.View>
       </Animated.View>

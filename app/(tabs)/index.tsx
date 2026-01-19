@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   View,
@@ -14,6 +14,7 @@ import {
   Animated as RNAnimated,
   Easing,
   Modal,
+  RefreshControl,
 } from "react-native";
 import Logo, { getSeasonalLogoSource } from "../../lib/Logo";
 import { LinearGradient } from "expo-linear-gradient";
@@ -30,6 +31,20 @@ import * as FileSystem from "expo-file-system";
 import { PLAN_PLUS } from "../../lib/branding";
 import { createShadow, createTextShadow } from "../../lib/shadow-helper";
 import FloatingBackground from "../../lib/FloatingBackground";
+import {
+  STORE_BRANDS,
+  ALLOWED_STORE_KEYS,
+  STORE_DISPLAY_ORDER,
+  normalizeStoreKey,
+  normalizeResultKey,
+  getStoreBrand,
+  isAllowedStoreName,
+  type StoreBrand,
+  type BrandAccent,
+  type BrandRing,
+  type BrandLogo,
+} from "../../lib/store-brands";
+import { ProductListSkeleton } from "../../lib/SkeletonLoading";
 
 
 interface PriceInfo {
@@ -56,91 +71,7 @@ interface ProductResult {
   highestPrice: number;
 }
 
-type BrandAccent = { color: string; position?: "left" | "right"; width?: number };
-type BrandRing = { color: string; width?: number };
-type BrandLogo = "mercator";
-
-type StoreBrand = {
-  bg: string;
-  border: string;
-  text: string;
-  accent?: BrandAccent;
-  ring?: BrandRing;
-  cornerIcon?: { char: string; color: string; top: number; left: number; fontSize: number };
-  logo?: BrandLogo;
-};
-
-const STORE_BRANDS: Record<string, StoreBrand> = {
-  mercator: {
-    bg: "#003b7b",
-    border: "#002d5f",
-    text: "#fff",
-    logo: "mercator",
-  },
-  spar: {
-    bg: "#c8102e",
-    border: "#a70e27",
-    text: "#fff",
-  },
-  tus: {
-    bg: "#0d8a3c",
-    border: "#0b6e30",
-    text: "#fff",
-    cornerIcon: { char: "%", color: "#facc15", top: 2, left: 20, fontSize: 9 },
-  },
-  hofer: {
-    bg: "#0b3d7a",
-    border: "#0b3d7a",
-    text: "#fff",
-    ring: { color: "#fbbf24", width: 1.2 },
-  },
-  lidl: {
-    bg: "#0047ba",
-    border: "#0047ba",
-    text: "#fff",
-  },
-  jager: {
-    bg: "#1f8a3c",
-    border: "#b91c1c",
-    text: "#fff",
-    accent: { color: "#b91c1c", position: "left", width: 4 },
-  },
-};
-
-const normalizeStoreKey = (name?: string) =>
-  (name || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-
-const normalizeResultKey = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-const ALLOWED_STORE_KEYS = new Set(["spar", "mercator", "tus"]);
-const STORE_DISPLAY_ORDER = [
-  { key: "spar", label: "Spar" },
-  { key: "mercator", label: "Mercator" },
-  { key: "tus", label: "Tuš" },
-];
-
-const isAllowedStoreName = (name?: string) => {
-  if (!name) return false;
-  return ALLOWED_STORE_KEYS.has(normalizeStoreKey(name));
-};
-
-const getStoreBrand = (name?: string, fallbackColor?: string) => {
-  const key = normalizeStoreKey(name);
-  const brand = STORE_BRANDS[key as keyof typeof STORE_BRANDS];
-  if (brand) return brand;
-  const color = fallbackColor || "#8b5cf6";
-  return { bg: color, border: color, text: "#fff" };
-};
+// Store brands, helper functions moved to ../../lib/store-brands.ts
 
 const buildDisplayPrices = (prices: PriceInfo[]): DisplayPriceInfo[] => {
   const byStore = new Map<string, PriceInfo>();
@@ -250,6 +181,9 @@ export default function SearchScreen() {
 
   // Image preview modal
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+
+  // Pull-to-refresh state
+  const [refreshing, setRefreshing] = useState(false);
 
   // Animations
   const searchBarScale = useRef(new RNAnimated.Value(1)).current;
@@ -376,6 +310,19 @@ export default function SearchScreen() {
   const closeGuestModal = useCallback(() => {
     guestModalDismissedAtRef.current = Date.now();
     setShowGuestLimitModal(false);
+  }, []);
+
+  // Pull-to-refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    // Clear card animations for fresh entrance
+    cardAnimationsRef.current = {};
+    // Small delay to let queries refresh
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setRefreshing(false);
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   }, []);
 
   const handleResendVerificationEmail = useCallback(async () => {
@@ -1675,6 +1622,15 @@ export default function SearchScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         stickyHeaderIndices={[1]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#a78bfa"
+            colors={["#8b5cf6", "#a78bfa"]}
+            progressBackgroundColor="rgba(15, 10, 30, 0.9)"
+          />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
@@ -1862,11 +1818,11 @@ export default function SearchScreen() {
           </View>
         )}
 
-        {/* Loading Indicator */}
+        {/* Loading Indicator - Skeleton */}
         {isSearchResultsLoading && searchQuery.length >= 2 && limitedResults.length === 0 && (
           <View style={styles.loadingIndicatorContainer}>
-            <ActivityIndicator size="large" color="#a855f7" />
             <Text style={styles.loadingIndicatorText}>Iskanje izdelkov...</Text>
+            <ProductListSkeleton count={4} />
           </View>
         )}
 
