@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Animated,
   Platform,
+  Easing,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,7 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import FloatingBackground from "../lib/FloatingBackground";
 import * as Haptics from "expo-haptics";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const ONBOARDING_KEY = "prhran_onboarding_completed";
 
@@ -69,13 +70,58 @@ const slides: OnboardingSlide[] = [
   },
 ];
 
+// Celebration particles config
+const PARTICLE_COUNT = 20;
+const DISCOUNT_BADGES = ["-30%", "-25%", "-20%", "-15%", "€€€", "-50%", "WOW!", "-40%"];
+const PARTICLE_COLORS = ["#a855f7", "#22c55e", "#f59e0b", "#ec4899", "#3b82f6", "#ef4444"];
+
+interface Particle {
+  id: number;
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  rotation: number;
+  scale: number;
+  delay: number;
+}
+
+const generateParticles = (): Particle[] => {
+  return Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+    id: i,
+    x: Math.random() * SCREEN_WIDTH,
+    y: SCREEN_HEIGHT + 50 + Math.random() * 200,
+    text: DISCOUNT_BADGES[Math.floor(Math.random() * DISCOUNT_BADGES.length)],
+    color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
+    rotation: Math.random() * 360,
+    scale: 0.6 + Math.random() * 0.6,
+    delay: Math.random() * 400,
+  }));
+};
+
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slideRef = useRef<any>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Celebration animations
+  const celebrationOpacity = useRef(new Animated.Value(0)).current;
+  const rocketY = useRef(new Animated.Value(0)).current;
+  const rocketScale = useRef(new Animated.Value(1)).current;
+  const textScale = useRef(new Animated.Value(0)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const particleAnims = useRef(
+    Array.from({ length: PARTICLE_COUNT }, () => ({
+      y: new Animated.Value(0),
+      opacity: new Animated.Value(0),
+      rotate: new Animated.Value(0),
+    }))
+  ).current;
+  const [particles] = useState(generateParticles);
 
   // Pulse animation for the highlight text
   const startPulse = useCallback(() => {
@@ -95,10 +141,113 @@ export default function OnboardingScreen() {
     ).start();
   }, [pulseAnim]);
 
-  // Start pulse on mount
-  useState(() => {
+  useEffect(() => {
     startPulse();
-  });
+  }, [startPulse]);
+
+  const playCelebration = useCallback(() => {
+    setShowCelebration(true);
+
+    if (Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+
+    // Fade in celebration screen
+    Animated.timing(celebrationOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+
+    // Animate particles flying up
+    particleAnims.forEach((anim, index) => {
+      const particle = particles[index];
+
+      Animated.sequence([
+        Animated.delay(particle.delay),
+        Animated.parallel([
+          Animated.timing(anim.y, {
+            toValue: -SCREEN_HEIGHT - 200,
+            duration: 2000 + Math.random() * 1000,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.timing(anim.opacity, {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.delay(1500),
+            Animated.timing(anim.opacity, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.timing(anim.rotate, {
+            toValue: 1,
+            duration: 2500,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    });
+
+    // Rocket animation
+    Animated.sequence([
+      Animated.delay(300),
+      Animated.parallel([
+        Animated.timing(rocketY, {
+          toValue: -SCREEN_HEIGHT,
+          duration: 1500,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.timing(rocketScale, {
+            toValue: 1.3,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rocketScale, {
+            toValue: 0.5,
+            duration: 1200,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+    ]).start();
+
+    // Big text animation
+    Animated.sequence([
+      Animated.delay(200),
+      Animated.parallel([
+        Animated.spring(textScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 50,
+          useNativeDriver: true,
+        }),
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    // Navigate after animation
+    setTimeout(async () => {
+      try {
+        await AsyncStorage.setItem(ONBOARDING_KEY, "true");
+        router.replace("/auth");
+      } catch (error) {
+        console.error("Error saving onboarding state:", error);
+        router.replace("/auth");
+      }
+    }, 2200);
+  }, [celebrationOpacity, particleAnims, particles, rocketY, rocketScale, textScale, textOpacity, router]);
 
   const completeOnboarding = useCallback(async () => {
     try {
@@ -124,9 +273,10 @@ export default function OnboardingScreen() {
       });
       setCurrentIndex(currentIndex + 1);
     } else {
-      completeOnboarding();
+      // Last slide - play celebration!
+      playCelebration();
     }
-  }, [currentIndex, completeOnboarding]);
+  }, [currentIndex, playCelebration]);
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
@@ -165,7 +315,6 @@ export default function OnboardingScreen() {
     return (
       <View key={slide.id} style={styles.slide}>
         <Animated.View style={[styles.slideContent, { transform: [{ scale }], opacity }]}>
-          {/* Big Icon */}
           <View style={styles.iconWrapper}>
             <LinearGradient
               colors={slide.gradient}
@@ -177,16 +326,10 @@ export default function OnboardingScreen() {
             </LinearGradient>
           </View>
 
-          {/* Main Title - Big and Bold */}
           <Text style={styles.mainTitle}>{slide.title}</Text>
-
-          {/* Subtitle - Friendly */}
           <Text style={styles.subtitle}>{slide.subtitle}</Text>
-
-          {/* Description - Simple */}
           <Text style={styles.description}>{slide.description}</Text>
 
-          {/* Highlight - Eye-catching */}
           {slide.highlight && (
             <Animated.View style={[
               styles.highlightBadge,
@@ -249,6 +392,76 @@ export default function OnboardingScreen() {
 
   const isLastSlide = currentIndex === slides.length - 1;
 
+  // Celebration screen
+  if (showCelebration) {
+    return (
+      <Animated.View style={[styles.celebrationContainer, { opacity: celebrationOpacity }]}>
+        <LinearGradient
+          colors={["#0a0a12", "#12081f", "#1a0a2e", "#0f0a1e"]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* Flying discount particles */}
+        {particles.map((particle, index) => (
+          <Animated.View
+            key={particle.id}
+            style={[
+              styles.particle,
+              {
+                left: particle.x,
+                top: particle.y,
+                opacity: particleAnims[index].opacity,
+                transform: [
+                  { translateY: particleAnims[index].y },
+                  { scale: particle.scale },
+                  {
+                    rotate: particleAnims[index].rotate.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ["0deg", `${particle.rotation > 180 ? 360 : -360}deg`],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={[styles.particleBadge, { backgroundColor: particle.color }]}>
+              <Text style={styles.particleText}>{particle.text}</Text>
+            </View>
+          </Animated.View>
+        ))}
+
+        {/* Rocket */}
+        <Animated.View
+          style={[
+            styles.rocketContainer,
+            {
+              transform: [
+                { translateY: rocketY },
+                { scale: rocketScale },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.rocketEmoji}>🚀</Text>
+        </Animated.View>
+
+        {/* Big celebration text */}
+        <Animated.View
+          style={[
+            styles.celebrationTextContainer,
+            {
+              opacity: textOpacity,
+              transform: [{ scale: textScale }],
+            },
+          ]}
+        >
+          <Text style={styles.celebrationTitle}>PRIHRANI!</Text>
+          <Text style={styles.celebrationSubtitle}>Pripravljamo tvoj profil...</Text>
+        </Animated.View>
+      </Animated.View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -257,7 +470,6 @@ export default function OnboardingScreen() {
       />
       <FloatingBackground variant="minimal" />
 
-      {/* Skip - Only show if not last slide */}
       {!isLastSlide && (
         <TouchableOpacity
           style={[styles.skipButton, { top: insets.top + 16 }]}
@@ -269,7 +481,6 @@ export default function OnboardingScreen() {
         </TouchableOpacity>
       )}
 
-      {/* Slides */}
       <Animated.ScrollView
         ref={slideRef}
         horizontal
@@ -283,11 +494,9 @@ export default function OnboardingScreen() {
         {slides.map((slide, index) => renderSlide(slide, index))}
       </Animated.ScrollView>
 
-      {/* Bottom */}
       <View style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}>
         {renderDots()}
 
-        {/* Big Action Button */}
         <TouchableOpacity
           style={styles.actionButton}
           onPress={goToNextSlide}
@@ -311,7 +520,6 @@ export default function OnboardingScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* Trust indicators on last slide */}
         {isLastSlide && (
           <View style={styles.trustRow}>
             <View style={styles.trustItem}>
@@ -484,5 +692,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#6b7280",
+  },
+  // Celebration styles
+  celebrationContainer: {
+    flex: 1,
+    backgroundColor: "#0a0a12",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  particle: {
+    position: "absolute",
+  },
+  particleBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  particleText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  rocketContainer: {
+    position: "absolute",
+    bottom: 100,
+    alignSelf: "center",
+  },
+  rocketEmoji: {
+    fontSize: 80,
+  },
+  celebrationTextContainer: {
+    alignItems: "center",
+  },
+  celebrationTitle: {
+    fontSize: 52,
+    fontWeight: "900",
+    color: "#22c55e",
+    textAlign: "center",
+    letterSpacing: 2,
+    textShadowColor: "rgba(34, 197, 94, 0.5)",
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 20,
+  },
+  celebrationSubtitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#94a3b8",
+    marginTop: 16,
   },
 });
