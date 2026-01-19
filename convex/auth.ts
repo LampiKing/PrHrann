@@ -228,13 +228,13 @@ export const createAuth = (
                 console.log(`[Password Reset] Email sent successfully to: ${user.email}`);
             },
         },
-        // Session settings - track IP and device
+        // Session settings - long-lived stable sessions
         session: {
-            updateAge: 60 * 60, // Update session every 1 hour (in seconds)
-            expiresIn: 60 * 60 * 24 * 30, // 30 days (in seconds)
+            updateAge: 60 * 60 * 24 * 7, // Update session every 7 days (in seconds)
+            expiresIn: 60 * 60 * 24 * 90, // 90 days (in seconds) - very long session
             cookieCache: {
                 enabled: true,
-                maxAge: 60 * 60, // 1 hour (in seconds)
+                maxAge: 60 * 60 * 24, // 24 hours (in seconds)
             },
         },
         // Security settings - increased limits to avoid false 403 errors
@@ -277,9 +277,9 @@ export const createAuth = (
             expo(),
             convex({ authConfig }),
             crossDomain({ siteUrl }),
-            // Multi-session management - max 5 active sessions per user
+            // Multi-session management - max 10 active sessions per user
             multiSession({
-                maximumSessions: 5,
+                maximumSessions: 10,
             }),
         ],
     };

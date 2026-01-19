@@ -496,7 +496,7 @@ export const addToCartFromSearch = authMutation({
       });
       return {
         success: true,
-        message: `Dodano v košarico: ${args.productName}`,
+        message: `Dodano na seznam: ${args.productName}`,
       };
     }
   },

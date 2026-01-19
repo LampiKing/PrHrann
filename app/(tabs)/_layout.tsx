@@ -151,7 +151,7 @@ export default function TabsLayout() {
             title: "Seznam",
             href: isGuest ? null : undefined,
             tabBarIcon: ({ color, size }) => (
-              <Ionicons name="list" size={size} color={color} />
+              <Ionicons name="bag-outline" size={size} color={color} />
             ),
           }}
         />

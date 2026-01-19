@@ -240,6 +240,8 @@ export default function SearchScreen() {
   const [emailVerificationSending, setEmailVerificationSending] = useState(false);
   const [, setCartToastMessage] = useState("");
   const [showCartToast, setShowCartToast] = useState(false);
+  const [errorToastMessage, setErrorToastMessage] = useState("");
+  const [showErrorToast, setShowErrorToast] = useState(false);
   const [showCartPreview] = useState(false);
   const [recentCartItems, setRecentCartItems] = useState<
     Array<{ key: string; name: string; store: string; quantity: number }>
@@ -259,8 +261,10 @@ export default function SearchScreen() {
   const pulseAnim = useRef(new RNAnimated.Value(1)).current;
   const cartToastAnim = useRef(new RNAnimated.Value(0)).current;
   const cartPreviewAnim = useRef(new RNAnimated.Value(0)).current;
+  const errorToastAnim = useRef(new RNAnimated.Value(0)).current;
   const cartToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cartPreviewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const profile = useQuery(
     api.userProfiles.getProfile,
@@ -464,6 +468,30 @@ export default function SearchScreen() {
     }, 1500);
   }, [cartToastAnim]);
 
+  const triggerErrorToast = useCallback((message: string) => {
+    if (errorToastTimeoutRef.current) {
+      clearTimeout(errorToastTimeoutRef.current);
+    }
+    setErrorToastMessage(message);
+    setShowErrorToast(true);
+
+    RNAnimated.timing(errorToastAnim, {
+      toValue: 1,
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+
+    errorToastTimeoutRef.current = setTimeout(() => {
+      RNAnimated.timing(errorToastAnim, {
+        toValue: 0,
+        duration: 200,
+        easing: Easing.in(Easing.ease),
+        useNativeDriver: true,
+      }).start(() => setShowErrorToast(false));
+    }, 2500);
+  }, [errorToastAnim]);
+
   // Debounce search input
   useEffect(() => {
     if (!isPremium) {
@@ -507,8 +535,8 @@ export default function SearchScreen() {
         if (isGuestLimit) {
           openGuestModal("search");
         } else if (isPremiumLimit) {
-          // TODO: Show premium upgrade modal
-          alert(recordResult.error || `Daily search limit reached. Upgrade to ${PLAN_PLUS} for unlimited search.`);
+          // Redirect to premium page
+          router.push("/premium");
         } else if (needsEmailVerification) {
           setEmailVerificationPrompt(
             "Za nadaljevanje moraš potrditi svoj e-naslov. Preveri pošto ali potrdi z novim emailom."
@@ -860,7 +888,7 @@ export default function SearchScreen() {
         return;
       }
       if (!product._id || !price.storeId) {
-        alert("Tega izdelka trenutno ni možno dodati na seznam.");
+        triggerErrorToast("Tega izdelka trenutno ni možno dodati na seznam.");
         return;
       }
 
@@ -958,12 +986,12 @@ export default function SearchScreen() {
       } catch (error) {
         console.error("Napaka pri dodajanju:", error);
         const errorMessage = error instanceof Error ? error.message : "Napaka pri dodajanju na seznam";
-        alert(errorMessage);
+        triggerErrorToast(errorMessage);
       } finally {
         setAddingToCart(null);
       }
     },
-    [addToCartFromSearch, isGuestMode, isPremium, router, triggerCartToast]
+    [addToCartFromSearch, isGuestMode, isPremium, router, triggerCartToast, triggerErrorToast]
   );
 
   const formatPrice = (price: number) => {
@@ -1961,8 +1989,38 @@ export default function SearchScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.cartToastGradient}
           >
-            <Ionicons name="cart" size={20} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.cartToastTitle}>DODANO V KOŠARICO</Text>
+            <Ionicons name="bag-check" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.cartToastTitle}>DODANO NA SEZNAM</Text>
+          </LinearGradient>
+        </RNAnimated.View>
+      )}
+
+      {showErrorToast && (
+        <RNAnimated.View
+          pointerEvents="none"
+          style={[
+            styles.errorToast,
+            {
+              opacity: errorToastAnim,
+              transform: [
+                {
+                  translateY: errorToastAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [40, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={["rgba(239, 68, 68, 0.95)", "rgba(220, 38, 38, 0.9)"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.errorToastGradient}
+          >
+            <Ionicons name="alert-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.errorToastText} numberOfLines={2}>{errorToastMessage}</Text>
           </LinearGradient>
         </RNAnimated.View>
       )}
@@ -2470,7 +2528,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   searchContainer: {
-    marginBottom: 16,
     borderRadius: 20,
     overflow: "hidden",
   },
@@ -3240,6 +3297,34 @@ const styles = StyleSheet.create({
     top: "50%",
     marginLeft: -4,
     marginTop: -4,
+  },
+  errorToast: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    bottom: 110,
+    borderRadius: 18,
+    overflow: "visible",
+    zIndex: 100,
+  },
+  errorToastGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: "rgba(239, 68, 68, 0.5)",
+    borderRadius: 18,
+    backgroundColor: "rgba(127, 29, 29, 0.95)",
+    ...createShadow("#ef4444", 0, 8, 0.4, 20, 10),
+  },
+  errorToastText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#fef2f2",
+    letterSpacing: 0.2,
   },
   cartPreview: {
     position: "absolute",

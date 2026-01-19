@@ -324,7 +324,7 @@ export default function CartScreen() {
                 colors={["rgba(139, 92, 246, 0.3)", "rgba(59, 7, 100, 0.2)"]}
                 style={styles.emptyIconBg}
               >
-                <Ionicons name="list-outline" size={48} color="#a78bfa" />
+                <Ionicons name="bag-outline" size={48} color="#a78bfa" />
               </LinearGradient>
             </View>
             <Text style={styles.emptyTitle}>Seznam je prazen</Text>
