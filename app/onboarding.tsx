@@ -509,7 +509,7 @@ export default function OnboardingScreen() {
             end={{ x: 1, y: 0 }}
           >
             <Text style={styles.actionButtonText}>
-              {isLastSlide ? "ZAČNI PRIHRANJEVAT" : "NAPREJ"}
+              {isLastSlide ? "ZAČNI IN PR'HRAN!" : "NAPREJ"}
             </Text>
             <Ionicons
               name={isLastSlide ? "rocket" : "arrow-forward"}

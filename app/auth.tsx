@@ -1358,34 +1358,6 @@ export default function AuthScreen() {
               </LinearGradient>
             </Animated.View>
 
-            {/* Features Preview */}
-            <View style={styles.featuresSection}>
-              <Text style={styles.featuresTitle}>Zakaj Pr'Hran?</Text>
-              <View style={styles.featuresList}>
-                <View style={styles.featureItem}>
-                  <View style={styles.featureIcon}>
-                    <Ionicons name="search" size={20} color="#a78bfa" />
-                  </View>
-                  <Text style={styles.featureText}>Primerjaj cene v sekundi</Text>
-                </View>
-                <View style={styles.featureItem}>
-                  <View style={styles.featureIcon}>
-                    <Ionicons name="pricetag" size={20} color="#22c55e" />
-                  </View>
-                  <Text style={styles.featureText}>Avtomatski kuponi</Text>
-                </View>
-                <View style={styles.featureItem}>
-                  <View style={[styles.featureIcon, styles.premiumFeatureIcon]}>
-                    <Ionicons name="camera" size={20} color="#fbbf24" />
-                  </View>
-                  <Text style={styles.featureText}>
-                    Slikaj izdelek – takoj najde najnižjo ceno{" "}
-                    <Text style={styles.premiumBadge}>PREMIUM PLUS</Text>
-                  </Text>
-                </View>
-              </View>
-            </View>
-
             <View style={{ height: 40 }} />
           </ScrollView>
         </KeyboardAvoidingView>
