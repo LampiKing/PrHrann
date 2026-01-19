@@ -371,7 +371,7 @@ export default function CartScreen() {
               </View>
               <View style={styles.quickSummaryRow}>
                 <View style={styles.quickSummaryItem}>
-                  <Text style={styles.quickSummaryLabel}>Kolicina</Text>
+                  <Text style={styles.quickSummaryLabel}>Količina</Text>
                   <Text style={styles.quickSummaryValue}>{cart.itemCount} kom</Text>
                 </View>
                 <View style={styles.quickSummaryDivider} />
@@ -387,8 +387,8 @@ export default function CartScreen() {
               <Text style={styles.motivationValue}>{formatPrice(cart.totalSavings)}</Text>
               <Text style={styles.motivationText}>
                 {remainingToTop100 !== null
-                  ? `Ta nakup te je priblizal Top 100 za ${formatPrice(remainingToTop100)}.`
-                  : "Ta nakup je korak blize do Top 100."}
+                  ? `Ta nakup te je približal Top 100 za ${formatPrice(remainingToTop100)}.`
+                  : "Ta nakup je korak bliže do Top 100."}
               </Text>
             </Animated.View>
 
@@ -596,7 +596,7 @@ export default function CartScreen() {
                   <View style={styles.savingsInfo}>
                     <Text style={styles.savingsTitle}> Prihranek s kuponi: {formatPrice(cart.totalSavings)}</Text>
                     <Text style={styles.savingsSubtitle}>
-                      Avtomatsko izbrani najboljsi kuponi za vsako trgovino
+                      Avtomatsko izbrani najboljši kuponi za vsako trgovino
                     </Text>
                   </View>
                 </LinearGradient>

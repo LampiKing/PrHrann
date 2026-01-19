@@ -309,6 +309,34 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
     adultProductPenalty = 200;
   }
 
+  // === PENALIZACIJA ZA HRANO ZA ŽIVALI ===
+  // "pašteta" → Argeta (človeška hrana), NE "Pašteta za Pse Tačko"
+  // "hrana" → človeška hrana, NE "hrana za pse/mačke"
+  let petFoodPenalty = 0;
+  const PET_FOOD_MARKERS = [
+    "za pse", "za mačke", "za macke", "za živali", "za zivali",
+    "za psa", "za mačko", "za macko", "za mucke", "za muce",
+    "dog", "cat food", "pet food", "petfood",
+    "tačko", "tacko", "tačka", "tacka", // Tačko je blagovna znamka za pse
+    "kitekat", "whiskas", "pedigree", "chappi", "friskies",
+    "purina", "felix", "sheba", "cesar", "royal canin",
+    "briketi", "granule za", "pasja", "mačja", "macja",
+    "za hišne", "za hisne", "za ljubimce"
+  ];
+  const isPetFood = PET_FOOD_MARKERS.some(marker => nameLower.includes(marker));
+  const queryWantsPetFood = queryLower.includes("za pse") || queryLower.includes("za psa") ||
+                            queryLower.includes("za mačk") || queryLower.includes("za mack") ||
+                            queryLower.includes("za muc") || queryLower.includes("pasj") ||
+                            queryLower.includes("mačj") || queryLower.includes("macj") ||
+                            queryLower.includes("dog") || queryLower.includes("cat") ||
+                            queryLower.includes("tačko") || queryLower.includes("tacko") ||
+                            queryLower.includes("za živali") || queryLower.includes("za zivali") ||
+                            queryLower.includes("za ljubimce");
+
+  if (isPetFood && !queryWantsPetFood) {
+    petFoodPenalty = 500; // ZELO visoka penalizacija - hrana za živali NE SME biti med prvimi rezultati
+  }
+
   // === BONUS ZA BABY IZDELKE ===
   let babyBonus = 0;
   const BABY_KEYWORDS = [
@@ -356,7 +384,7 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
   const finalScore = exactMatchBonus + sizeMatchBonus + simplicityScore + positionBonus + sizeScore
                      + babyBonus + targetAudienceBonus + primaryWordBonus
                      - adjectivePenalty - flavorPenalty - derivativePenalty
-                     - adultProductPenalty - irrelevantPenalty - secondaryWordPenalty;
+                     - adultProductPenalty - petFoodPenalty - irrelevantPenalty - secondaryWordPenalty;
 
   return Math.max(1, finalScore);
 }
@@ -370,6 +398,26 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   "čaj": ["čaj", "caj", "tea", "zeliščni", "zelišč"],
   "caj": ["čaj", "caj", "tea", "zeliščni"],
   "kava": ["kava", "coffee", "espresso", "barcaffe"],
+  "sok": ["sok", "juice", "nektar", "100%"],
+  "voda": ["voda", "water", "mineralna", "naravna"],
+  "pivo": ["pivo", "beer", "laško", "union", "heineken"],
+  "vino": ["vino", "wine", "belo", "rdeče"],
+
+  // Pekovski izdelki - ZELO POGOSTO ISKANO
+  "kruh": ["kruh", "bread", "beli", "črni", "polnozrnat"],
+  "žemlja": ["žemlja", "zemlja", "žemlje", "zemlje", "roll", "kajzerica"],
+  "žemlje": ["žemlja", "zemlja", "žemlje", "zemlje", "roll", "kajzerica"],
+  "zemlja": ["žemlja", "zemlja", "žemlje", "zemlje"],
+  "zemlje": ["žemlja", "zemlja", "žemlje", "zemlje"],
+  "pecivo": ["pecivo", "kroasan", "burek", "štruklji"],
+  "toast": ["toast", "tost", "sendvič kruh"],
+
+  // Moka in peka
+  "moka": ["moka", "flour", "pšenična", "bela", "ostra", "gladka"],
+  "sladkor": ["sladkor", "sugar", "beli", "rjavi"],
+  "sol": ["sol", "salt", "morska", "kuhinjska"],
+  "kvas": ["kvas", "yeast", "droži"],
+  "olje": ["olje", "oil", "sončnično", "oljčno", "olivno"],
 
   // Otroški izdelki
   "plenice": ["plenice", "pampers", "huggies", "babylove", "pelene", "baby"],
@@ -381,6 +429,7 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   "pralni prasek": ["pralni", "detergent", "persil", "ariel"],
   "detergent": ["detergent", "pralni", "persil", "ariel"],
   "mehčalec": ["mehčalec", "mehcalec", "lenor", "silan"],
+  "fairy": ["fairy", "detergent za posodo", "pomivalno", "jar"],
 
   // Sadje
   "pomaranče": ["pomaranča", "pomaranče", "oranža", "orange", "citrus"],
@@ -388,22 +437,42 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   "banane": ["banana", "banane"],
   "banana": ["banana", "banane"],
   "jabolka": ["jabolka", "jabolko", "apple"],
+  "jabolko": ["jabolka", "jabolko", "apple", "golden", "jonagold"],
   "limone": ["limona", "limone", "lemon"],
+  "paradižnik": ["paradižnik", "paradiżnik", "tomato", "rajčica"],
+  "krompir": ["krompir", "potato", "mladinski"],
+  "čebula": ["čebula", "cebula", "onion", "rdeča", "bela"],
+  "paprika": ["paprika", "pepper", "rdeča", "zelena", "rumena"],
+  "kumare": ["kumara", "kumare", "cucumber"],
+  "solata": ["solata", "salad", "zelena", "ledena"],
 
-  // Meso
+  // Meso in mesni izdelki
   "piščanec": ["piščanc", "pišcanc", "piščančje", "chicken", "perutnina"],
   "piscancje meso": ["piščanc", "pišcanc", "piščančje", "perutnina"],
   "govedina": ["goveje", "govedina", "beef", "juneće"],
   "svinjina": ["svinjsko", "svinjina", "pork"],
+  "salama": ["salama", "salami", "mortadela", "klobasa"],
+  "mortadela": ["mortadela", "salama", "posebna"],
+  "hrenovka": ["hrenovka", "hrenovke", "viršla", "hot dog"],
+  "šunka": ["šunka", "sunka", "ham", "pršut"],
+  "sunka": ["šunka", "sunka", "ham", "pršut"],
+  "pršut": ["pršut", "prsut", "prosciutto", "kraški"],
+  "slanina": ["slanina", "bacon", "panceta"],
 
   // Mlečni izdelki
-  "jogurt": ["jogurt", "yogurt", "activia", "ego"],
-  "skuta": ["skuta", "cottage", "ricotta"],
-  "smetana": ["smetana", "cream", "kisla smetana"],
+  "mleko": ["mleko", "milk", "trajno", "sveže"],
+  "jogurt": ["jogurt", "yogurt", "activia", "ego", "navadni", "sadni"],
+  "skuta": ["skuta", "cottage", "ricotta", "sveža"],
+  "smetana": ["smetana", "cream", "kisla smetana", "sladka"],
+  "sir": ["sir", "cheese", "gavda", "edamer", "trapist"],
+  "maslo": ["maslo", "butter", "margarina"],
+  "jajca": ["jajca", "jajce", "eggs", "prosta reja"],
+  "parmezan": ["parmezan", "parmigiano", "grana padano", "trdi sir"],
 
-  // Paštete
-  "pašteta": ["pašteta", "pasteta", "argeta", "pate"],
+  // Paštete in namazi
+  "pašteta": ["pašteta", "pasteta", "argeta", "pate", "jetrna"],
   "pasteta": ["pašteta", "pasteta", "argeta", "pate"],
+  "namaz": ["namaz", "spread", "čokoladni", "lešnikov"],
 
   // Higiena
   "toaletni papir": ["toaletni papir", "wc papir", "toilet"],
@@ -412,9 +481,24 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   "šampon": ["šampon", "sampon", "shampoo", "head"],
   "milo": ["milo", "soap", "dove", "nivea"],
 
-  // Splošno
+  // Sladkarije
   "čokolada": ["čokolada", "cokolada", "chocolate", "milka", "kinder"],
   "cokolada": ["čokolada", "cokolada", "chocolate", "milka"],
+  "bonboni": ["bonboni", "bonbon", "candy", "haribo", "orbit"],
+  "keksi": ["keksi", "keks", "cookie", "biscuit", "jaffa"],
+  "sladoled": ["sladoled", "ice cream", "kornet", "lučka"],
+
+  // Testenine in riž
+  "testenine": ["testenine", "pasta", "špageti", "makaroni", "pene"],
+  "špageti": ["špageti", "spageti", "spaghetti", "pasta"],
+  "riz": ["riž", "riz", "rice", "basmati", "jasmin"],
+  "riž": ["riž", "riz", "rice", "basmati"],
+
+  // Konzerve
+  "tuna": ["tuna", "tunina", "riba"],
+  "fižol": ["fižol", "fizol", "beans", "rdeči", "beli"],
+  "grah": ["grah", "peas", "čičerika"],
+  "koruza": ["koruza", "corn", "sladka"],
 
   // Hrana
   "pica": ["pizza", "pica"],
