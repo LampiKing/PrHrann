@@ -209,8 +209,22 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
       });
 
       if (foundLater) {
-        // Penaliziraj - to NI primarni izdelek
-        secondaryWordPenalty = 250;
+        // Penaliziraj - ampak NE preveč za blagovne znamke
+        // "Keksi Jaffa" - Jaffa je blagovna znamka, ne okus
+        // Če je iskalna beseda med 2.-4. besedo, je verjetno blagovna znamka
+        const foundAtIndex = nameWords.findIndex((nw, idx) => {
+          if (idx === 0) return false;
+          const nRoot = nameRoots[idx];
+          return nw === queryWord || nRoot === queryRoot || nw.includes(queryRoot);
+        });
+
+        if (foundAtIndex >= 1 && foundAtIndex <= 3) {
+          // Verjetno blagovna znamka (Jaffa, Milka, Kraš) - majhna penalizacija
+          secondaryWordPenalty = 30;
+        } else {
+          // Okus ali modifier na koncu - večja penalizacija
+          secondaryWordPenalty = 150;
+        }
       }
     }
   }
@@ -646,6 +660,24 @@ export const getById = query({
   ),
   handler: async (ctx, args) => {
     return await ctx.db.get(args.productId);
+  },
+});
+
+// Debug: iskanje po imenu (brez scoringa)
+export const debugSearchByName = query({
+  args: { query: v.string() },
+  returns: v.array(v.object({
+    _id: v.id("products"),
+    name: v.string(),
+    nameKey: v.optional(v.string()),
+  })),
+  handler: async (ctx, args) => {
+    const q = args.query.toLowerCase();
+    const products = await ctx.db.query("products").take(5000);
+    return products
+      .filter(p => p.name.toLowerCase().includes(q))
+      .slice(0, 20)
+      .map(p => ({ _id: p._id, name: p.name, nameKey: p.nameKey }));
   },
 });
 
