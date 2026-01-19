@@ -23,6 +23,28 @@ export const getAll = query({
   },
 });
 
+// Posodobi barve trgovin
+export const updateStoreColors = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const STORE_COLORS: Record<string, string> = {
+      Spar: "#FDB913",      // Rumena/oranžna - SPAR brand
+      Mercator: "#003DA5",  // Modra - Mercator Pika kartica
+      Tus: "#1B5E20",       // Temno zelena - Tuš brand
+    };
+
+    const stores = await ctx.db.query("stores").collect();
+    for (const store of stores) {
+      const newColor = STORE_COLORS[store.name];
+      if (newColor && store.color !== newColor) {
+        await ctx.db.patch(store._id, { color: newColor });
+      }
+    }
+    return null;
+  },
+});
+
 // Inicializiraj trgovine (za začetne podatke)
 export const seedStores = mutation({
   args: {},
