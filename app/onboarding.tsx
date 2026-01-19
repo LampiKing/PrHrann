@@ -35,7 +35,7 @@ const slides: OnboardingSlide[] = [
     icon: "search",
     iconColor: "#a78bfa",
     title: "Poišči izdelke",
-    description: "Išči med tisočimi izdelki iz Spar, Mercator in Tuš trgovin. Primerjaj cene v sekundi.",
+    description: "Išči med tisoči izdelki iz trgovin Spar, Mercator in Tuš. Primerjaj cene v trenutku!",
     gradient: ["#7c3aed", "#a855f7"],
   },
   {
@@ -43,7 +43,7 @@ const slides: OnboardingSlide[] = [
     icon: "pricetags",
     iconColor: "#34d399",
     title: "Primerjaj cene",
-    description: "Takoj vidiš, kje je izdelek najcenejši. Nikoli več ne preplačaj za iste stvari.",
+    description: "Takoj vidiš, kje je izdelek najcenejši. Nikoli več ne boš preplačal!",
     gradient: ["#059669", "#10b981"],
   },
   {
@@ -51,7 +51,7 @@ const slides: OnboardingSlide[] = [
     icon: "bag-outline",
     iconColor: "#fbbf24",
     title: "Ustvari seznam",
-    description: "Dodaj izdelke na nakupovalni seznam. Aplikacija ti pove, v kateri trgovini boš najmanj zapravil.",
+    description: "Dodaj izdelke na nakupovalni seznam. Aplikacija ti pokaže, kje boš najmanj zapravil.",
     gradient: ["#d97706", "#f59e0b"],
   },
   {
@@ -59,7 +59,7 @@ const slides: OnboardingSlide[] = [
     icon: "wallet",
     iconColor: "#f472b6",
     title: "Prihrani denar",
-    description: "Spremljaj svoje prihranke skozi čas. Tekmuj z drugimi uporabniki na lestvici!",
+    description: "Spremljaj svoje prihranke in tekmuj z drugimi na lestvici najboljših!",
     gradient: ["#db2777", "#ec4899"],
   },
 ];
