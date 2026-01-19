@@ -65,7 +65,6 @@ const slides: OnboardingSlide[] = [
     title: "Do 30% prihranka.",
     subtitle: "Vsak mesec. Brez napora.",
     description: "Tisoči Slovencev že varčujejo.\nZakaj ne bi tudi ti?",
-    highlight: "Začni zdaj!",
     gradient: ["#d97706", "#f59e0b"],
   },
 ];
@@ -497,28 +496,30 @@ export default function OnboardingScreen() {
       <View style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}>
         {renderDots()}
 
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={goToNextSlide}
-          activeOpacity={0.85}
-        >
-          <LinearGradient
-            colors={isLastSlide ? ["#059669", "#10b981"] : ["#7c3aed", "#a855f7"]}
-            style={styles.actionButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+        <Animated.View style={isLastSlide ? { transform: [{ scale: pulseAnim }] } : undefined}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={goToNextSlide}
+            activeOpacity={0.85}
           >
-            <Text style={styles.actionButtonText}>
-              {isLastSlide ? "ZAČNI IN PR'HRAN!" : "NAPREJ"}
-            </Text>
-            <Ionicons
-              name={isLastSlide ? "rocket" : "arrow-forward"}
-              size={22}
-              color="#fff"
-              style={{ marginLeft: 10 }}
-            />
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={isLastSlide ? ["#059669", "#10b981"] : ["#7c3aed", "#a855f7"]}
+              style={styles.actionButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.actionButtonText}>
+                {isLastSlide ? "ZAČNI IN PR'HRAN!" : "NAPREJ"}
+              </Text>
+              <Ionicons
+                name={isLastSlide ? "rocket" : "arrow-forward"}
+                size={22}
+                color="#fff"
+                style={{ marginLeft: 10 }}
+              />
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
 
         {isLastSlide && (
           <View style={styles.trustRow}>
