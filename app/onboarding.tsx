@@ -23,44 +23,49 @@ const ONBOARDING_KEY = "prhran_onboarding_completed";
 interface OnboardingSlide {
   id: number;
   icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
   title: string;
+  subtitle: string;
   description: string;
+  highlight?: string;
   gradient: [string, string];
 }
 
 const slides: OnboardingSlide[] = [
   {
     id: 1,
-    icon: "search",
-    iconColor: "#a78bfa",
-    title: "Poišči izdelke",
-    description: "Išči med tisoči izdelki iz trgovin Spar, Mercator in Tuš. Primerjaj cene v trenutku!",
-    gradient: ["#7c3aed", "#a855f7"],
+    icon: "cash-outline",
+    title: "Hrana je draga.",
+    subtitle: "Mi ti pomagamo prihraniti!",
+    description: "Primerjamo cene v trgovinah,\nda ti ni treba.",
+    highlight: "Brezplačno.",
+    gradient: ["#dc2626", "#ef4444"],
   },
   {
     id: 2,
-    icon: "pricetags",
-    iconColor: "#34d399",
-    title: "Primerjaj cene",
-    description: "Takoj vidiš, kje je izdelek najcenejši. Nikoli več ne boš preplačal!",
-    gradient: ["#059669", "#10b981"],
+    icon: "search",
+    title: "Vpiši izdelek.",
+    subtitle: "Mi poiščemo najnižjo ceno.",
+    description: "Spar, Mercator, Tuš...\nVse na enem mestu.",
+    highlight: "V sekundi.",
+    gradient: ["#7c3aed", "#a855f7"],
   },
   {
     id: 3,
-    icon: "bag-outline",
-    iconColor: "#fbbf24",
-    title: "Ustvari seznam",
-    description: "Dodaj izdelke na nakupovalni seznam. Aplikacija ti pokaže, kje boš najmanj zapravil.",
-    gradient: ["#d97706", "#f59e0b"],
+    icon: "bag-check",
+    title: "Naredi seznam.",
+    subtitle: "Vidiš, kje je najceneje.",
+    description: "Dodaj vse kar rabiš.\nAplikacija izračuna prihranek.",
+    highlight: "Avtomatsko.",
+    gradient: ["#059669", "#10b981"],
   },
   {
     id: 4,
     icon: "wallet",
-    iconColor: "#f472b6",
-    title: "Prihrani denar",
-    description: "Spremljaj svoje prihranke in tekmuj z drugimi na lestvici najboljših!",
-    gradient: ["#db2777", "#ec4899"],
+    title: "Prihrani denar!",
+    subtitle: "Vsak teden. Vsak mesec. Vsako leto.",
+    description: "Povprečen uporabnik prihrani\ndo 30% na mesečnih nakupih.",
+    highlight: "Začni zdaj!",
+    gradient: ["#d97706", "#f59e0b"],
   },
 ];
 
@@ -70,6 +75,30 @@ export default function OnboardingScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slideRef = useRef<any>(null);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  // Pulse animation for the highlight text
+  const startPulse = useCallback(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [pulseAnim]);
+
+  // Start pulse on mount
+  useState(() => {
+    startPulse();
+  });
 
   const completeOnboarding = useCallback(async () => {
     try {
@@ -99,19 +128,6 @@ export default function OnboardingScreen() {
     }
   }, [currentIndex, completeOnboarding]);
 
-  const goToPrevSlide = useCallback(() => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    if (currentIndex > 0) {
-      slideRef.current?.scrollTo({
-        x: (currentIndex - 1) * SCREEN_WIDTH,
-        animated: true,
-      });
-      setCurrentIndex(currentIndex - 1);
-    }
-  }, [currentIndex]);
-
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
     {
@@ -134,36 +150,58 @@ export default function OnboardingScreen() {
 
     const scale = scrollX.interpolate({
       inputRange,
-      outputRange: [0.8, 1, 0.8],
+      outputRange: [0.85, 1, 0.85],
       extrapolate: "clamp",
     });
 
     const opacity = scrollX.interpolate({
       inputRange,
-      outputRange: [0.4, 1, 0.4],
+      outputRange: [0.5, 1, 0.5],
       extrapolate: "clamp",
     });
+
+    const isLastSlide = index === slides.length - 1;
 
     return (
       <View key={slide.id} style={styles.slide}>
         <Animated.View style={[styles.slideContent, { transform: [{ scale }], opacity }]}>
-          {/* Icon Circle */}
-          <View style={styles.iconContainer}>
+          {/* Big Icon */}
+          <View style={styles.iconWrapper}>
             <LinearGradient
               colors={slide.gradient}
-              style={styles.iconGradient}
+              style={styles.iconCircle}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name={slide.icon} size={64} color="#fff" />
+              <Ionicons name={slide.icon} size={80} color="#fff" />
             </LinearGradient>
           </View>
 
-          {/* Title */}
-          <Text style={styles.title}>{slide.title}</Text>
+          {/* Main Title - Big and Bold */}
+          <Text style={styles.mainTitle}>{slide.title}</Text>
 
-          {/* Description */}
+          {/* Subtitle - Friendly */}
+          <Text style={styles.subtitle}>{slide.subtitle}</Text>
+
+          {/* Description - Simple */}
           <Text style={styles.description}>{slide.description}</Text>
+
+          {/* Highlight - Eye-catching */}
+          {slide.highlight && (
+            <Animated.View style={[
+              styles.highlightBadge,
+              isLastSlide && { transform: [{ scale: pulseAnim }] }
+            ]}>
+              <LinearGradient
+                colors={slide.gradient}
+                style={styles.highlightGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.highlightText}>{slide.highlight}</Text>
+              </LinearGradient>
+            </Animated.View>
+          )}
         </Animated.View>
       </View>
     );
@@ -181,13 +219,13 @@ export default function OnboardingScreen() {
 
           const dotWidth = scrollX.interpolate({
             inputRange,
-            outputRange: [8, 24, 8],
+            outputRange: [10, 28, 10],
             extrapolate: "clamp",
           });
 
           const dotOpacity = scrollX.interpolate({
             inputRange,
-            outputRange: [0.4, 1, 0.4],
+            outputRange: [0.3, 1, 0.3],
             extrapolate: "clamp",
           });
 
@@ -209,6 +247,8 @@ export default function OnboardingScreen() {
     );
   };
 
+  const isLastSlide = currentIndex === slides.length - 1;
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -217,14 +257,17 @@ export default function OnboardingScreen() {
       />
       <FloatingBackground variant="minimal" />
 
-      {/* Skip Button */}
-      <TouchableOpacity
-        style={[styles.skipButton, { top: insets.top + 16 }]}
-        onPress={completeOnboarding}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.skipText}>Preskoči</Text>
-      </TouchableOpacity>
+      {/* Skip - Only show if not last slide */}
+      {!isLastSlide && (
+        <TouchableOpacity
+          style={[styles.skipButton, { top: insets.top + 16 }]}
+          onPress={completeOnboarding}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.skipText}>Preskoči</Text>
+          <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+        </TouchableOpacity>
+      )}
 
       {/* Slides */}
       <Animated.ScrollView
@@ -240,50 +283,51 @@ export default function OnboardingScreen() {
         {slides.map((slide, index) => renderSlide(slide, index))}
       </Animated.ScrollView>
 
-      {/* Bottom Navigation */}
-      <View style={[styles.bottomNav, { paddingBottom: insets.bottom + 24 }]}>
-        {/* Dots */}
+      {/* Bottom */}
+      <View style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}>
         {renderDots()}
 
-        {/* Navigation Buttons */}
-        <View style={styles.navButtons}>
-          {/* Back Button */}
-          {currentIndex > 0 ? (
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={goToPrevSlide}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={24} color="#9ca3af" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.backButtonPlaceholder} />
-          )}
-
-          {/* Next/Start Button */}
-          <TouchableOpacity
-            style={styles.nextButton}
-            onPress={goToNextSlide}
-            activeOpacity={0.8}
+        {/* Big Action Button */}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={goToNextSlide}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={isLastSlide ? ["#059669", "#10b981"] : ["#7c3aed", "#a855f7"]}
+            style={styles.actionButtonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
           >
-            <LinearGradient
-              colors={["#7c3aed", "#a855f7"]}
-              style={styles.nextButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.nextButtonText}>
-                {currentIndex === slides.length - 1 ? "Začni" : "Naprej"}
-              </Text>
-              <Ionicons
-                name={currentIndex === slides.length - 1 ? "checkmark" : "arrow-forward"}
-                size={20}
-                color="#fff"
-                style={{ marginLeft: 8 }}
-              />
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.actionButtonText}>
+              {isLastSlide ? "ZAČNI PRIHRANJEVAT" : "NAPREJ"}
+            </Text>
+            <Ionicons
+              name={isLastSlide ? "rocket" : "arrow-forward"}
+              size={22}
+              color="#fff"
+              style={{ marginLeft: 10 }}
+            />
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Trust indicators on last slide */}
+        {isLastSlide && (
+          <View style={styles.trustRow}>
+            <View style={styles.trustItem}>
+              <Ionicons name="shield-checkmark" size={16} color="#10b981" />
+              <Text style={styles.trustText}>Brezplačno</Text>
+            </View>
+            <View style={styles.trustItem}>
+              <Ionicons name="lock-closed" size={16} color="#10b981" />
+              <Text style={styles.trustText}>Varno</Text>
+            </View>
+            <View style={styles.trustItem}>
+              <Ionicons name="flash" size={16} color="#10b981" />
+              <Text style={styles.trustText}>Hitro</Text>
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -298,15 +342,18 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 20,
     zIndex: 10,
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
   skipText: {
     fontSize: 14,
     fontWeight: "600",
     color: "#9ca3af",
+    marginRight: 4,
   },
   scrollView: {
     flex: 1,
@@ -318,96 +365,124 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 40,
-    paddingTop: 80,
+    paddingHorizontal: 32,
+    paddingTop: 60,
   },
   slideContent: {
     alignItems: "center",
-    maxWidth: 340,
+    maxWidth: 360,
   },
-  iconContainer: {
-    marginBottom: 40,
-    borderRadius: 60,
-    overflow: "hidden",
+  iconWrapper: {
+    marginBottom: 32,
     shadowColor: "#a855f7",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 15,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 20,
   },
-  iconGradient: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  iconCircle: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     alignItems: "center",
     justifyContent: "center",
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "800",
+  mainTitle: {
+    fontSize: 36,
+    fontWeight: "900",
     color: "#fff",
     textAlign: "center",
-    marginBottom: 16,
-    letterSpacing: 0.5,
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#c4b5fd",
+    textAlign: "center",
+    marginBottom: 20,
   },
   description: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "500",
-    color: "#cbd5e1",
+    color: "#94a3b8",
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: 26,
+    marginBottom: 24,
   },
-  bottomNav: {
+  highlightBadge: {
+    borderRadius: 30,
+    overflow: "hidden",
+    shadowColor: "#a855f7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  highlightGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 30,
+  },
+  highlightText: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 0.5,
+  },
+  bottomSection: {
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 16,
   },
   dotsContainer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 24,
   },
   dot: {
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
+    height: 10,
+    borderRadius: 5,
+    marginHorizontal: 5,
   },
-  navButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  backButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  backButtonPlaceholder: {
-    width: 48,
-  },
-  nextButton: {
-    borderRadius: 28,
+  actionButton: {
+    borderRadius: 30,
     overflow: "hidden",
-    shadowColor: "#a855f7",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: "#7c3aed",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  nextButtonGradient: {
+  actionButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 28,
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    borderRadius: 30,
   },
-  nextButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
+  actionButtonText: {
+    fontSize: 17,
+    fontWeight: "800",
     color: "#fff",
+    letterSpacing: 1,
+  },
+  trustRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 20,
+    gap: 24,
+  },
+  trustItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  trustText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6b7280",
   },
 });
