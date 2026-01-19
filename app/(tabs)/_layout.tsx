@@ -1,6 +1,6 @@
 ﻿import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { View, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import Logo from "../../lib/Logo";
 import { useQuery, useConvexAuth, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -128,8 +128,8 @@ export default function TabsLayout() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: styles.tabBar,
-          tabBarActiveTintColor: "#a855f7",
-          tabBarInactiveTintColor: "#6b7280",
+          tabBarActiveTintColor: "#c084fc",
+          tabBarInactiveTintColor: "#64748b",
           tabBarLabelStyle: styles.tabBarLabel,
           tabBarItemStyle: styles.tabBarItem,
           tabBarShowLabel: true,
@@ -140,8 +140,15 @@ export default function TabsLayout() {
           name="index"
           options={{
             title: "Iskanje",
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="search" size={size} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={focused ? styles.activeIconContainer : undefined}>
+                <Ionicons name={focused ? "search" : "search-outline"} size={26} color={color} />
+              </View>
+            ),
+            tabBarLabel: ({ focused, color }) => (
+              <Text style={[styles.tabBarLabel, focused && styles.tabBarLabelActive, { color }]}>
+                Iskanje
+              </Text>
             ),
           }}
         />
@@ -150,18 +157,32 @@ export default function TabsLayout() {
           options={{
             title: "Seznam",
             href: isGuest ? null : undefined,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="bag-outline" size={size} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={focused ? styles.activeIconContainer : undefined}>
+                <Ionicons name={focused ? "bag" : "bag-outline"} size={26} color={color} />
+              </View>
+            ),
+            tabBarLabel: ({ focused, color }) => (
+              <Text style={[styles.tabBarLabel, focused && styles.tabBarLabelActive, { color }]}>
+                Seznam
+              </Text>
             ),
           }}
         />
         <Tabs.Screen
           name="leaderboard"
           options={{
-            title: "Tekmovanje",
+            title: "Lestvica",
             href: isGuest ? null : undefined,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="trophy" size={size} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={focused ? styles.activeIconContainer : undefined}>
+                <Ionicons name={focused ? "trophy" : "trophy-outline"} size={26} color={color} />
+              </View>
+            ),
+            tabBarLabel: ({ focused, color }) => (
+              <Text style={[styles.tabBarLabel, focused && styles.tabBarLabelActive, { color }]}>
+                Lestvica
+              </Text>
             ),
           }}
         />
@@ -170,8 +191,15 @@ export default function TabsLayout() {
           options={{
             title: "Profil",
             href: isGuest ? null : undefined,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person" size={size} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={focused ? styles.activeIconContainer : undefined}>
+                <Ionicons name={focused ? "person" : "person-outline"} size={26} color={color} />
+              </View>
+            ),
+            tabBarLabel: ({ focused, color }) => (
+              <Text style={[styles.tabBarLabel, focused && styles.tabBarLabelActive, { color }]}>
+                Profil
+              </Text>
             ),
           }}
         />
@@ -193,40 +221,56 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     backgroundColor: "rgba(10, 10, 15, 0.98)",
-    borderTopWidth: 2,
-    borderTopColor: "rgba(139, 92, 246, 0.3)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(139, 92, 246, 0.4)",
     height: Platform.select({
-      ios: 88,
-      android: 72,
-      web: 65,
-      default: 72,
+      ios: 90,
+      android: 75,
+      web: 70,
+      default: 75,
     }),
     paddingBottom: Platform.select({
       ios: 28,
-      android: 10,
-      web: 8,
-      default: 10,
+      android: 12,
+      web: 10,
+      default: 12,
     }),
-    paddingTop: 8,
+    paddingTop: 10,
     elevation: 20,
     shadowColor: "#a855f7",
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
   },
   tabBarLabel: {
     fontSize: Platform.select({
-      ios: 12,
-      android: 12,
-      web: 11,
-      default: 12,
+      ios: 11,
+      android: 11,
+      web: 10,
+      default: 11,
     }),
     fontWeight: "600",
-    marginTop: Platform.OS === "web" ? 2 : 0,
+    marginTop: 4,
+    letterSpacing: 0.3,
+  },
+  tabBarLabelActive: {
+    fontWeight: "700",
+    fontSize: Platform.select({
+      ios: 11,
+      android: 11,
+      web: 10,
+      default: 11,
+    }),
   },
   tabBarItem: {
-    paddingTop: 2,
-    paddingVertical: Platform.OS === "web" ? 4 : 2,
+    paddingTop: 4,
+    paddingVertical: Platform.OS === "web" ? 6 : 4,
+  },
+  activeIconContainer: {
+    backgroundColor: "rgba(192, 132, 252, 0.15)",
+    borderRadius: 16,
+    padding: 6,
+    marginBottom: -2,
   },
 });
 
