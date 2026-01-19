@@ -7,7 +7,8 @@ const { chromium } = require('playwright');
 const https = require('https');
 
 const CONVEX_URL = "https://vibrant-dolphin-871.convex.cloud";
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 200; // Povečano za hitrejše scraping
+const MAX_PRODUCTS = 1000; // Maksimalno število izdelkov na zagon
 
 // HTTP request helper
 function httpsRequest({ method, url, headers, body }) {
@@ -307,16 +308,28 @@ async function main() {
   console.log(`Datum: ${new Date().toLocaleString('sl-SI')}`);
   console.log('='.repeat(60));
 
-  // Pridobi izdelke brez slik
+  // Pridobi izdelke brez slik - več batchev
   console.log('\n📦 Pridobivam izdelke brez slik iz Convexa...');
-  const products = await getProductsWithoutImages(BATCH_SIZE, 0);
+
+  let allProducts = [];
+  let offset = 0;
+
+  while (allProducts.length < MAX_PRODUCTS) {
+    const batch = await getProductsWithoutImages(BATCH_SIZE, offset);
+    if (batch.length === 0) break;
+    allProducts = allProducts.concat(batch);
+    offset += BATCH_SIZE;
+    console.log(`   Naloženo: ${allProducts.length} izdelkov...`);
+  }
+
+  const products = allProducts.slice(0, MAX_PRODUCTS);
 
   if (products.length === 0) {
     console.log('   Vsi izdelki imajo slike! Končano.');
     return;
   }
 
-  console.log(`   Najdenih: ${products.length} izdelkov brez slik\n`);
+  console.log(`\n   📊 Skupaj: ${products.length} izdelkov brez slik\n`);
 
   // Zaženi brskalnik
   console.log('🌐 Zaganjam brskalnik...');
@@ -346,25 +359,28 @@ async function main() {
 
   let found = 0;
   let notFound = 0;
-  const updates = [];
+  let totalUpdated = 0;
+  let updates = [];
+  const SAVE_EVERY = 25; // Shrani na Convex vsakih 25 najdenih slik
 
   for (let i = 0; i < products.length; i++) {
     const product = products[i];
-    console.log(`[${i + 1}/${products.length}] ${product.name.substring(0, 50)}...`);
+    const progress = `[${i + 1}/${products.length}]`;
+    console.log(`${progress} ${product.name.substring(0, 50)}...`);
 
     let imageUrl = null;
 
     // Poskusi Spar
     imageUrl = await searchSparImage(sparPage, product.name);
     if (imageUrl) {
-      console.log(`   ✅ Spar: ${imageUrl.substring(0, 60)}...`);
+      console.log(`   ✅ Spar`);
     }
 
     // Če ni najdeno, poskusi Mercator
     if (!imageUrl) {
       imageUrl = await searchMercatorImage(mercatorPage, product.name);
       if (imageUrl) {
-        console.log(`   ✅ Mercator: ${imageUrl.substring(0, 60)}...`);
+        console.log(`   ✅ Mercator`);
       }
     }
 
@@ -372,7 +388,7 @@ async function main() {
     if (!imageUrl) {
       imageUrl = await searchTusImage(tusPage, product.name);
       if (imageUrl) {
-        console.log(`   ✅ Tuš: ${imageUrl.substring(0, 60)}...`);
+        console.log(`   ✅ Tuš`);
       }
     }
 
@@ -382,31 +398,42 @@ async function main() {
         productId: product._id,
         imageUrl: imageUrl
       });
+
+      // Periodično shranjevanje
+      if (updates.length >= SAVE_EVERY) {
+        console.log(`\n   💾 Shranjujem ${updates.length} slik...`);
+        const result = await updateImages(updates);
+        totalUpdated += result.updated;
+        console.log(`   ✅ Shranjeno! Skupaj: ${totalUpdated} slik\n`);
+        updates = [];
+      }
     } else {
-      console.log(`   ❌ Slika ni najdena`);
+      console.log(`   ❌ Ni slike`);
       notFound++;
     }
 
     // Kratka pavza med zahtevki
-    await sparPage.waitForTimeout(300);
+    await sparPage.waitForTimeout(200);
   }
 
   await browser.close();
 
-  // Posodobi Convex
+  // Shrani preostale
   if (updates.length > 0) {
-    console.log(`\n💾 Posodabljam ${updates.length} slik v Convexu...`);
+    console.log(`\n💾 Shranjujem zadnjih ${updates.length} slik...`);
     const result = await updateImages(updates);
-    console.log(`   Posodobljeno: ${result.updated}, Neuspešno: ${result.failed}`);
+    totalUpdated += result.updated;
   }
 
   // Izpis rezultatov
   console.log('\n' + '='.repeat(60));
   console.log('📊 REZULTATI:');
   console.log(`   ✅ Najdene slike: ${found}`);
+  console.log(`   💾 Shranjeno v Convex: ${totalUpdated}`);
   console.log(`   ❌ Brez slike: ${notFound}`);
   console.log(`   📈 Uspešnost: ${Math.round(found / products.length * 100)}%`);
   console.log('='.repeat(60));
+  console.log('\n💡 Za naslednji batch poženi scraper znova!');
 }
 
 main().catch(console.error);
