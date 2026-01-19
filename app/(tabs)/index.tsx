@@ -216,6 +216,7 @@ export default function SearchScreen() {
   const { isAuthenticated } = useConvexAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [hasSearchedOnce, setHasSearchedOnce] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   const [addedToCart, setAddedToCart] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState<string | null>(null);
@@ -315,19 +316,8 @@ export default function SearchScreen() {
   const fabScaleMin = isCompact ? 0.92 : 0.98;
   const fabScaleMax = isCompact ? 1.02 : 1.04;
   const scrollTopPadding = insets.top + (showTopFabs ? (isCompact ? 60 : 50) : 10);
-  const cart = useQuery(
-    api.cart.getCart,
-    isAuthenticated && !isGuestMode ? {} : "skip"
-  );
-  const cartPreviewItems = cart?.items?.slice(-3) ?? [];
-  const previewItems = recentCartItems.length
-    ? recentCartItems
-    : cartPreviewItems.map((item) => ({
-        key: item._id,
-        name: item.productName,
-        store: item.storeName,
-        quantity: item.quantity,
-      }));
+  // Cart preview is disabled, so we don't need to fetch the full cart (which causes lag)
+  const previewItems = recentCartItems;
 
   const [funFactIndex, setFunFactIndex] = useState(0);
 
@@ -564,6 +554,7 @@ export default function SearchScreen() {
       }
       setAutoSearchBlockedQuery(null);
       setApprovedQuery(trimmedQuery);
+      setHasSearchedOnce(true);
 
       // Trigger re-fetch of profile to update searchesRemaining
       // The search results will be fetched by useQuery below
@@ -599,9 +590,8 @@ export default function SearchScreen() {
       };
     })
     .filter((product): product is ProductResult => product !== null);
-  const isSearchResultsLoading =
-    searching ||
-    (approvedQuery.length >= 2 && dbSearchResults === undefined);
+  // Only show loading during actual search mutation, not during Convex re-fetches (prevents flickering)
+  const isSearchResultsLoading = searching;
 
   // Sort results based on swipe direction
   const sortedResults = searchResults
@@ -2057,7 +2047,7 @@ export default function SearchScreen() {
                 <Text style={styles.cartPreviewTitle}>Seznam posodobljen</Text>
               </View>
               <Text style={styles.cartPreviewCount}>
-                {cart?.itemCount ?? previewItems.length} izdelkov
+                {previewItems.length} izdelkov
               </Text>
             </View>
 
