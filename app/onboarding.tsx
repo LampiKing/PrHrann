@@ -456,7 +456,7 @@ export default function OnboardingScreen() {
           ]}
         >
           <Text style={styles.celebrationTitle}>PRIHRANI!</Text>
-          <Text style={styles.celebrationSubtitle}>Pripravljamo tvoj profil...</Text>
+          <Text style={styles.celebrationSubtitle}>Gremo varčevat!</Text>
         </Animated.View>
       </Animated.View>
     );
@@ -582,11 +582,6 @@ const styles = StyleSheet.create({
   },
   iconWrapper: {
     marginBottom: 32,
-    shadowColor: "#a855f7",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 20,
   },
   iconCircle: {
     width: 140,
