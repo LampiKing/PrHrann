@@ -690,39 +690,35 @@ export const search = query({
     // 6. Filtriraj in končno razvrsti
     const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null && r.prices.length > 0);
 
-    // Končno razvrščanje: RELEVANTNOST > VELIKOST > CENA
-    // POMEMBNO: Standardne velikosti (1L, 1kg) MORAJO biti pred majhnimi (200ml)
+    // Končno razvrščanje: STANDARDNE VELIKOSTI + NAJCENEJŠI PRVI!
+    // 1. Standardne velikosti (1L, 1kg, 500g) pred majhnimi (200ml, 100g)
+    // 2. Znotraj podobnih velikosti: NAJCENEJŠI PRVI
     return validResults.sort((a, b) => {
       const aSize = getSizeScore(a.name, a.unit);
       const bSize = getSizeScore(b.name, b.unit);
       const aSmart = smartMatch(a.name, searchQuery, a.unit);
       const bSmart = smartMatch(b.name, searchQuery, b.unit);
 
-      // NAJPREJ: Ali je ena od velikosti "standardna" in druga "majhna"?
-      // Standardna = 500ml+ ali 250g+
-      // Majhna = pod 250ml ali pod 100g
-      const aIsStandard = aSize >= 100; // 1L, 1kg, 500ml, itd.
+      // Standardni izdelki (1L, 1kg, 500ml, 500g) = sizeScore >= 100
+      const aIsStandard = aSize >= 100;
       const bIsStandard = bSize >= 100;
-      const aIsTiny = aSize < 0; // 200ml in manj
+      // Majhna pakiranja (200ml, 100g in manj) = sizeScore < 0
+      const aIsTiny = aSize < 0;
       const bIsTiny = bSize < 0;
 
-      // Standardni izdelki VEDNO pred majhnimi - NE GLEDE NA CENO
+      // NAJPREJ: Standardni pred majhnimi (logično za uporabnika)
       if (aIsStandard && bIsTiny) return -1;
       if (bIsStandard && aIsTiny) return 1;
-
-      // Tudi med ne-standardnimi, večji pride pred manjšim
       if (aSize > 0 && bIsTiny) return -1;
       if (bSize > 0 && aIsTiny) return 1;
 
-      // Kombiniran score: 50% pametnost, 35% velikost, 15% cena (cenejši višje)
-      const maxPrice = 30;
-      const aPriceScore = 100 - Math.min(a.lowestPrice / maxPrice * 100, 100);
-      const bPriceScore = 100 - Math.min(b.lowestPrice / maxPrice * 100, 100);
+      // DRUGIČ: Če sta oba podobne velikosti, sortiraj po RELEVANTNOSTI
+      // (da "mleko" prikaže mleko, ne "čokoladno mleko v prahu")
+      const smartDiff = bSmart - aSmart;
+      if (Math.abs(smartDiff) > 30) return smartDiff > 0 ? 1 : -1;
 
-      const aTotal = aSmart * 0.50 + aSize * 0.35 + aPriceScore * 0.15;
-      const bTotal = bSmart * 0.50 + bSize * 0.35 + bPriceScore * 0.15;
-
-      return bTotal - aTotal;
+      // TRETJIČ: Če sta podobno relevantna, NAJCENEJŠI PRVI!
+      return a.lowestPrice - b.lowestPrice;
     });
   },
 });
