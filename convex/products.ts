@@ -404,7 +404,9 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   "vino": ["vino", "wine", "belo", "rdeče"],
 
   // Pekovski izdelki - ZELO POGOSTO ISKANO
-  "kruh": ["kruh", "bread", "beli", "črni", "polnozrnat"],
+  "kruh": ["kruh", "bread", "hlebec", "štruca"],
+  "beli kruh": ["beli kruh", "bel kruh", "white bread"],
+  "črni kruh": ["črni kruh", "crni kruh", "rženi kruh"],
   "žemlja": ["žemlja", "zemlja", "žemlje", "zemlje", "roll", "kajzerica"],
   "žemlje": ["žemlja", "zemlja", "žemlje", "zemlje", "roll", "kajzerica"],
   "zemlja": ["žemlja", "zemlja", "žemlje", "zemlje"],
@@ -413,8 +415,8 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   "toast": ["toast", "tost", "sendvič kruh"],
 
   // Moka in peka
-  "moka": ["moka", "flour", "pšenična", "bela", "ostra", "gladka"],
-  "sladkor": ["sladkor", "sugar", "beli", "rjavi"],
+  "moka": ["moka", "flour", "pšenična moka"],
+  "sladkor": ["sladkor", "sugar", "kristalni sladkor"],
   "sol": ["sol", "salt", "morska", "kuhinjska"],
   "kvas": ["kvas", "yeast", "droži"],
   "olje": ["olje", "oil", "sončnično", "oljčno", "olivno"],
@@ -441,8 +443,8 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   "limone": ["limona", "limone", "lemon"],
   "paradižnik": ["paradižnik", "paradiżnik", "tomato", "rajčica"],
   "krompir": ["krompir", "potato", "mladinski"],
-  "čebula": ["čebula", "cebula", "onion", "rdeča", "bela"],
-  "paprika": ["paprika", "pepper", "rdeča", "zelena", "rumena"],
+  "čebula": ["čebula", "cebula", "onion", "čebule"],
+  "paprika": ["paprika", "pepper", "paprike", "babura"],
   "kumare": ["kumara", "kumare", "cucumber"],
   "solata": ["solata", "salad", "zelena", "ledena"],
 
@@ -496,7 +498,7 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
 
   // Konzerve
   "tuna": ["tuna", "tunina", "riba"],
-  "fižol": ["fižol", "fizol", "beans", "rdeči", "beli"],
+  "fižol": ["fižol", "fizol", "beans"],
   "grah": ["grah", "peas", "čičerika"],
   "koruza": ["koruza", "corn", "sladka"],
 
