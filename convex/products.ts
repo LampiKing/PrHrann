@@ -620,26 +620,36 @@ export const search = query({
       })
       .filter(item => item.smartScore >= MIN_SCORE_THRESHOLD)
       .sort((a, b) => {
-        // NAJPREJ: Sortiraj po RELEVANTNOSTI (smartScore)
-        // Izdelki z višjim smartScore so bolj relevantni za iskalni pojem
+        // LOGIKA SORTIRANJA:
+        // 1. Samo RELEVANTNI izdelki pridejo skozi filter (smartScore >= 80)
+        // 2. Med relevantnimi: STANDARDNE VELIKOSTI (1L, 1kg, 500g) NAJPREJ
+        // 3. Znotraj iste velikostne kategorije: po relevantnosti
+        // 4. Na koncu: najcenejši
+
+        const aIsStandard = a.sizeScore >= 100;  // 1L, 1kg, 500g+
+        const bIsStandard = b.sizeScore >= 100;
+        const aIsTiny = a.sizeScore < 0;         // <100ml, <100g
+        const bIsTiny = b.sizeScore < 0;
+
+        // NAJPREJ: Standardne velikosti pred majhnimi
+        // To zagotavlja da 1L mleko pride pred 200ml mlekom
+        if (aIsStandard && !bIsStandard) return -1;
+        if (bIsStandard && !aIsStandard) return 1;
+        if (!aIsTiny && bIsTiny) return -1;
+        if (!bIsTiny && aIsTiny) return 1;
+
+        // DRUGIČ: Znotraj iste velikostne kategorije, sortiraj po relevantnosti
         const scoreDiff = b.smartScore - a.smartScore;
-        if (Math.abs(scoreDiff) > 50) {
-          // Če je razlika v relevantnosti velika (>50), to ima prednost
+        if (Math.abs(scoreDiff) > 30) {
           return scoreDiff;
         }
 
-        // DRUGIČ: Za podobno relevantne izdelke, standardne velikosti pred majhnimi
-        const aIsStandard = a.sizeScore >= 100;
-        const bIsStandard = b.sizeScore >= 100;
-        const aIsTiny = a.sizeScore < 0;
-        const bIsTiny = b.sizeScore < 0;
+        // TRETJIČ: Podobna relevantnost = sortiraj po velikosti (večje = boljše)
+        if (a.sizeScore !== b.sizeScore) {
+          return b.sizeScore - a.sizeScore;
+        }
 
-        if (aIsStandard && bIsTiny) return -1;
-        if (bIsStandard && aIsTiny) return 1;
-        if (a.sizeScore > 0 && bIsTiny) return -1;
-        if (b.sizeScore > 0 && aIsTiny) return 1;
-
-        // TRETJIČ: Potem po kombiniranem score
+        // ČETRTIČ: Enaka velikost in relevantnost = po kombiniranem score
         return b.combinedScore - a.combinedScore;
       })
       .slice(0, 100)
