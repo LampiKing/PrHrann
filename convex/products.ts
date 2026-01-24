@@ -591,16 +591,15 @@ export const search = query({
       }
     }
 
-    // 3. Fallback če premalo rezultatov
+    // 3. Uporabi samo search kandidate - BREZ fallbacka na random izdelke!
+    // Fallback je povzročal da so se prikazovali nerelevantni izdelki
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let allProducts: any[] = searchCandidates;
-    if (searchCandidates.length < 50) {
-      allProducts = await ctx.db.query("products").take(3000);
-    }
+    const allProducts: any[] = searchCandidates;
 
     // 3. Oceni vsak izdelek s PAMETNIM algoritmom
-    // MINIMALNI SCORE: 50 - pod tem pragom izdelek ni dovolj relevanten
-    const MIN_SCORE_THRESHOLD = 50;
+    // MINIMALNI SCORE: 80 - pod tem pragom izdelek ni dovolj relevanten
+    // Povečano iz 50 na 80 za boljšo relevantnost rezultatov
+    const MIN_SCORE_THRESHOLD = 80;
 
     const scoredProducts = allProducts
       .map(product => {
@@ -621,7 +620,15 @@ export const search = query({
       })
       .filter(item => item.smartScore >= MIN_SCORE_THRESHOLD)
       .sort((a, b) => {
-        // NAJPREJ: Standardne velikosti pred majhnimi
+        // NAJPREJ: Sortiraj po RELEVANTNOSTI (smartScore)
+        // Izdelki z višjim smartScore so bolj relevantni za iskalni pojem
+        const scoreDiff = b.smartScore - a.smartScore;
+        if (Math.abs(scoreDiff) > 50) {
+          // Če je razlika v relevantnosti velika (>50), to ima prednost
+          return scoreDiff;
+        }
+
+        // DRUGIČ: Za podobno relevantne izdelke, standardne velikosti pred majhnimi
         const aIsStandard = a.sizeScore >= 100;
         const bIsStandard = b.sizeScore >= 100;
         const aIsTiny = a.sizeScore < 0;
@@ -632,7 +639,7 @@ export const search = query({
         if (a.sizeScore > 0 && bIsTiny) return -1;
         if (b.sizeScore > 0 && aIsTiny) return 1;
 
-        // Potem po kombiniranem score
+        // TRETJIČ: Potem po kombiniranem score
         return b.combinedScore - a.combinedScore;
       })
       .slice(0, 100)
