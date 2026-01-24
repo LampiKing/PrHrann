@@ -142,6 +142,9 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
   let rootMatches = 0;
   let matchedAsAdjective = false;
 
+  // Track partial/substring matches separately - they should be penalized
+  let partialMatches = 0;
+
   for (const qWord of queryWords) {
     const qRoot = getStemRoot(qWord);
 
@@ -149,24 +152,52 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
       const nWord = nameWords[i];
       const nRoot = nameRoots[i];
 
+      // 1. TOČNO ujemanje besede
       if (nWord === qWord) {
         exactMatches++;
         break;
       }
-      else if (nRoot === qRoot || nWord.includes(qRoot) || qWord.includes(nRoot)) {
+      // 2. TOČNO ujemanje korena (npr. "mleko" = "mlek" = "mleka")
+      else if (nRoot === qRoot && nRoot.length >= 3) {
         rootMatches++;
         if (isAdjective(nWord) && !isAdjective(qWord)) {
           matchedAsAdjective = true;
         }
         break;
       }
+      // 3. Beseda se ZAČNE z iskalno besedo (npr. "sol" -> "solni")
+      // AMPAK: kratka beseda (3-4 znaki) ne sme matchati veliko daljše besede
+      // npr. "sol" (3) ne sme matchati "solatna" (7) ker je to druga beseda!
+      else if (nWord.startsWith(qWord) && qWord.length >= 3) {
+        const lengthDiff = nWord.length - qWord.length;
+        // Če je razlika več kot 3 znaki, je to verjetno druga beseda
+        if (lengthDiff <= 3) {
+          rootMatches++;
+          break;
+        }
+        // Drugače je to partial match z nizkim scorom
+        partialMatches++;
+        break;
+      }
+      // 4. SUBSTRING match - ZELO SLABO! (npr. "sol" v "solatna")
+      // Samo če je query dolg vsaj 4 znake, sicer ignoriramo
+      else if (qWord.length >= 4 && nWord.includes(qWord)) {
+        partialMatches++;
+        break;
+      }
     }
   }
 
-  const totalMatches = exactMatches + rootMatches;
+  const totalMatches = exactMatches + rootMatches + partialMatches;
   if (totalMatches === 0) return 0;
 
-  const matchRatio = totalMatches / queryWords.length;
+  // Če imamo SAMO partial matches (substring), to je zelo slab rezultat
+  // npr. "sol" najde "solatna" - to NI sol!
+  if (exactMatches === 0 && rootMatches === 0 && partialMatches > 0) {
+    return 10; // Zelo nizek score - bo filtriran s MIN_SCORE_THRESHOLD
+  }
+
+  const matchRatio = (exactMatches + rootMatches) / queryWords.length;
   if (matchRatio < 1) return matchRatio * 20;
 
   // === PENALIZACIJA za pridevnike ===
@@ -417,7 +448,9 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   // Moka in peka
   "moka": ["moka", "flour", "pšenična moka"],
   "sladkor": ["sladkor", "sugar", "kristalni sladkor"],
-  "sol": ["sol", "salt", "morska", "kuhinjska"],
+  "sol": ["sol", "salt", "solni", "solna"],
+  "morska sol": ["morska sol", "sea salt"],
+  "kuhinjska sol": ["kuhinjska sol", "table salt"],
   "kvas": ["kvas", "yeast", "droži"],
   "olje": ["olje", "oil", "sončnično", "oljčno", "olivno"],
 
@@ -462,7 +495,10 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
   "slanina": ["slanina", "bacon", "panceta"],
 
   // Mlečni izdelki
-  "mleko": ["mleko", "milk", "trajno", "sveže"],
+  "mleko": ["mleko", "milk"],
+  "alpsko mleko": ["alpsko mleko", "alpsko", "alpska mlekarna"],
+  "trajno mleko": ["trajno mleko", "uht mleko"],
+  "sveže mleko": ["sveže mleko", "sveze mleko", "pasterizirano"],
   "jogurt": ["jogurt", "yogurt", "activia", "ego", "navadni", "sadni"],
   "skuta": ["skuta", "cottage", "ricotta", "sveža"],
   "smetana": ["smetana", "cream", "kisla smetana", "sladka"],
