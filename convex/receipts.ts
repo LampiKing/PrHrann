@@ -197,7 +197,7 @@ async function parseReceiptWithGroq(imageBase64: string): Promise<ParsedReceipt 
         Authorization: `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        model: "llama-3.2-90b-vision-preview",
         messages: [
           { role: "system", content: RECEIPT_SYSTEM_PROMPT },
           {
