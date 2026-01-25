@@ -52,7 +52,7 @@ const slides: OnboardingSlide[] = [
   },
   {
     id: 3,
-    icon: "bag-check",
+    icon: "list",
     title: "Tvoj pameten seznam.",
     subtitle: "Avtomatsko izračuna prihranek.",
     description: "Dodaj izdelke.\nMi ti povemo kje kupit.",

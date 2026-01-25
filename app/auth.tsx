@@ -1483,16 +1483,16 @@ const styles = StyleSheet.create({
   },
   logoGlow: {
     position: "absolute",
-    width: 260,
-    height: 260,
+    width: 300,
+    height: 300,
     backgroundColor: "#8b5cf6",
-    borderRadius: 130,
-    top: -22,
+    borderRadius: 150,
+    top: -25,
     ...createShadow("#8b5cf6", 0, 0, 1, 60, 25),
   },
   logo: {
-    width: 174,
-    height: 174,
+    width: 200,
+    height: 200,
     zIndex: 1,
   },
   appName: {
