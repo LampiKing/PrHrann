@@ -200,6 +200,14 @@ export default function ShoppingListsScreen() {
                             </>
                           )}
                         </View>
+                        {list.potentialSavings > 0 && (
+                          <View style={styles.savingsBadge}>
+                            <Ionicons name="trending-down" size={12} color="#10b981" />
+                            <Text style={styles.savingsText}>
+                              Prihrani do {list.potentialSavings.toFixed(2)} €
+                            </Text>
+                          </View>
+                        )}
                       </View>
                       <View style={styles.listActions}>
                         {list.isShared && !list.isOwner && (
@@ -475,6 +483,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6b7280",
     marginHorizontal: 2,
+  },
+  savingsBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  savingsText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#10b981",
   },
   listActions: {
     flexDirection: "row",

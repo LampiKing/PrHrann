@@ -54,7 +54,7 @@ export const getLists = query({
 
     const allLists = [...userLists, ...relevantSharedLists];
 
-    // Za vsako listo pridobi število itemov
+    // Za vsako listo pridobi število itemov in potencialni prihranek
     const listsWithCounts = await Promise.all(
       allLists.map(async (list) => {
         const items = await ctx.db
@@ -64,11 +64,45 @@ export const getLists = query({
 
         const checkedCount = items.filter(item => item.checked).length;
 
+        // Izračunaj potencialni prihranek (razlika med najvišjo in najnižjo ceno)
+        let potentialSavings = 0;
+        let lowestTotal = 0;
+        let highestTotal = 0;
+
+        if (items.length > 0) {
+          // Zberi vse cene za vse izdelke
+          const storeToTotalMap = new Map<string, number>();
+
+          for (const item of items) {
+            const prices = await ctx.db
+              .query("prices")
+              .withIndex("by_product", (q) => q.eq("productId", item.productId))
+              .collect();
+
+            for (const price of prices) {
+              const store = await ctx.db.get(price.storeId);
+              if (!store) continue;
+              const currentTotal = storeToTotalMap.get(store.name) || 0;
+              storeToTotalMap.set(store.name, currentTotal + (price.price * item.quantity));
+            }
+          }
+
+          // Najdi najnižjo in najvišjo skupno ceno
+          const totals = Array.from(storeToTotalMap.values());
+          if (totals.length > 0) {
+            lowestTotal = Math.min(...totals);
+            highestTotal = Math.max(...totals);
+            potentialSavings = highestTotal - lowestTotal;
+          }
+        }
+
         return {
           ...list,
           totalItems: items.length,
           checkedItems: checkedCount,
           isOwner: list.userId === identity.subject,
+          potentialSavings,
+          lowestTotal,
         };
       })
     );

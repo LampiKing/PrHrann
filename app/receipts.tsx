@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -29,6 +30,8 @@ type ReceiptResult = {
   invalidReason?: string;  // If set, receipt doesn't count for competition
 };
 
+type ReceiptMode = "select" | "single" | "multi";
+
 export default function ReceiptsScreen() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -37,6 +40,11 @@ export default function ReceiptsScreen() {
   const [loadingStage, setLoadingStage] = useState<string>("");
   const [showResultModal, setShowResultModal] = useState(false);
   const [receiptResult, setReceiptResult] = useState<ReceiptResult | null>(null);
+
+  // Multi-image state
+  const [receiptMode, setReceiptMode] = useState<ReceiptMode>("select");
+  const [topImage, setTopImage] = useState<string | null>(null);
+  const [bottomImage, setBottomImage] = useState<string | null>(null);
 
   const myReceipts = useQuery(
     api.receipts.getMyReceipts,
@@ -60,6 +68,7 @@ export default function ReceiptsScreen() {
 
   const submitReceipt = useAction(api.receipts.submitReceipt);
 
+  // Single image mode handlers
   const pickImage = async () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -95,6 +104,143 @@ export default function ReceiptsScreen() {
     if (!result.canceled && result.assets[0]) {
       handleImageSelected(result.assets[0].uri);
     }
+  };
+
+  // Multi-image mode handlers
+  const pickMultiImage = async (part: "top" | "bottom", source: "camera" | "gallery") => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    let result;
+    if (source === "camera") {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") return;
+      result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.9,
+      });
+    } else {
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.9,
+      });
+    }
+
+    if (!result.canceled && result.assets[0]) {
+      if (part === "top") {
+        setTopImage(result.assets[0].uri);
+      } else {
+        setBottomImage(result.assets[0].uri);
+      }
+    }
+  };
+
+  const handleMultiImageSubmit = async () => {
+    if (!topImage || !bottomImage) return;
+
+    setAnalyzing(true);
+    setUploading(true);
+    setLoadingStage("Pripravljam slike...");
+
+    try {
+      // Convert both images to base64
+      const convertToBase64 = async (uri: string) => {
+        if (Platform.OS === "web") {
+          const response = await fetch(uri);
+          const blob = await response.blob();
+          return await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        } else {
+          const base64 = await FileSystem.readAsStringAsync(uri, {
+            encoding: "base64",
+          });
+          return `data:image/jpeg;base64,${base64}`;
+        }
+      };
+
+      const [topBase64, bottomBase64] = await Promise.all([
+        convertToBase64(topImage),
+        convertToBase64(bottomImage),
+      ]);
+
+      setLoadingStage("Berem račun z AI...");
+
+      // Submit receipt with both images (combined)
+      const result = await submitReceipt({
+        imageBase64: topBase64,
+        imageBase64Bottom: bottomBase64,
+        confirmed: true
+      });
+
+      if (result.success && result.receiptId) {
+        setReceiptResult({
+          success: true,
+          savedAmount: result.savedAmount ?? 0,
+          storeName: result.storeName ?? "Trgovina",
+          totalPaid: result.totalPaid ?? 0,
+          invalidReason: result.invalidReason,
+        });
+        setShowResultModal(true);
+        // Reset multi-image state
+        setTopImage(null);
+        setBottomImage(null);
+        setReceiptMode("select");
+
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(
+            result.invalidReason
+              ? Haptics.NotificationFeedbackType.Warning
+              : Haptics.NotificationFeedbackType.Success
+          );
+        }
+      } else {
+        let errorMessage = result.error || "Napaka pri obdelavi računa";
+        if (result.error?.includes("Duplicate")) {
+          errorMessage = "Ta račun je že dodan! Isti račun ne more biti dodan dvakrat.";
+        } else if (result.error?.includes("Daily")) {
+          errorMessage = "Dnevna omejitev dosežena. Jutri lahko dodaš nov račun.";
+        } else if (result.error?.includes("parse")) {
+          errorMessage = "Račun ni bil prepoznan. Prosim poskusi z bolj jasno sliko.";
+        }
+
+        setReceiptResult({
+          success: false,
+          error: errorMessage,
+        });
+        setShowResultModal(true);
+
+        if (Platform.OS !== "web") {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+      }
+    } catch (error) {
+      console.error("Receipt upload error:", error);
+      setReceiptResult({
+        success: false,
+        error: "Napaka pri nalaganju. Preveri internetno povezavo.",
+      });
+      setShowResultModal(true);
+
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } finally {
+      setAnalyzing(false);
+      setUploading(false);
+      setLoadingStage("");
+    }
+  };
+
+  const resetMultiMode = () => {
+    setTopImage(null);
+    setBottomImage(null);
+    setReceiptMode("select");
   };
 
   const handleImageSelected = async (uri: string) => {
@@ -241,35 +387,203 @@ export default function ReceiptsScreen() {
               Slikaj ali naloži račun za avtomatsko obdelavo
             </Text>
 
-            <View style={styles.uploadButtons}>
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={pickImage}
-                disabled={uploading}
-              >
-                <LinearGradient
-                  colors={["#8b5cf6", "#7c3aed"]}
-                  style={styles.uploadButtonGradient}
+            {/* Mode Selection */}
+            {receiptMode === "select" && (
+              <View style={styles.modeSelection}>
+                <TouchableOpacity
+                  style={styles.modeCard}
+                  onPress={() => setReceiptMode("single")}
+                  disabled={uploading}
                 >
-                  <Ionicons name="camera" size={28} color="#fff" />
-                  <Text style={styles.uploadButtonText}>Slikaj</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+                  <LinearGradient
+                    colors={["rgba(139, 92, 246, 0.15)", "rgba(139, 92, 246, 0.05)"]}
+                    style={styles.modeCardGradient}
+                  >
+                    <View style={styles.modeIconCircle}>
+                      <Ionicons name="receipt-outline" size={32} color="#a78bfa" />
+                    </View>
+                    <Text style={styles.modeTitle}>Kratek račun</Text>
+                    <Text style={styles.modeDesc}>Cel račun se vidi na eni sliki</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.uploadButton}
-                onPress={pickFromGallery}
-                disabled={uploading}
-              >
-                <LinearGradient
-                  colors={["#10b981", "#059669"]}
-                  style={styles.uploadButtonGradient}
+                <TouchableOpacity
+                  style={styles.modeCard}
+                  onPress={() => setReceiptMode("multi")}
+                  disabled={uploading}
                 >
-                  <Ionicons name="images" size={28} color="#fff" />
-                  <Text style={styles.uploadButtonText}>Galerija</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
+                  <LinearGradient
+                    colors={["rgba(16, 185, 129, 0.15)", "rgba(16, 185, 129, 0.05)"]}
+                    style={styles.modeCardGradient}
+                  >
+                    <View style={[styles.modeIconCircle, styles.modeIconCircleGreen]}>
+                      <Ionicons name="documents-outline" size={32} color="#10b981" />
+                    </View>
+                    <Text style={styles.modeTitle}>Dolg račun</Text>
+                    <Text style={styles.modeDesc}>Račun potrebuje 2 sliki</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Single Image Mode */}
+            {receiptMode === "single" && (
+              <>
+                <TouchableOpacity style={styles.backToModeBtn} onPress={() => setReceiptMode("select")}>
+                  <Ionicons name="arrow-back" size={16} color="#a78bfa" />
+                  <Text style={styles.backToModeText}>Nazaj na izbiro</Text>
+                </TouchableOpacity>
+
+                <View style={styles.uploadButtons}>
+                  <TouchableOpacity
+                    style={styles.uploadButton}
+                    onPress={pickImage}
+                    disabled={uploading}
+                  >
+                    <LinearGradient
+                      colors={["#8b5cf6", "#7c3aed"]}
+                      style={styles.uploadButtonGradient}
+                    >
+                      <Ionicons name="camera" size={28} color="#fff" />
+                      <Text style={styles.uploadButtonText}>Slikaj</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.uploadButton}
+                    onPress={pickFromGallery}
+                    disabled={uploading}
+                  >
+                    <LinearGradient
+                      colors={["#10b981", "#059669"]}
+                      style={styles.uploadButtonGradient}
+                    >
+                      <Ionicons name="images" size={28} color="#fff" />
+                      <Text style={styles.uploadButtonText}>Galerija</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {/* Multi Image Mode */}
+            {receiptMode === "multi" && (
+              <>
+                <TouchableOpacity style={styles.backToModeBtn} onPress={resetMultiMode}>
+                  <Ionicons name="arrow-back" size={16} color="#a78bfa" />
+                  <Text style={styles.backToModeText}>Nazaj na izbiro</Text>
+                </TouchableOpacity>
+
+                {/* Top Part */}
+                <View style={styles.multiImageSection}>
+                  <View style={styles.multiImageHeader}>
+                    <View style={styles.multiImageNumber}>
+                      <Text style={styles.multiImageNumberText}>1</Text>
+                    </View>
+                    <View style={styles.multiImageInfo}>
+                      <Text style={styles.multiImageTitle}>Zgornji del računa</Text>
+                      <Text style={styles.multiImageDesc}>
+                        Slikaj vrh računa z imenom trgovine, datumom in prvimi izdelki
+                      </Text>
+                    </View>
+                  </View>
+
+                  {topImage ? (
+                    <View style={styles.imagePreviewContainer}>
+                      <Image source={{ uri: topImage }} style={styles.imagePreview} />
+                      <TouchableOpacity
+                        style={styles.removeImageBtn}
+                        onPress={() => setTopImage(null)}
+                      >
+                        <Ionicons name="close-circle" size={28} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.multiUploadButtons}>
+                      <TouchableOpacity
+                        style={styles.multiUploadBtn}
+                        onPress={() => pickMultiImage("top", "camera")}
+                        disabled={uploading}
+                      >
+                        <Ionicons name="camera" size={22} color="#8b5cf6" />
+                        <Text style={styles.multiUploadBtnText}>Slikaj</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.multiUploadBtn}
+                        onPress={() => pickMultiImage("top", "gallery")}
+                        disabled={uploading}
+                      >
+                        <Ionicons name="images" size={22} color="#10b981" />
+                        <Text style={styles.multiUploadBtnText}>Galerija</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+
+                {/* Bottom Part */}
+                <View style={styles.multiImageSection}>
+                  <View style={styles.multiImageHeader}>
+                    <View style={[styles.multiImageNumber, styles.multiImageNumberGreen]}>
+                      <Text style={styles.multiImageNumberText}>2</Text>
+                    </View>
+                    <View style={styles.multiImageInfo}>
+                      <Text style={styles.multiImageTitle}>Spodnji del računa</Text>
+                      <Text style={styles.multiImageDesc}>
+                        Slikaj spodnji del s skupnim zneskom in zadnjimi izdelki
+                      </Text>
+                    </View>
+                  </View>
+
+                  {bottomImage ? (
+                    <View style={styles.imagePreviewContainer}>
+                      <Image source={{ uri: bottomImage }} style={styles.imagePreview} />
+                      <TouchableOpacity
+                        style={styles.removeImageBtn}
+                        onPress={() => setBottomImage(null)}
+                      >
+                        <Ionicons name="close-circle" size={28} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.multiUploadButtons}>
+                      <TouchableOpacity
+                        style={styles.multiUploadBtn}
+                        onPress={() => pickMultiImage("bottom", "camera")}
+                        disabled={uploading}
+                      >
+                        <Ionicons name="camera" size={22} color="#8b5cf6" />
+                        <Text style={styles.multiUploadBtnText}>Slikaj</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.multiUploadBtn}
+                        onPress={() => pickMultiImage("bottom", "gallery")}
+                        disabled={uploading}
+                      >
+                        <Ionicons name="images" size={22} color="#10b981" />
+                        <Text style={styles.multiUploadBtnText}>Galerija</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+
+                {/* Submit Button */}
+                {topImage && bottomImage && (
+                  <TouchableOpacity
+                    style={styles.submitMultiBtn}
+                    onPress={handleMultiImageSubmit}
+                    disabled={uploading}
+                  >
+                    <LinearGradient
+                      colors={["#8b5cf6", "#7c3aed"]}
+                      style={styles.submitMultiBtnGradient}
+                    >
+                      <Ionicons name="cloud-upload" size={24} color="#fff" />
+                      <Text style={styles.submitMultiBtnText}>Naloži račun</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
 
             {analyzing && (
               <View style={styles.analyzingBox}>
@@ -694,5 +1008,159 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#a78bfa",
+  },
+  // Mode selection styles
+  modeSelection: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  modeCard: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  modeCardGradient: {
+    padding: 20,
+    alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  modeIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "rgba(139, 92, 246, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  modeIconCircleGreen: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+  },
+  modeTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 4,
+  },
+  modeDesc: {
+    fontSize: 12,
+    color: "#9ca3af",
+    textAlign: "center",
+  },
+  backToModeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  backToModeText: {
+    fontSize: 14,
+    color: "#a78bfa",
+    fontWeight: "600",
+  },
+  // Multi image styles
+  multiImageSection: {
+    backgroundColor: "rgba(139, 92, 246, 0.08)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.2)",
+  },
+  multiImageHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  multiImageNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#8b5cf6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  multiImageNumberGreen: {
+    backgroundColor: "#10b981",
+  },
+  multiImageNumberText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  multiImageInfo: {
+    flex: 1,
+  },
+  multiImageTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 4,
+  },
+  multiImageDesc: {
+    fontSize: 13,
+    color: "#9ca3af",
+    lineHeight: 18,
+  },
+  multiUploadButtons: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  multiUploadBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  multiUploadBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  imagePreviewContainer: {
+    position: "relative",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  imagePreview: {
+    width: "100%",
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  removeImageBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 14,
+  },
+  submitMultiBtn: {
+    marginTop: 8,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  submitMultiBtnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingVertical: 16,
+  },
+  submitMultiBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
   },
 });

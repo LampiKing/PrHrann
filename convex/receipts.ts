@@ -302,6 +302,7 @@ async function parseReceipt(imageBase64: string): Promise<ParsedReceipt | null> 
 export const submitReceipt = action({
   args: {
     imageBase64: v.string(),
+    imageBase64Bottom: v.optional(v.string()), // Optional second image for long receipts
     confirmed: v.boolean(),
   },
   returns: v.object({
@@ -319,13 +320,33 @@ export const submitReceipt = action({
       return { success: false, error: "Authentication required." };
     }
 
-    const parsed = await parseReceipt(args.imageBase64);
-    if (!parsed) {
+    // Parse primary image (top or single)
+    const parsedTop = await parseReceipt(args.imageBase64);
+    if (!parsedTop) {
       return { success: false, error: "Račun ni bil prepoznan. Preveri če imaš nastavljeno GROQ_API_KEY ali OPENAI_API_KEY." };
     }
 
+    // If we have a second image (bottom part of long receipt), parse and merge
+    let finalParsed = parsedTop;
+    if (args.imageBase64Bottom) {
+      const parsedBottom = await parseReceipt(args.imageBase64Bottom);
+      if (parsedBottom) {
+        // Merge results: use top for store/date info, combine items, use bottom for total
+        finalParsed = {
+          storeName: parsedTop.storeName || parsedBottom.storeName,
+          purchaseDate: parsedTop.purchaseDate || parsedBottom.purchaseDate,
+          purchaseTime: parsedTop.purchaseTime || parsedBottom.purchaseTime,
+          // Use bottom total as it's more likely to be the final total
+          totalPaid: parsedBottom.totalPaid > 0 ? parsedBottom.totalPaid : parsedTop.totalPaid,
+          currency: parsedTop.currency || parsedBottom.currency,
+          // Combine items from both images
+          items: [...parsedTop.items, ...parsedBottom.items],
+        };
+      }
+    }
+
     const result: ReceiptActionResult = await ctx.runMutation(api.receipts.createReceipt, {
-      parsed,
+      parsed: finalParsed,
       confirmed: args.confirmed,
     });
 
