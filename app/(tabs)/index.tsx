@@ -1750,13 +1750,6 @@ export default function SearchScreen() {
                   end={{ x: 1, y: 1 }}
                   style={styles.searchGradient}
                 >
-                  <TouchableOpacity
-                    onPress={handleSearch}
-                    style={styles.searchIconButton}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="search" size={20} color="#a78bfa" />
-                  </TouchableOpacity>
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Išči izdelke..."
@@ -1778,6 +1771,13 @@ export default function SearchScreen() {
                       <Ionicons name="close-circle" size={20} color="rgba(255, 255, 255, 0.4)" />
                     </TouchableOpacity>
                   )}
+                  <TouchableOpacity
+                    onPress={handleSearch}
+                    style={styles.searchIconButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="search" size={20} color="#a78bfa" />
+                  </TouchableOpacity>
                   {!isPremium && searchesRemaining <= 0 && (
                     <TouchableOpacity
                       style={styles.searchBlocker}
@@ -2571,7 +2571,7 @@ const styles = StyleSheet.create({
   },
   searchIconButton: {
     padding: 8,
-    marginRight: 4,
+    marginLeft: 4,
   },
   searchInput: {
     flex: 1,
