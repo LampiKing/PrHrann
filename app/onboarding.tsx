@@ -72,7 +72,7 @@ const slides: OnboardingSlide[] = [
 // Celebration particles config
 const PARTICLE_COUNT = 20;
 const DISCOUNT_BADGES = ["-30%", "-25%", "-20%", "-15%", "€€€", "-50%", "WOW!", "-40%"];
-const PARTICLE_COLORS = ["#a855f7", "#22c55e", "#f59e0b", "#ec4899", "#3b82f6", "#ef4444"];
+const PARTICLE_COLORS = ["#f59e0b", "#fbbf24", "#d97706", "#22c55e", "#10b981", "#a855f7"];
 
 interface Particle {
   id: number;

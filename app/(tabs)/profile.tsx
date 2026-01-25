@@ -1644,16 +1644,10 @@ export default function ProfileScreen() {
               </Text>
               <View style={styles.feedbackSuccessActions}>
                 <TouchableOpacity
-                  style={[styles.feedbackSuccessButton, styles.feedbackSuccessButtonGhost]}
-                  onPress={() => setShowFeedbackSuccessModal(false)}
-                >
-                  <Text style={styles.feedbackSuccessButtonText}>OK</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
                   style={[styles.feedbackSuccessButton, styles.feedbackSuccessButtonPrimary]}
                   onPress={() => setShowFeedbackSuccessModal(false)}
                 >
-                  <Text style={styles.feedbackSuccessButtonTextPrimary}>Super!</Text>
+                  <Text style={styles.feedbackSuccessButtonTextPrimary}>SUPER</Text>
                 </TouchableOpacity>
               </View>
             </View>
