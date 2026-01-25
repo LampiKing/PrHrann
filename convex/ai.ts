@@ -26,52 +26,7 @@ ODGOVORI SAMO z imenom izdelka, BREZ razlag.`;
 
 const PRODUCT_USER_PROMPT = "Preberi besedilo na tem izdelku in mi povej KAJ TOČNO je to. Samo ime izdelka, nič drugega.";
 
-// Najprej poskusi Groq (brezplačno), potem OpenAI
-async function analyzeWithGroq(imageBase64: string): Promise<string | null> {
-  const groqKey = process.env.GROQ_API_KEY;
-  if (!groqKey) return null;
-
-  const imageUrl = imageBase64.startsWith("data:")
-    ? imageBase64
-    : `data:image/jpeg;base64,${imageBase64}`;
-
-  try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${groqKey}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.2-11b-vision-preview",
-        messages: [
-          { role: "system", content: PRODUCT_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: PRODUCT_USER_PROMPT },
-              { type: "image_url", image_url: { url: imageUrl } },
-            ],
-          },
-        ],
-        max_tokens: 100,
-        temperature: 0.05,
-      }),
-    });
-
-    if (!response.ok) {
-      console.log("Groq product scan error:", response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    return data?.choices?.[0]?.message?.content?.trim() || null;
-  } catch (error) {
-    console.log("Groq product scan exception:", error);
-    return null;
-  }
-}
-
+// OpenAI GPT-4o za prepoznavanje izdelkov
 async function analyzeWithOpenAI(imageBase64: string): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
@@ -129,12 +84,8 @@ export const analyzeProductImage = action({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
-    // Poskusi Groq najprej (brezplačno), potem OpenAI
-    let productName = await analyzeWithGroq(args.imageBase64);
-
-    if (!productName) {
-      productName = await analyzeWithOpenAI(args.imageBase64);
-    }
+    // Uporabi OpenAI GPT-4o za prepoznavanje izdelkov
+    const productName = await analyzeWithOpenAI(args.imageBase64);
 
     if (!productName) {
       return simulateProductRecognition(args.imageBase64);

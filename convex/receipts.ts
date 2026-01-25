@@ -178,57 +178,7 @@ function parseReceiptResponse(content: string): ParsedReceipt | null {
   }
 }
 
-// Try Groq first (FREE), then OpenAI as fallback
-async function parseReceiptWithGroq(imageBase64: string): Promise<ParsedReceipt | null> {
-  const groqKey = process.env.GROQ_API_KEY;
-  if (!groqKey) {
-    return null;
-  }
-
-  const imageUrl = imageBase64.startsWith("data:")
-    ? imageBase64
-    : `data:image/jpeg;base64,${imageBase64}`;
-
-  try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${groqKey}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.2-11b-vision-preview",
-        messages: [
-          { role: "system", content: RECEIPT_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: RECEIPT_USER_PROMPT },
-              { type: "image_url", image_url: { url: imageUrl } },
-            ],
-          },
-        ],
-        max_tokens: 1500,
-        temperature: 0.1,
-      }),
-    });
-
-    if (!response.ok) {
-      console.log("Groq error:", response.status, await response.text());
-      return null;
-    }
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) return null;
-
-    return parseReceiptResponse(content);
-  } catch (error) {
-    console.log("Groq exception:", error);
-    return null;
-  }
-}
-
+// OpenAI GPT-4o za prepoznavanje računov
 async function parseReceiptWithOpenAI(imageBase64: string): Promise<ParsedReceipt | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -281,18 +231,11 @@ async function parseReceiptWithOpenAI(imageBase64: string): Promise<ParsedReceip
 
 // Main parser - tries Groq (free) first, then OpenAI
 async function parseReceipt(imageBase64: string): Promise<ParsedReceipt | null> {
-  // Try Groq first (FREE)
-  const groqResult = await parseReceiptWithGroq(imageBase64);
-  if (groqResult) {
-    console.log("Receipt parsed with Groq (free)");
-    return groqResult;
-  }
-
-  // Fallback to OpenAI
-  const openaiResult = await parseReceiptWithOpenAI(imageBase64);
-  if (openaiResult) {
+  // Uporabi OpenAI GPT-4o za prepoznavanje računov
+  const result = await parseReceiptWithOpenAI(imageBase64);
+  if (result) {
     console.log("Receipt parsed with OpenAI");
-    return openaiResult;
+    return result;
   }
 
   console.log("No API key available for receipt parsing");
