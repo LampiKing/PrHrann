@@ -1750,10 +1750,17 @@ export default function SearchScreen() {
                   end={{ x: 1, y: 1 }}
                   style={styles.searchGradient}
                 >
+                  <TouchableOpacity
+                    onPress={handleSearch}
+                    style={styles.searchIconButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="search" size={20} color="#a78bfa" />
+                  </TouchableOpacity>
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Išči izdelke..."
-                    placeholderTextColor="#ffffff"
+                    placeholderTextColor="rgba(255, 255, 255, 0.5)"
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     onFocus={handleSearchFocus}
@@ -1762,14 +1769,13 @@ export default function SearchScreen() {
                     returnKeyType="search"
                     editable={isPremium || searchesRemaining > 0}
                   />
-                  <Ionicons name="search" size={22} color="#a78bfa" style={styles.searchIcon} />
                   {searchQuery.length > 0 && (
                     <TouchableOpacity onPress={() => {
                       setSearchQuery("");
                       setApprovedQuery("");
                       setLastQueriedFor("");
                     }} style={styles.clearButton}>
-                      <Ionicons name="close-circle" size={20} color="#6b7280" />
+                      <Ionicons name="close-circle" size={20} color="rgba(255, 255, 255, 0.4)" />
                     </TouchableOpacity>
                   )}
                   {!isPremium && searchesRemaining <= 0 && (
@@ -2563,8 +2569,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(139, 92, 246, 0.4)",
     ...createShadow("#8b5cf6", 0, 2, 0.2, 8, 4),
   },
-  searchIcon: {
-    marginLeft: 12,
+  searchIconButton: {
+    padding: 8,
+    marginRight: 4,
   },
   searchInput: {
     flex: 1,
@@ -2573,7 +2580,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   clearButton: {
-    padding: 4,
+    padding: 8,
+    marginLeft: 4,
   },
   searchBlocker: {
     ...StyleSheet.absoluteFillObject,
