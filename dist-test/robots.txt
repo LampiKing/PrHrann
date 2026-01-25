@@ -1,0 +1,9 @@
+﻿# Pr'Hran - robots.txt
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://www.prhran.com/sitemap.xml
+

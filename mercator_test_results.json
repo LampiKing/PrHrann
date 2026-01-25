@@ -1,0 +1,108 @@
+{
+  "popup_closed": true,
+  "products_before_scroll": 201,
+  "products_after_scroll": 901,
+  "extracted_count": 50,
+  "sample_products": [
+    {
+      "ime": "Kisla smetana, Mercator, 20 % m.m., 400 g",
+      "redna_cena": 1.29,
+      "akcijska_cena": null,
+      "kategorija": "MLEKO, JAJCA IN MLEČNI IZDELKI",
+      "enota": "400g",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4169/product_small_image/00366029.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    },
+    {
+      "ime": "Jajca L, hlevska reja, Mercator, 10/1",
+      "redna_cena": 2.39,
+      "akcijska_cena": null,
+      "kategorija": "MLEKO, JAJCA IN MLEČNI IZDELKI",
+      "enota": "",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4169/product_small_image/00396221.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    },
+    {
+      "ime": "Jajca M, hlevska reja, Mercator, 10 jajc",
+      "redna_cena": 2.09,
+      "akcijska_cena": null,
+      "kategorija": "MLEKO, JAJCA IN MLEČNI IZDELKI",
+      "enota": "",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4169/product_small_image/00306872.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    },
+    {
+      "ime": "Mleta kava Classic, Barcaffe, 200 g",
+      "redna_cena": 4.79,
+      "akcijska_cena": null,
+      "kategorija": "VSE ZA ZAJTRK",
+      "enota": "200g",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4808/product_small_image/00811426.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    },
+    {
+      "ime": "Mleta kava Classic, Barcaffe, 100 g",
+      "redna_cena": 2.39,
+      "akcijska_cena": null,
+      "kategorija": "VSE ZA ZAJTRK",
+      "enota": "100g",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4808/product_small_image/00001750.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    },
+    {
+      "ime": "Mleta kava Classic, Barcaffe, 500 g",
+      "redna_cena": 12.19,
+      "akcijska_cena": null,
+      "kategorija": "VSE ZA ZAJTRK",
+      "enota": "500g",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4808/product_small_image/00021691.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    },
+    {
+      "ime": "Kava v zrnu Classic, Barcaffe, 1 kg",
+      "redna_cena": 24.99,
+      "akcijska_cena": null,
+      "kategorija": "VSE ZA ZAJTRK",
+      "enota": "1kg",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4808/product_small_image/00001752.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    },
+    {
+      "ime": "Naravna mineralna voda, Donat, 100% reciklirana plastenka, 1 l",
+      "redna_cena": 2.19,
+      "akcijska_cena": null,
+      "kategorija": "PIJAČE",
+      "enota": "1l",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4823/product_small_image/00184027.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    },
+    {
+      "ime": "Naravna gazirana mineralna voda, Radenska Classic, 0,5 l",
+      "redna_cena": 0.86,
+      "akcijska_cena": null,
+      "kategorija": "PIJAČE",
+      "enota": "0,5l",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4769/product_small_image/00001830.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    },
+    {
+      "ime": "Naravna gazirana mineralna voda, Radenska Classic, 1,5 l",
+      "redna_cena": 0.99,
+      "akcijska_cena": null,
+      "kategorija": "PIJAČE",
+      "enota": "1,5l",
+      "trgovina": "Mercator",
+      "slika": "https://mercatoronline.si/img/cache/products/4769/product_small_image/00001829.jpg",
+      "url": "https://mercatoronline.si/brskaj#offset=7"
+    }
+  ]
+}
