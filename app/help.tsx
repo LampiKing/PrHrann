@@ -43,7 +43,7 @@ const FAQ_ITEMS = [
   {
     question: "Ali so cene vedno točne?",
     answer:
-      "Cene posodabljamo iz uradnih virov trgovin. Občasno lahko pride do manjših odstopanj zaradi lokalnih akcij ali zakasnitev. Priporočamo, da ceno preveriš tudi v trgovini.",
+      "Cene posodabljamo iz uradnih virov trgovin. Občasno lahko pride do manjših odstopanj zaradi lokalnih akcij ali zakasnitev.",
   },
   {
     question: "Kako prekličem Premium naročnino?",

@@ -49,6 +49,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Scraped data (large JSON files)
+scraper/scraped_products*.json
+scraper/.env
+
 # Sensitive files
 automated_scraper/credentials.json
 google-play-service-account.json

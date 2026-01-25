@@ -80,7 +80,7 @@ export default function NotificationsScreen() {
             >
               <Ionicons name="notifications" size={24} color="#a78bfa" />
               <Text style={styles.infoText}>
-                Nastavi obvestila, da ne zamudis najboljsih ponudb in prihrankov.
+                Nastavi obvestila, da ne zamudiš najboljših ponudb in prihrankov.
               </Text>
             </LinearGradient>
           </View>
@@ -137,7 +137,7 @@ export default function NotificationsScreen() {
                   <View style={styles.settingInfo}>
                     <Text style={styles.settingTitle}>Tedenske ponudbe</Text>
                     <Text style={styles.settingDescription}>
-                      Povzetek najboljsih tedenskih akcij
+                      Povzetek najboljših tedenskih akcij
                     </Text>
                   </View>
                 </View>
@@ -174,7 +174,7 @@ export default function NotificationsScreen() {
           <View style={styles.noteContainer}>
             <Ionicons name="help-circle" size={18} color="#6b7280" />
             <Text style={styles.noteText}>
-              Obvestila lahko kadarkoli izklopis. Tvoji podatki so varni in jih ne delimo s tretjimi osebami.
+              Obvestila lahko kadarkoli izklopiš. Tvoji podatki so varni in jih ne delimo s tretjimi osebami.
             </Text>
           </View>
 

@@ -1718,7 +1718,7 @@ export default function SearchScreen() {
               </View>
               <View style={styles.statusMainRow}>
                 <View style={styles.statusSavingsBlock}>
-                  <Text style={styles.statusTitle}>Prihranil si letos</Text>
+                  <Text style={styles.statusTitle}>Letos si prihranil</Text>
                   <Text style={styles.statusValue}>{formatSavings(seasonSavings)}</Text>
                   <Text style={styles.statusSubtext}>Prihranek iz potrjenih računov</Text>
                 </View>

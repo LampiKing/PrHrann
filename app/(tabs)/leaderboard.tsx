@@ -158,7 +158,7 @@ export default function LeaderboardScreen() {
             <View style={styles.trophyGlow} />
             <Ionicons name="trophy" size={42} color="#fbbf24" />
           </View>
-          <Text style={styles.title}>Letna Lestvica {displaySeasonYear} 🏆</Text>
+          <Text style={styles.title}>Pr'hran Lestvica {displaySeasonYear} 🏆</Text>
           <Text style={styles.subtitle}>{leaderboardTypeLabel}</Text>
           <Text style={styles.motivationalText}>
             Vsak prihranek šteje! 💪 Skupaj varčujemo pametno! ✨
@@ -191,7 +191,7 @@ export default function LeaderboardScreen() {
           </View>
           <View style={styles.summaryMainRow}>
             <View style={styles.summarySavingsBlock}>
-              <Text style={styles.summaryTitle}>Prihranil si letos</Text>
+              <Text style={styles.summaryTitle}>Letos si prihranil</Text>
               <Text style={styles.summaryValue}>{formatCurrency(summary?.savings ?? 0)}</Text>
               <Text style={styles.summaryNote}>Prihranek iz potrjenih računov</Text>
             </View>
@@ -313,7 +313,7 @@ export default function LeaderboardScreen() {
               })}
             </View>
           ) : (
-            <Text style={styles.awardsEmpty}>Še nimaš nagrad ali značk. Začni s tekmovanjem!</Text>
+            <Text style={styles.awardsEmpty}>Še nimaš nagrad ali značk? Začni in pr'hran!</Text>
           )}
         </View>
 
