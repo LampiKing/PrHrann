@@ -178,9 +178,9 @@ function parseReceiptResponse(content: string): ParsedReceipt | null {
   }
 }
 
-// OpenAI GPT-4o za prepoznavanje računov
-async function parseReceiptWithOpenAI(imageBase64: string): Promise<ParsedReceipt | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
+// xAI Grok za prepoznavanje računov
+async function parseReceiptWithXAI(imageBase64: string): Promise<ParsedReceipt | null> {
+  const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) {
     return null;
   }
@@ -190,31 +190,31 @@ async function parseReceiptWithOpenAI(imageBase64: string): Promise<ParsedReceip
     : `data:image/jpeg;base64,${imageBase64}`;
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "grok-2-vision-1212",
         messages: [
           { role: "system", content: RECEIPT_SYSTEM_PROMPT },
           {
             role: "user",
             content: [
               { type: "text", text: RECEIPT_USER_PROMPT },
-              { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+              { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
         ],
-        max_tokens: 1000,
+        max_tokens: 1500,
         temperature: 0.1,
       }),
     });
 
     if (!response.ok) {
-      console.log("OpenAI error:", response.status);
+      console.log("xAI error:", response.status);
       return null;
     }
 
@@ -224,17 +224,17 @@ async function parseReceiptWithOpenAI(imageBase64: string): Promise<ParsedReceip
 
     return parseReceiptResponse(content);
   } catch (error) {
-    console.log("OpenAI exception:", error);
+    console.log("xAI exception:", error);
     return null;
   }
 }
 
 // Main parser - tries Groq (free) first, then OpenAI
 async function parseReceipt(imageBase64: string): Promise<ParsedReceipt | null> {
-  // Uporabi OpenAI GPT-4o za prepoznavanje računov
-  const result = await parseReceiptWithOpenAI(imageBase64);
+  // Uporabi xAI Grok za prepoznavanje računov
+  const result = await parseReceiptWithXAI(imageBase64);
   if (result) {
-    console.log("Receipt parsed with OpenAI");
+    console.log("Receipt parsed with xAI Grok");
     return result;
   }
 

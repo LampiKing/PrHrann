@@ -26,9 +26,9 @@ ODGOVORI SAMO z imenom izdelka, BREZ razlag.`;
 
 const PRODUCT_USER_PROMPT = "Preberi besedilo na tem izdelku in mi povej KAJ TOČNO je to. Samo ime izdelka, nič drugega.";
 
-// OpenAI GPT-4o za prepoznavanje izdelkov
-async function analyzeWithOpenAI(imageBase64: string): Promise<string | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
+// xAI Grok za prepoznavanje izdelkov (ima vision model)
+async function analyzeWithXAI(imageBase64: string): Promise<string | null> {
+  const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) return null;
 
   const imageUrl = imageBase64.startsWith("data:")
@@ -36,21 +36,21 @@ async function analyzeWithOpenAI(imageBase64: string): Promise<string | null> {
     : `data:image/jpeg;base64,${imageBase64}`;
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "grok-2-vision-1212",
         messages: [
           { role: "system", content: PRODUCT_SYSTEM_PROMPT },
           {
             role: "user",
             content: [
               { type: "text", text: PRODUCT_USER_PROMPT },
-              { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+              { type: "image_url", image_url: { url: imageUrl } },
             ],
           },
         ],
@@ -60,14 +60,14 @@ async function analyzeWithOpenAI(imageBase64: string): Promise<string | null> {
     });
 
     if (!response.ok) {
-      console.log("OpenAI product scan error:", response.status);
+      console.log("xAI product scan error:", response.status);
       return null;
     }
 
     const data = await response.json();
     return data?.choices?.[0]?.message?.content?.trim() || null;
   } catch (error) {
-    console.log("OpenAI product scan exception:", error);
+    console.log("xAI product scan exception:", error);
     return null;
   }
 }
@@ -84,8 +84,8 @@ export const analyzeProductImage = action({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
-    // Uporabi OpenAI GPT-4o za prepoznavanje izdelkov
-    const productName = await analyzeWithOpenAI(args.imageBase64);
+    // Uporabi xAI Grok za prepoznavanje izdelkov
+    const productName = await analyzeWithXAI(args.imageBase64);
 
     if (!productName) {
       return simulateProductRecognition(args.imageBase64);
