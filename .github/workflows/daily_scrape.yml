@@ -1,0 +1,332 @@
+name: Daily Scrape PR'HRAN
+
+on:
+  schedule:
+    # Vsak dan ob 5:00 CET (4:00 UTC pozimi, 3:00 UTC poleti)
+    - cron: '0 4 * * *'
+
+  # Omogoči ročni zagon iz GitHub UI
+  workflow_dispatch:
+
+jobs:
+  # Vzporedni scrape jobs za vsako trgovino
+  scrape-spar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: scraper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'scraper/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Setup credentials
+        run: echo '${{ secrets.GOOGLE_CREDENTIALS }}' > credentials.json
+
+      - name: Scrape SPAR
+        run: |
+          mkdir -p output
+          python -c "
+          from stores.spar import SparScraper
+          from playwright.sync_api import sync_playwright
+          import json
+
+          print('Starting SPAR scrape...')
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              context = browser.new_context(viewport={'width': 1920, 'height': 1080})
+              context.set_default_timeout(60000)
+              page = context.new_page()
+
+              scraper = SparScraper(page)
+              products = scraper.scrape_all()
+
+              with open('output/spar_products.json', 'w', encoding='utf-8') as f:
+                  json.dump(products, f, ensure_ascii=False, indent=2)
+
+              print(f'SPAR: {len(products)} products')
+              browser.close()
+          "
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spar-products
+          path: scraper/output/spar_products.json
+          retention-days: 1
+
+  scrape-mercator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: scraper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'scraper/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Scrape MERCATOR
+        run: |
+          mkdir -p output
+          python -c "
+          from stores.mercator import MercatorScraper
+          from playwright.sync_api import sync_playwright
+          import json
+
+          print('Starting Mercator scrape...')
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              context = browser.new_context(viewport={'width': 1920, 'height': 1080})
+              context.set_default_timeout(60000)
+              page = context.new_page()
+
+              scraper = MercatorScraper(page)
+              products = scraper.scrape_all_simple()
+
+              with open('output/mercator_products.json', 'w', encoding='utf-8') as f:
+                  json.dump(products, f, ensure_ascii=False, indent=2)
+
+              print(f'Mercator: {len(products)} products')
+              browser.close()
+          "
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mercator-products
+          path: scraper/output/mercator_products.json
+          retention-days: 1
+
+  scrape-tus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: scraper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'scraper/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+          playwright install-deps chromium
+
+      - name: Scrape TUS
+        run: |
+          mkdir -p output
+          python -c "
+          from stores.tus import TusScraper
+          from playwright.sync_api import sync_playwright
+          import json
+
+          print('Starting Tus scrape...')
+          with sync_playwright() as p:
+              browser = p.chromium.launch(headless=True)
+              context = browser.new_context(viewport={'width': 1920, 'height': 1080})
+              context.set_default_timeout(60000)
+              page = context.new_page()
+
+              scraper = TusScraper(page)
+              products = scraper.scrape_all()
+
+              with open('output/tus_products.json', 'w', encoding='utf-8') as f:
+                  json.dump(products, f, ensure_ascii=False, indent=2)
+
+              print(f'Tus: {len(products)} products')
+              browser.close()
+          "
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tus-products
+          path: scraper/output/tus_products.json
+          retention-days: 1
+
+  # Kombinira rezultate in uploada v Convex
+  combine-and-upload:
+    needs: [scrape-spar, scrape-mercator, scrape-tus]
+    if: always()  # Zaženi tudi če en scraper odpove
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'scraper/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r scraper/requirements.txt
+
+      - name: Setup credentials
+        run: echo '${{ secrets.GOOGLE_CREDENTIALS }}' > scraper/credentials.json
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: scraper/output
+          merge-multiple: true
+
+      - name: List downloaded files
+        run: ls -la scraper/output/ || echo "No output directory"
+
+      - name: Combine and upload to Convex
+        run: |
+          python -c "
+          import json
+          import os
+          import requests
+          from pathlib import Path
+          from datetime import datetime
+
+          print('='*60)
+          print('COMBINING SCRAPED DATA')
+          print('='*60)
+
+          output_dir = Path('scraper/output')
+          all_products = {}
+          total = 0
+
+          for store in ['spar', 'mercator', 'tus']:
+              file_path = output_dir / f'{store}_products.json'
+              if file_path.exists():
+                  with open(file_path, 'r', encoding='utf-8') as f:
+                      products = json.load(f)
+                  all_products[store] = products
+                  total += len(products)
+                  print(f'{store.upper()}: {len(products)} products')
+              else:
+                  print(f'{store.upper()}: MISSING')
+                  all_products[store] = []
+
+          print(f'\\nTotal: {total} products')
+
+          # Ustvari master_products.json (preprost format)
+          master_products = []
+          for store, products in all_products.items():
+              for p in products:
+                  master_products.append({
+                      'ime': p.get('ime', ''),
+                      'trgovina': store.capitalize(),
+                      'redna_cena': p.get('redna_cena'),
+                      'akcijska_cena': p.get('akcijska_cena'),
+                      'slika': p.get('slika', ''),
+                      'kategorija': p.get('kategorija', ''),
+                      'enota': p.get('enota', ''),
+                      'stevilo_trgovin': 1,
+                  })
+
+          with open('scraper/output/master_products.json', 'w', encoding='utf-8') as f:
+              json.dump(master_products, f, ensure_ascii=False, indent=2)
+          print(f'Saved master_products.json ({len(master_products)} products)')
+
+          # Upload to Convex
+          convex_url = os.getenv('CONVEX_URL')
+          token = os.getenv('PRHRAN_INGEST_TOKEN')
+
+          if convex_url and token:
+              print('\\nUploading to Convex...')
+              batch_size = 500
+              uploaded = 0
+
+              for i in range(0, len(master_products), batch_size):
+                  batch = master_products[i:i+batch_size]
+                  try:
+                      resp = requests.post(
+                          f'{convex_url}/api/ingest/grocery',
+                          json={'items': batch, 'clearFirst': (i == 0)},
+                          headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+                          timeout=120
+                      )
+                      if resp.status_code == 200:
+                          uploaded += len(batch)
+                          print(f'  Batch {i//batch_size + 1}: {len(batch)} OK')
+                      else:
+                          print(f'  Batch {i//batch_size + 1}: ERROR {resp.status_code}')
+                  except Exception as e:
+                      print(f'  Batch {i//batch_size + 1}: ERROR {e}')
+
+              print(f'Uploaded: {uploaded}/{len(master_products)}')
+          else:
+              print('WARNING: CONVEX_URL or PRHRAN_INGEST_TOKEN not set')
+
+          print('\\nDONE!')
+          "
+        env:
+          PYTHONUNBUFFERED: "1"
+          CONVEX_URL: ${{ secrets.CONVEX_URL }}
+          PRHRAN_INGEST_TOKEN: ${{ secrets.PRHRAN_INGEST_TOKEN }}
+
+      - name: Upload final results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scrape-results-${{ github.run_number }}
+          path: scraper/output/
+          retention-days: 14
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## 🛒 PR'HRAN Daily Scrape Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Run Date:** $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f scraper/output/master_products.json ]; then
+            TOTAL=$(python3 -c "import json; data=json.load(open('scraper/output/master_products.json')); print(len(data))")
+            echo "### ✅ Success" >> $GITHUB_STEP_SUMMARY
+            echo "- **Total products:** $TOTAL" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Error" >> $GITHUB_STEP_SUMMARY
+            echo "No master_products.json found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Per Store" >> $GITHUB_STEP_SUMMARY
+          for store in spar mercator tus; do
+            FILE="scraper/output/${store}_products.json"
+            if [ -f "$FILE" ]; then
+              COUNT=$(python3 -c "import json; print(len(json.load(open('$FILE'))))")
+              echo "- ✅ **${store^^}:** $COUNT products" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ❌ **${store^^}:** FAILED" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
