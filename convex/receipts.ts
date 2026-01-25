@@ -178,9 +178,9 @@ function parseReceiptResponse(content: string): ParsedReceipt | null {
   }
 }
 
-// xAI Grok za prepoznavanje računov
-async function parseReceiptWithXAI(imageBase64: string): Promise<ParsedReceipt | null> {
-  const apiKey = process.env.XAI_API_KEY;
+// Groq Llama 4 Scout za prepoznavanje računov (BREZPLAČNO!)
+async function parseReceiptWithGroq(imageBase64: string): Promise<ParsedReceipt | null> {
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return null;
   }
@@ -190,14 +190,14 @@ async function parseReceiptWithXAI(imageBase64: string): Promise<ParsedReceipt |
     : `data:image/jpeg;base64,${imageBase64}`;
 
   try {
-    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "grok-2-vision-1212",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         messages: [
           { role: "system", content: RECEIPT_SYSTEM_PROMPT },
           {
@@ -214,7 +214,7 @@ async function parseReceiptWithXAI(imageBase64: string): Promise<ParsedReceipt |
     });
 
     if (!response.ok) {
-      console.log("xAI error:", response.status);
+      console.log("Groq error:", response.status);
       return null;
     }
 
@@ -224,17 +224,17 @@ async function parseReceiptWithXAI(imageBase64: string): Promise<ParsedReceipt |
 
     return parseReceiptResponse(content);
   } catch (error) {
-    console.log("xAI exception:", error);
+    console.log("Groq exception:", error);
     return null;
   }
 }
 
 // Main parser - tries Groq (free) first, then OpenAI
 async function parseReceipt(imageBase64: string): Promise<ParsedReceipt | null> {
-  // Uporabi xAI Grok za prepoznavanje računov
-  const result = await parseReceiptWithXAI(imageBase64);
+  // Uporabi Groq Llama 4 Scout za prepoznavanje računov (BREZPLAČNO!)
+  const result = await parseReceiptWithGroq(imageBase64);
   if (result) {
-    console.log("Receipt parsed with xAI Grok");
+    console.log("Receipt parsed with Groq");
     return result;
   }
 

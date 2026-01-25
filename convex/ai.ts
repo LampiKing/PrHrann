@@ -26,9 +26,9 @@ ODGOVORI SAMO z imenom izdelka, BREZ razlag.`;
 
 const PRODUCT_USER_PROMPT = "Preberi besedilo na tem izdelku in mi povej KAJ TOČNO je to. Samo ime izdelka, nič drugega.";
 
-// xAI Grok za prepoznavanje izdelkov (ima vision model)
-async function analyzeWithXAI(imageBase64: string): Promise<string | null> {
-  const apiKey = process.env.XAI_API_KEY;
+// Groq Llama 4 Scout za prepoznavanje izdelkov (BREZPLAČNO!)
+async function analyzeWithGroq(imageBase64: string): Promise<string | null> {
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return null;
 
   const imageUrl = imageBase64.startsWith("data:")
@@ -36,14 +36,14 @@ async function analyzeWithXAI(imageBase64: string): Promise<string | null> {
     : `data:image/jpeg;base64,${imageBase64}`;
 
   try {
-    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "grok-2-vision-1212",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         messages: [
           { role: "system", content: PRODUCT_SYSTEM_PROMPT },
           {
@@ -60,14 +60,14 @@ async function analyzeWithXAI(imageBase64: string): Promise<string | null> {
     });
 
     if (!response.ok) {
-      console.log("xAI product scan error:", response.status);
+      console.log("Groq product scan error:", response.status);
       return null;
     }
 
     const data = await response.json();
     return data?.choices?.[0]?.message?.content?.trim() || null;
   } catch (error) {
-    console.log("xAI product scan exception:", error);
+    console.log("Groq product scan exception:", error);
     return null;
   }
 }
@@ -84,8 +84,8 @@ export const analyzeProductImage = action({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
-    // Uporabi xAI Grok za prepoznavanje izdelkov
-    const productName = await analyzeWithXAI(args.imageBase64);
+    // Uporabi Groq Llama 4 Scout za prepoznavanje izdelkov (BREZPLAČNO!)
+    const productName = await analyzeWithGroq(args.imageBase64);
 
     if (!productName) {
       return simulateProductRecognition(args.imageBase64);
