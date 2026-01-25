@@ -1,0 +1,21 @@
+{
+  "store": "Spar",
+  "timestamp": "2026-01-23T15:27:07.749374",
+  "completed_categories": [],
+  "products_count": 450,
+  "metrics": {
+    "start_time": "2026-01-23 15:23:29.199466",
+    "end_time": "2026-01-23 15:27:07.749374",
+    "pages_scraped": 0,
+    "products_found": 450,
+    "products_valid": 450,
+    "products_invalid": 0,
+    "duplicates": 0,
+    "retries": 0,
+    "errors": 0,
+    "screenshots_taken": 0,
+    "avg_page_load_time": 0.0,
+    "avg_products_per_page": 0.0,
+    "blocked_requests": 0
+  }
+}

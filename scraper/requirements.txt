@@ -1,0 +1,16 @@
+# PrHran Scraper Dependencies
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+playwright>=1.40.0
+python-dotenv>=1.0.0
+schedule>=1.2.0
+
+# Google Sheets
+gspread>=5.12.0
+google-auth>=2.25.0
+
+# Product Matching
+rapidfuzz>=3.5.0        # Hitro fuzzy string matching
+unidecode>=1.3.0        # Odstrani šumnike (č->c, š->s)
+regex>=2023.0.0         # Napredni regex
