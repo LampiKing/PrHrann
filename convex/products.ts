@@ -109,6 +109,32 @@ function isAdjective(word: string): boolean {
 }
 
 /**
+ * BESEDE KI SE ZAČNEJO ENAKO, A SO POPOLNOMA RAZLIČNE
+ * npr. "sol" vs "solata" - sol=salt, solata=salad
+ * Te pare moramo eksplicitno ločiti!
+ */
+const DISTINCT_WORD_PAIRS: Record<string, string[]> = {
+  "sol": ["solata", "solatna", "solatni", "solaten"],  // sol ≠ solata
+  "sir": ["sirup", "sirov"],                           // sir (cheese) ≠ sirup (syrup)
+  "rib": ["ribana", "ribani", "ribano"],              // riba ≠ ribana (grated)
+  "med": ["medeno", "medena", "medeni", "meden"],     // med (honey) ≠ meden (copper/bronze)
+};
+
+/**
+ * Preveri ali sta dve besedi popolnoma različni kljub podobnemu začetku
+ */
+function areDistinctWords(queryWord: string, productWord: string): boolean {
+  const qLower = queryWord.toLowerCase();
+  const pLower = productWord.toLowerCase();
+
+  const distinctList = DISTINCT_WORD_PAIRS[qLower];
+  if (distinctList && distinctList.some(distinct => pLower.startsWith(distinct) || pLower === distinct)) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * PAMETNO ISKANJE - Prioritizira TOČNE izdelke
  *
  * PRAVILA:
@@ -118,6 +144,7 @@ function isAdjective(word: string): boolean {
  * 4. "plenice" → Baby plenice, NE "Plenice za odrasle"
  * 5. "1l mleko" → TOČNO 1L mleko
  * 6. "krema za dojenčke" → Baby kreme
+ * 7. "sol" → Sol, NE "Solata"
  */
 function smartMatch(productName: string, searchQuery: string, unit: string): number {
   const nameLower = productName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -152,6 +179,12 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
       const nWord = nameWords[i];
       const nRoot = nameRoots[i];
 
+      // NAJPREJ: Preveri ali sta besedi eksplicitno RAZLIČNI (npr. sol ≠ solata)
+      if (areDistinctWords(qWord, nWord)) {
+        // Te besede so popolnoma različne - IGNORIRAJ!
+        continue;
+      }
+
       // 1. TOČNO ujemanje besede
       if (nWord === qWord) {
         exactMatches++;
@@ -167,11 +200,18 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
       }
       // 3. Beseda se ZAČNE z iskalno besedo (npr. "sol" -> "solni")
       // AMPAK: kratka beseda (3-4 znaki) ne sme matchati veliko daljše besede
-      // npr. "sol" (3) ne sme matchati "solatna" (7) ker je to druga beseda!
+      // npr. "sol" (3) ne sme matchati "solata" (6) ali "solatna" (7) ker je to druga beseda!
+      // KRITIČNO: "sol" ≠ "solata" (sol=salt, solata=salad - popolnoma različni besedi!)
       else if (nWord.startsWith(qWord) && qWord.length >= 3) {
         const lengthDiff = nWord.length - qWord.length;
-        // Če je razlika več kot 3 znaki, je to verjetno druga beseda
-        if (lengthDiff <= 3) {
+
+        // Dinamični prag glede na dolžino iskalne besede:
+        // - 3 znaki (npr "sol") → max diff 2 (dovoli "solni", "solna", NE "solata"!)
+        // - 4 znaki → max diff 2
+        // - 5+ znakov → max diff 3
+        const maxAllowedDiff = qWord.length <= 4 ? 2 : 3;
+
+        if (lengthDiff <= maxAllowedDiff) {
           rootMatches++;
           break;
         }
@@ -208,6 +248,15 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
 
   // === BONUS ZA TOČNO UJEMANJE ===
   let exactMatchBonus = exactMatches * 100;
+
+  // === MEGA BONUS: Vse iskalne besede se ujemajo ===
+  // Za "alpsko mleko" morajo OBILE besedi matchati za visok score
+  // To prepreči da "Mleko trajno 0,2L" zmaga pred "Alpsko mleko 1L"
+  let allWordsMatchBonus = 0;
+  if (queryWords.length >= 2 && (exactMatches + rootMatches) >= queryWords.length) {
+    // VSE besede se ujemajo - to je ZELO relevanten rezultat!
+    allWordsMatchBonus = 200;
+  }
 
   // === MEGA BONUS: Iskalna beseda je PRVA beseda v imenu izdelka ===
   // "Mleko" → "Mleko polnomastno 1L" dobi OGROMEN bonus
@@ -413,7 +462,7 @@ function smartMatch(productName: string, searchQuery: string, unit: string): num
 
   // === KONČNI SCORE ===
   const finalScore = exactMatchBonus + sizeMatchBonus + simplicityScore + positionBonus + sizeScore
-                     + babyBonus + targetAudienceBonus + primaryWordBonus
+                     + babyBonus + targetAudienceBonus + primaryWordBonus + allWordsMatchBonus
                      - adjectivePenalty - flavorPenalty - derivativePenalty
                      - adultProductPenalty - petFoodPenalty - irrelevantPenalty - secondaryWordPenalty;
 
@@ -673,21 +722,24 @@ export const search = query({
         // To zagotavlja da 1L mleko pride pred 200ml mlekom
         if (aIsStandard && !bIsStandard) return -1;
         if (bIsStandard && !aIsStandard) return 1;
+
+        // DRUGIČ: Srednje velikosti pred majhnimi
         if (!aIsTiny && bIsTiny) return -1;
         if (!bIsTiny && aIsTiny) return 1;
 
-        // DRUGIČ: Znotraj iste velikostne kategorije, sortiraj po relevantnosti
+        // TRETJIČ: Med enakimi kategorijami, VEDNO večja velikost najprej
+        // 1L > 500ml > 200ml
+        if (a.sizeScore !== b.sizeScore) {
+          return b.sizeScore - a.sizeScore;
+        }
+
+        // ČETRTIČ: Enaka velikost, sortiraj po relevantnosti
         const scoreDiff = b.smartScore - a.smartScore;
         if (Math.abs(scoreDiff) > 30) {
           return scoreDiff;
         }
 
-        // TRETJIČ: Podobna relevantnost = sortiraj po velikosti (večje = boljše)
-        if (a.sizeScore !== b.sizeScore) {
-          return b.sizeScore - a.sizeScore;
-        }
-
-        // ČETRTIČ: Enaka velikost in relevantnost = po kombiniranem score
+        // PETIČ: Enaka velikost in relevantnost = po kombiniranem score
         return b.combinedScore - a.combinedScore;
       })
       .slice(0, 100)
@@ -762,17 +814,25 @@ export const search = query({
       const bIsTiny = bSize < 0;
 
       // NAJPREJ: Standardni pred majhnimi (logično za uporabnika)
-      if (aIsStandard && bIsTiny) return -1;
-      if (bIsStandard && aIsTiny) return 1;
-      if (aSize > 0 && bIsTiny) return -1;
-      if (bSize > 0 && aIsTiny) return 1;
+      // Uporabnik išče "alpsko mleko" → 1L MORA biti pred 200ml!
+      if (aIsStandard && !bIsStandard) return -1;
+      if (bIsStandard && !aIsStandard) return 1;
 
-      // DRUGIČ: Če sta oba podobne velikosti, sortiraj po RELEVANTNOSTI
-      // (da "mleko" prikaže mleko, ne "čokoladno mleko v prahu")
+      // DRUGIČ: Med ne-standardnimi, večji pred manjšimi (pozitivni pred negativnimi)
+      if (!aIsTiny && bIsTiny) return -1;
+      if (!bIsTiny && aIsTiny) return 1;
+
+      // TRETJIČ: Med enakimi kategorijami, večja velikost najprej
+      // To zagotavlja da 1L pride pred 500ml, in da 500ml pride pred 200ml
+      if (aSize !== bSize) {
+        return bSize - aSize;  // Večji size score = prej
+      }
+
+      // ČETRTIČ: Če sta enake velikosti, sortiraj po RELEVANTNOSTI
       const smartDiff = bSmart - aSmart;
       if (Math.abs(smartDiff) > 30) return smartDiff > 0 ? 1 : -1;
 
-      // TRETJIČ: Če sta podobno relevantna, NAJCENEJŠI PRVI!
+      // PETIČ: Če sta podobno relevantna, NAJCENEJŠI PRVI!
       return a.lowestPrice - b.lowestPrice;
     });
   },

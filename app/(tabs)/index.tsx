@@ -157,6 +157,7 @@ export default function SearchScreen() {
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [guestModalContext, setGuestModalContext] = useState<"search" | "cart" | "camera">("search");
   const [approvedQuery, setApprovedQuery] = useState("");
+  const [lastQueriedFor, setLastQueriedFor] = useState("");  // Track what query the current results are for
   const guestModalDismissedAtRef = useRef(0);
 
   // Camera/Scanner state
@@ -539,8 +540,19 @@ export default function SearchScreen() {
       };
     })
     .filter((product): product is ProductResult => product !== null);
-  // Only show loading during actual search mutation, not during Convex re-fetches (prevents flickering)
-  const isSearchResultsLoading = searching;
+  // Track when results arrive for the current query
+  useEffect(() => {
+    if (dbSearchResults !== undefined && approvedQuery.length >= 2) {
+      setLastQueriedFor(approvedQuery);
+    }
+  }, [dbSearchResults, approvedQuery]);
+
+  // Show loading during search OR when Convex query is fetching (dbSearchResults === undefined)
+  // OR when we're waiting for results for a NEW query (approvedQuery !== lastQueriedFor)
+  // This prevents "not found" from flashing before results arrive
+  const isConvexLoading = approvedQuery.length >= 2 && dbSearchResults === undefined;
+  const isWaitingForNewResults = approvedQuery.length >= 2 && approvedQuery !== lastQueriedFor;
+  const isSearchResultsLoading = searching || isConvexLoading || isWaitingForNewResults;
 
   // Sort results based on swipe direction
   const sortedResults = searchResults
@@ -1752,7 +1764,11 @@ export default function SearchScreen() {
                     editable={isPremium || searchesRemaining > 0}
                   />
                   {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery("")} style={styles.clearButton}>
+                    <TouchableOpacity onPress={() => {
+                      setSearchQuery("");
+                      setApprovedQuery("");
+                      setLastQueriedFor("");
+                    }} style={styles.clearButton}>
                       <Ionicons name="close-circle" size={20} color="#6b7280" />
                     </TouchableOpacity>
                   )}
