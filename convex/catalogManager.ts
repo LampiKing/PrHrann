@@ -350,7 +350,7 @@ export const importProductsWithImages = mutation({
           .collect();
         existingProduct = allProducts.find(
           (p) => p.name.toLowerCase().trim() === nameNormalized
-        );
+        ) ?? null;
       }
 
       let productId;
