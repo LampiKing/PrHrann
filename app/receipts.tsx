@@ -587,8 +587,13 @@ export default function ReceiptsScreen() {
 
             {analyzing && (
               <View style={styles.analyzingBox}>
-                <ActivityIndicator size="small" color="#8b5cf6" />
-                <Text style={styles.analyzingText}>{loadingStage || "Analiziram račun..."}</Text>
+                <View style={styles.analyzingIconBox}>
+                  <ActivityIndicator size="large" color="#fbbf24" />
+                </View>
+                <View style={styles.analyzingTextContainer}>
+                  <Text style={styles.analyzingTitle}>AI analizira račun</Text>
+                  <Text style={styles.analyzingSubtitle}>{loadingStage || "Prepoznavam izdelke in cene..."}</Text>
+                </View>
               </View>
             )}
           </View>
@@ -769,20 +774,38 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   analyzingBox: {
-    marginTop: 16,
+    marginTop: 24,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
-    borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
+    gap: 16,
+    padding: 20,
+    borderRadius: 20,
+    backgroundColor: "rgba(251, 191, 36, 0.1)",
+    borderWidth: 2,
+    borderColor: "rgba(251, 191, 36, 0.3)",
   },
-  analyzingText: {
+  analyzingIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(251, 191, 36, 0.25)",
+  },
+  analyzingTextContainer: {
+    flex: 1,
+  },
+  analyzingTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#fbbf24",
+  },
+  analyzingSubtitle: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#a78bfa",
+    color: "#9ca3af",
+    marginTop: 4,
   },
   receiptList: {
     marginBottom: 20,

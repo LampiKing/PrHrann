@@ -678,15 +678,34 @@ export const search = query({
       }
     }
 
-    // 3. Uporabi samo search kandidate - BREZ fallbacka na random izdelke!
-    // Fallback je povzročal da so se prikazovali nerelevantni izdelki
+    // 2b. FALLBACK: Če ni rezultatov, išči posamezne besede
+    // To pomaga pri iskanjih kot "Maretti Bruschette Chips" - išče "Maretti" OR "Bruschette" OR "Chips"
+    if (searchCandidates.length === 0) {
+      const queryWords = searchQuery.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+      for (const word of queryWords) {
+        const candidates = await ctx.db
+          .query("products")
+          .withSearchIndex("search_name", (q) => q.search("name", word))
+          .take(100);
+
+        for (const candidate of candidates) {
+          const idStr = String(candidate._id);
+          if (!seenIds.has(idStr)) {
+            seenIds.add(idStr);
+            searchCandidates.push(candidate);
+          }
+        }
+      }
+    }
+
+    // 3. Uporabi search kandidate
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const allProducts: any[] = searchCandidates;
 
     // 3. Oceni vsak izdelek s PAMETNIM algoritmom
-    // MINIMALNI SCORE: 80 - pod tem pragom izdelek ni dovolj relevanten
-    // Povečano iz 50 na 80 za boljšo relevantnost rezultatov
-    const MIN_SCORE_THRESHOLD = 80;
+    // MINIMALNI SCORE: 40 - znižano za boljše rezultate pri blagovnih znamkah
+    // Npr. "Maretti Bruschette" mora najti izdelke s to znamko
+    const MIN_SCORE_THRESHOLD = 40;
 
     const scoredProducts = allProducts
       .map(product => {

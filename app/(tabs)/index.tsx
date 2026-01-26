@@ -447,13 +447,17 @@ export default function SearchScreen() {
     if (autoSearchBlockedQuery && autoSearchBlockedQuery === trimmedQuery) {
       return;
     }
+    // Don't trigger search if we already have this query approved (e.g., from scan result)
+    if (approvedQuery === trimmedQuery) {
+      return;
+    }
     const timer = setTimeout(() => {
       if (!searching) {
         handleSearch();
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchQuery, searching, isPremium, autoSearchBlockedQuery]);
+  }, [searchQuery, searching, isPremium, autoSearchBlockedQuery, approvedQuery]);
   
   // Handle search with recordSearch call
   const handleSearch = async () => {
@@ -546,6 +550,16 @@ export default function SearchScreen() {
       setLastQueriedFor(approvedQuery);
     }
   }, [dbSearchResults, approvedQuery]);
+
+  // Timeout safeguard - force sync lastQueriedFor after 5 seconds to prevent infinite loading
+  useEffect(() => {
+    if (approvedQuery.length >= 2 && approvedQuery !== lastQueriedFor) {
+      const timeout = setTimeout(() => {
+        setLastQueriedFor(approvedQuery);
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [approvedQuery, lastQueriedFor]);
 
   // Show loading during search OR when Convex query is fetching (dbSearchResults === undefined)
   // OR when we're waiting for results for a NEW query (approvedQuery !== lastQueriedFor)
@@ -821,20 +835,33 @@ export default function SearchScreen() {
     }
   };
 
-  const handleUseScanResult = () => {
+  const handleUseScanResult = async () => {
     if (scanResult && !scanResult.startsWith("❌")) {
-      // Only use valid product names, not error messages
-      setSearchQuery(scanResult);
+      const productName = scanResult;
+
+      // Close scanner first
       setShowScanner(false);
       setScanningImage(null);
       setScanResult(null);
-      
-      // Automatically trigger search with the scanned product
-      setApprovedQuery(scanResult);
-      setAutoSearchBlockedQuery(null);
-      
+
+      // Set search query
+      setSearchQuery(productName);
+
       if (Platform.OS !== "web") {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+
+      // Directly approve query and trigger search (bypass debounce)
+      setAutoSearchBlockedQuery(null);
+      setApprovedQuery(productName);
+      setLastQueriedFor(""); // Reset to show loading state
+      setHasSearchedOnce(true);
+
+      // Record search for analytics (but don't block on it)
+      try {
+        await recordSearch();
+      } catch {
+        // Ignore errors - we still want to show results
       }
     }
   };
@@ -2077,7 +2104,7 @@ export default function SearchScreen() {
         </RNAnimated.View>
       )}
 
-      {/* Scanner Modal */}
+      {/* Scanner Modal - CLEAN DESIGN */}
       <Modal
         transparent
         visible={showScanner}
@@ -2088,108 +2115,140 @@ export default function SearchScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.scannerModal}>
             <LinearGradient
-              colors={["rgba(139, 92, 246, 0.95)", "rgba(88, 28, 135, 0.98)"]}
+              colors={["#1a1a2e", "#16213e"]}
               style={styles.scannerModalGradient}
             >
               {/* Header */}
               <View style={styles.scannerHeader}>
                 <View style={styles.scannerTitleRow}>
-                  <Ionicons name="camera" size={24} color="#fbbf24" />
+                  <View style={styles.scannerTitleIcon}>
+                    <Ionicons name="scan" size={20} color="#fbbf24" />
+                  </View>
                   <Text style={styles.scannerTitle}>Skeniraj izdelek</Text>
                 </View>
                 <TouchableOpacity onPress={handleCloseScanner} style={styles.scannerCloseBtn}>
-                  <Ionicons name="close" size={24} color="#fff" />
+                  <Ionicons name="close" size={22} color="#9ca3af" />
                 </TouchableOpacity>
               </View>
 
-              {/* Image Preview */}
-              {scanningImage ? (
-                <View style={styles.imagePreviewContainer}>
-                  <Image source={{ uri: scanningImage }} style={styles.imagePreview} />
-                  {isAnalyzing && (
-                    <View style={styles.analyzingOverlay}>
+              {/* Content Area */}
+              <View style={styles.scannerContent}>
+                {!scanningImage ? (
+                  /* Empty State - No image yet */
+                  <View style={styles.scannerEmptyState}>
+                    <View style={styles.scannerEmptyIcon}>
+                      <Ionicons name="camera-outline" size={48} color="#6366f1" />
+                    </View>
+                    <Text style={styles.scannerEmptyTitle}>Fotografiraj izdelek</Text>
+                    <Text style={styles.scannerEmptyText}>
+                      Slikaj izdelek in AI bo prepoznal ime ter poiskal najnižje cene
+                    </Text>
+                  </View>
+                ) : isAnalyzing ? (
+                  /* Analyzing State */
+                  <View style={styles.scannerAnalyzingState}>
+                    <View style={styles.scannerAnalyzingIcon}>
+                      <ActivityIndicator size="large" color="#fbbf24" />
+                    </View>
+                    <Text style={styles.scannerAnalyzingTitle}>Analiziram...</Text>
+                    <Text style={styles.scannerAnalyzingText}>AI prepoznava izdelek na sliki</Text>
+                    <View style={styles.scannerProgressBar}>
                       <RNAnimated.View
                         style={[
-                          styles.scanLineAnimated,
+                          styles.scannerProgressFill,
                           {
-                            transform: [
-                              {
-                                translateY: scanLineAnim.interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: [0, 200],
-                                }),
-                              },
-                            ],
+                            width: scanLineAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ["0%", "100%"],
+                            }),
                           },
                         ]}
                       />
-                      <View style={styles.analyzingContent}>
-                        <Logo size={240} />
-                        <Text style={styles.analyzingText}>Analiziram sliko...</Text>
-                      </View>
                     </View>
-                  )}
-                  {scanResult && !isAnalyzing && (
-                    <View style={styles.scanResultOverlay}>
-                      <Ionicons name="checkmark-circle" size={48} color="#22c55e" />
-                      <Text style={styles.scanResultLabel}>Najden izdelek:</Text>
-                      <Text style={styles.scanResultText}>{scanResult}</Text>
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <View style={styles.scannerPlaceholder}>
-                  <View style={styles.scannerIconContainer}>
-                    <Ionicons name="scan-outline" size={64} color="#a78bfa" />
                   </View>
-                  <Text style={styles.scannerPlaceholderText}>Slikaj izdelek in takoj najdi{"\n"}najnižjo ceno v trgovinah Spar, Mercator in Tuš!</Text>
-                </View>
-              )}
+                ) : scanResult && !scanResult.startsWith("❌") ? (
+                  /* Success State */
+                  <View style={styles.scannerSuccessState}>
+                    <View style={styles.scannerSuccessIcon}>
+                      <Ionicons name="checkmark-circle" size={56} color="#22c55e" />
+                    </View>
+                    <Text style={styles.scannerSuccessLabel}>Izdelek prepoznan</Text>
+                    <View style={styles.scannerSuccessCard}>
+                      <Text style={styles.scannerSuccessName}>{scanResult}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  /* Error State */
+                  <View style={styles.scannerErrorState}>
+                    <View style={styles.scannerErrorIcon}>
+                      <Ionicons name="alert-circle" size={56} color="#ef4444" />
+                    </View>
+                    <Text style={styles.scannerErrorTitle}>Ni prepoznano</Text>
+                    <Text style={styles.scannerErrorText}>
+                      Izdelka ni bilo mogoče prepoznati. Poskusi z boljšo sliko ali vpiši ime ročno.
+                    </Text>
+                  </View>
+                )}
+              </View>
 
               {/* Action Buttons */}
               <View style={styles.scannerActions}>
                 {!scanningImage ? (
+                  <TouchableOpacity style={styles.scannerPrimaryBtn} onPress={handleOpenCamera}>
+                    <LinearGradient
+                      colors={["#6366f1", "#8b5cf6"]}
+                      style={styles.scannerPrimaryBtnGradient}
+                    >
+                      <Ionicons name="camera" size={22} color="#fff" />
+                      <Text style={styles.scannerPrimaryBtnText}>Odpri kamero</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                ) : isAnalyzing ? (
+                  <View style={styles.scannerWaitingBtn}>
+                    <ActivityIndicator size="small" color="#fbbf24" />
+                    <Text style={styles.scannerWaitingText}>Prosimo počakajte...</Text>
+                  </View>
+                ) : scanResult && !scanResult.startsWith("❌") ? (
                   <>
-                    <TouchableOpacity style={styles.scannerActionBtn} onPress={handleOpenCamera}>
-                      <LinearGradient
-                        colors={["#fbbf24", "#f59e0b"]}
-                        style={styles.scannerActionGradient}
-                      >
-                        <Ionicons name="camera" size={24} color="#000" />
-                        <Text style={styles.scannerActionText}>Odpri kamero</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                  </>
-                ) : scanResult ? (
-                  <>
-                    <TouchableOpacity style={styles.scannerActionBtn} onPress={handleUseScanResult}>
+                    <TouchableOpacity style={styles.scannerPrimaryBtn} onPress={handleUseScanResult}>
                       <LinearGradient
                         colors={["#22c55e", "#16a34a"]}
-                        style={styles.scannerActionGradient}
+                        style={styles.scannerPrimaryBtnGradient}
                       >
-                        <Ionicons name="search" size={24} color="#fff" />
-                        <Text style={[styles.scannerActionText, { color: "#fff" }]}>
-                          Išči "{scanResult}"
-                        </Text>
+                        <Ionicons name="search" size={22} color="#fff" />
+                        <Text style={styles.scannerPrimaryBtnText}>Poišči cene</Text>
                       </LinearGradient>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.scannerActionBtnSecondary}
+                      style={styles.scannerSecondaryBtn}
                       onPress={() => {
                         setScanningImage(null);
                         setScanResult(null);
                       }}
                     >
-                      <Ionicons name="refresh" size={20} color="#a78bfa" />
-                      <Text style={styles.scannerActionTextSecondary}>Poskusi znova</Text>
+                      <Ionicons name="refresh" size={18} color="#9ca3af" />
+                      <Text style={styles.scannerSecondaryBtnText}>Nova slika</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
-                  <View style={styles.analyzingInfo}>
-                    <Text style={styles.analyzingInfoText}>
-                      AI analizira sliko...
-                    </Text>
-                  </View>
+                  <>
+                    <TouchableOpacity style={styles.scannerPrimaryBtn} onPress={handleOpenCamera}>
+                      <LinearGradient
+                        colors={["#6366f1", "#8b5cf6"]}
+                        style={styles.scannerPrimaryBtnGradient}
+                      >
+                        <Ionicons name="camera" size={22} color="#fff" />
+                        <Text style={styles.scannerPrimaryBtnText}>Poskusi znova</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.scannerSecondaryBtn}
+                      onPress={handleCloseScanner}
+                    >
+                      <Ionicons name="create-outline" size={18} color="#9ca3af" />
+                      <Text style={styles.scannerSecondaryBtnText}>Vpiši ročno</Text>
+                    </TouchableOpacity>
+                  </>
                 )}
               </View>
             </LinearGradient>
@@ -3499,12 +3558,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  // Scanner Modal
+  // Scanner Modal - CLEAN DESIGN
   scannerModal: {
-    width: "100%",
-    maxWidth: 380,
-    borderRadius: 28,
+    width: "92%",
+    maxWidth: 360,
+    borderRadius: 24,
     overflow: "hidden",
+    ...createShadow("#000", 0, 20, 0.5, 40, 25),
   },
   scannerModalGradient: {
     padding: 24,
@@ -3513,147 +3573,201 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
   },
   scannerTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
+  },
+  scannerTitleIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   scannerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#fff",
   },
   scannerCloseBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 10,
   },
-  imagePreviewContainer: {
-    width: "100%",
-    height: 220,
-    borderRadius: 20,
-    overflow: "hidden",
+  scannerContent: {
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderRadius: 16,
+    padding: 28,
     marginBottom: 20,
-    position: "relative",
-  },
-  imagePreview: {
-    width: "100%",
-    height: "100%",
-  },
-  analyzingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  scanLineAnimated: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: "#fbbf24",
-    ...createShadow("#fbbf24", 0, 0, 1, 10, 5),
-  },
-  analyzingContent: {
-    alignItems: "center",
-    gap: 12,
-  },
-  analyzingText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  scanResultOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  scanResultLabel: {
-    color: "#9ca3af",
-    fontSize: 14,
-    marginTop: 12,
-  },
-  scanResultText: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "700",
-    marginTop: 4,
-    textAlign: "center",
-  },
-  scannerPlaceholder: {
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  scannerIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(139, 92, 246, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-    borderStyle: "dashed",
-  },
-  scannerPlaceholderText: {
-    color: "#9ca3af",
-    fontSize: 15,
-    textAlign: "center",
-    lineHeight: 24,
-  },
-  scannerActions: {
-    gap: 12,
-  },
-  scannerActionBtn: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  scannerActionGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    gap: 10,
-    borderRadius: 16,
-  },
-  scannerActionText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#000",
-  },
-  scannerActionBtnSecondary: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
-    gap: 8,
-    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(139, 92, 246, 0.3)",
-    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    minHeight: 200,
+    justifyContent: "center",
   },
-  scannerActionTextSecondary: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#a78bfa",
-  },
-  analyzingInfo: {
+  // Empty State
+  scannerEmptyState: {
     alignItems: "center",
-    paddingVertical: 16,
   },
-  analyzingInfoText: {
+  scannerEmptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(99, 102, 241, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  scannerEmptyTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#fff",
+    marginBottom: 8,
+  },
+  scannerEmptyText: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  // Analyzing State
+  scannerAnalyzingState: {
+    alignItems: "center",
+  },
+  scannerAnalyzingIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  scannerAnalyzingTitle: {
+    fontSize: 18,
+    fontWeight: "700",
     color: "#fbbf24",
-    fontSize: 16,
+    marginBottom: 4,
+  },
+  scannerAnalyzingText: {
+    fontSize: 14,
+    color: "#9ca3af",
+    marginBottom: 20,
+  },
+  scannerProgressBar: {
+    width: "100%",
+    height: 4,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  scannerProgressFill: {
+    height: "100%",
+    backgroundColor: "#fbbf24",
+    borderRadius: 2,
+  },
+  // Success State
+  scannerSuccessState: {
+    alignItems: "center",
+  },
+  scannerSuccessIcon: {
+    marginBottom: 12,
+  },
+  scannerSuccessLabel: {
+    fontSize: 13,
     fontWeight: "600",
+    color: "#22c55e",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  scannerSuccessCard: {
+    backgroundColor: "rgba(34, 197, 94, 0.1)",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.25)",
+    width: "100%",
+  },
+  scannerSuccessName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+    textAlign: "center",
+  },
+  // Error State
+  scannerErrorState: {
+    alignItems: "center",
+  },
+  scannerErrorIcon: {
+    marginBottom: 12,
+  },
+  scannerErrorTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#ef4444",
+    marginBottom: 8,
+  },
+  scannerErrorText: {
+    fontSize: 14,
+    color: "#9ca3af",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  // Action Buttons
+  scannerActions: {
+    gap: 10,
+  },
+  scannerPrimaryBtn: {
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  scannerPrimaryBtnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 15,
+    gap: 10,
+  },
+  scannerPrimaryBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  scannerSecondaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    gap: 8,
+  },
+  scannerSecondaryBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#9ca3af",
+  },
+  scannerWaitingBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 15,
+    gap: 12,
+    backgroundColor: "rgba(251, 191, 36, 0.1)",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(251, 191, 36, 0.2)",
+  },
+  scannerWaitingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fbbf24",
   },
   // Premium Modal
   premiumModal: {

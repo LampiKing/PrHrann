@@ -35,7 +35,7 @@ async function sendFamilyInviteEmail(
 ${inviterName} te vabi v Pr'Hran Family! 👨‍👩‍👧
 
 🌟 KAJ DOBIŠ:
-✅ Premium košarica - shrani najljubše izdelke
+✅ Premium seznam - shrani najljubše izdelke
 ✅ Avtomatski kuponi - prihrani še več
 ✅ Neomejeno iskanje - vse cene vseh trgovin
 ✅ Brez oglasov - čista izkušnja
@@ -136,7 +136,7 @@ Izdelano z ❤️ v Sloveniji 🇸🇮`;
                   <td style="padding: 24px;">
                     <p style="margin: 0 0 16px; font-size: 17px; font-weight: 800; color: #fbbf24; text-align: center;">🌟 Kaj dobiš?</p>
                     <p style="margin: 0; font-size: 15px; line-height: 24px; color: #e5e7eb; text-align: center;">
-                      ✅ <strong style="color: #fcd34d;">Premium košarica</strong><br/>
+                      ✅ <strong style="color: #fcd34d;">Premium seznam</strong><br/>
                       ✅ <strong style="color: #fcd34d;">Avtomatski kuponi</strong><br/>
                       ✅ <strong style="color: #fcd34d;">Neomejeno iskanje</strong><br/>
                       ✅ <strong style="color: #fcd34d;">Brez oglasov</strong>

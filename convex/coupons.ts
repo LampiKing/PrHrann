@@ -686,7 +686,7 @@ export const getRecommendedCoupons = query({
         // Priporoči 10% kupon če je dovolj velika košarica
         else if (c.couponType === "percentage_total" && c.minPurchase && cartTotal >= c.minPurchase) {
           isRecommended = true;
-          recommendReason = `Vaša košarica (${cartTotal.toFixed(2)}€) presega minimum (${c.minPurchase}€)`;
+          recommendReason = `Vaš nakup (${cartTotal.toFixed(2)}€) presega minimum (${c.minPurchase}€)`;
         }
         // Priporoči 25%/30% kupon za en izdelek
         else if (c.couponType === "percentage_single_item" && c.discountValue >= 25) {

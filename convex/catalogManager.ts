@@ -297,3 +297,117 @@ export const importCatalogSales = mutation({
     return { inserted, updated, skipped };
   },
 });
+
+/**
+ * Uvozi izdelke s slikami (za scraper)
+ * Ustvari ali posodobi izdelek v products tabeli
+ */
+export const importProductsWithImages = mutation({
+  args: {
+    products: v.array(
+      v.object({
+        productName: v.string(),
+        storeName: v.string(),
+        price: v.number(),
+        originalPrice: v.optional(v.number()),
+        imageUrl: v.optional(v.string()),
+        category: v.optional(v.string()),
+        unit: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    let inserted = 0;
+    let updated = 0;
+    let skipped = 0;
+    let imagesAdded = 0;
+
+    for (const product of args.products) {
+      // Najdi trgovino
+      const store = await ctx.db
+        .query("stores")
+        .filter((q) => q.eq(q.field("name"), product.storeName))
+        .first();
+
+      if (!store) {
+        skipped++;
+        continue;
+      }
+
+      // Normaliziraj ime za iskanje
+      const nameNormalized = product.productName.toLowerCase().trim();
+
+      // Išči obstoječi izdelek po imenu
+      let existingProduct = await ctx.db
+        .query("products")
+        .withSearchIndex("search_name", (q) => q.search("name", product.productName))
+        .first();
+
+      // Če ni najdeno s search, poskusi z exact match
+      if (!existingProduct) {
+        const allProducts = await ctx.db
+          .query("products")
+          .collect();
+        existingProduct = allProducts.find(
+          (p) => p.name.toLowerCase().trim() === nameNormalized
+        );
+      }
+
+      let productId;
+
+      if (existingProduct) {
+        productId = existingProduct._id;
+        // Posodobi sliko če obstaja in je nova
+        if (product.imageUrl && !existingProduct.imageUrl) {
+          await ctx.db.patch(existingProduct._id, {
+            imageUrl: product.imageUrl,
+          });
+          imagesAdded++;
+        }
+        updated++;
+      } else {
+        // Ustvari nov izdelek
+        productId = await ctx.db.insert("products", {
+          name: product.productName,
+          category: product.category || "Splošno",
+          unit: product.unit || "kos",
+          imageUrl: product.imageUrl,
+        });
+        if (product.imageUrl) {
+          imagesAdded++;
+        }
+        inserted++;
+      }
+
+      // Posodobi ali ustvari ceno
+      const existingPrice = await ctx.db
+        .query("prices")
+        .withIndex("by_product_and_store", (q) =>
+          q.eq("productId", productId).eq("storeId", store._id)
+        )
+        .first();
+
+      const isOnSale = !!(product.originalPrice && product.originalPrice > product.price);
+
+      if (existingPrice) {
+        await ctx.db.patch(existingPrice._id, {
+          price: product.price,
+          originalPrice: product.originalPrice,
+          isOnSale,
+          lastUpdated: Date.now(),
+        });
+      } else {
+        await ctx.db.insert("prices", {
+          productId,
+          storeId: store._id,
+          price: product.price,
+          originalPrice: product.originalPrice,
+          isOnSale,
+          lastUpdated: Date.now(),
+        });
+      }
+    }
+
+    return { inserted, updated, skipped, imagesAdded };
+  },
+});

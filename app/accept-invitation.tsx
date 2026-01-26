@@ -10,6 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useConvexAuth, useMutation } from "convex/react";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { api } from "../convex/_generated/api";
 import FloatingBackground from "../lib/FloatingBackground";
 import { PLAN_FAMILY } from "../lib/branding";
@@ -37,7 +38,7 @@ export default function AcceptInvitationScreen() {
     setSuccess("");
     try {
       const result = await acceptInvite({ inviteToken });
-      setSuccess(result.message || "Vabilo sprejeto.");
+      setSuccess(result.message || "Vabilo uspešno sprejeto!");
       setTimeout(() => router.replace("/(tabs)"), 1200);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Sprejem vabila ni uspel.";
@@ -71,6 +72,14 @@ export default function AcceptInvitationScreen() {
     router.push({ pathname: "/auth", params: { mode: "login" } });
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -78,6 +87,14 @@ export default function AcceptInvitationScreen() {
         style={StyleSheet.absoluteFill}
       />
       <FloatingBackground variant="minimal" />
+
+      {/* Back Button */}
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+      </SafeAreaView>
+
       <View style={styles.card}>
         <View style={styles.iconCircle}>
           <Ionicons name="people" size={30} color="#fbbf24" />
@@ -134,6 +151,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 24,
     backgroundColor: "#0a0a12",
+  },
+  safeArea: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: 16,
   },
   card: {
     width: "100%",

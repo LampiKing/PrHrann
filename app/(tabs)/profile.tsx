@@ -1447,17 +1447,27 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
 
-                <TouchableOpacity style={styles.settingsItemEditable} onPress={openBirthDateModal}>
-                  <View>
-                    <Text style={styles.settingsLabel}>Datum rojstva</Text>
-                    <Text style={styles.settingsValue}>
-                      {profile.birthDate
-                        ? `${profile.birthDate.day}. ${profile.birthDate.month}. ${profile.birthDate.year}`
-                        : "Ni nastavljeno"}
-                    </Text>
+                {profile.birthDate ? (
+                  /* Datum že nastavljen - zaklenjen */
+                  <View style={styles.settingsItem}>
+                    <View>
+                      <Text style={styles.settingsLabel}>Datum rojstva</Text>
+                      <Text style={styles.settingsValue}>
+                        {`${profile.birthDate.day}. ${profile.birthDate.month}. ${profile.birthDate.year}`}
+                      </Text>
+                    </View>
+                    <Ionicons name="lock-closed" size={18} color="#6b7280" />
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-                </TouchableOpacity>
+                ) : (
+                  /* Datum še ni nastavljen - lahko ureja */
+                  <TouchableOpacity style={styles.settingsItemEditable} onPress={openBirthDateModal}>
+                    <View>
+                      <Text style={styles.settingsLabel}>Datum rojstva</Text>
+                      <Text style={styles.settingsValueEmpty}>Nastavi datum</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#a855f7" />
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={styles.settingsSection}>
@@ -1840,12 +1850,8 @@ export default function ProfileScreen() {
         onRequestClose={() => setShowBirthDateModal(false)}
       >
         <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill}>
-          <TouchableOpacity
-            style={styles.centeredModalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowBirthDateModal(false)}
-          >
-            <View style={styles.birthDateModalContent} onStartShouldSetResponder={() => true}>
+          <View style={styles.centeredModalOverlay}>
+            <View style={styles.birthDateModalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Datum rojstva</Text>
                 <TouchableOpacity onPress={() => setShowBirthDateModal(false)}>
@@ -1856,6 +1862,13 @@ export default function ProfileScreen() {
               <Text style={styles.birthDateModalSubtitle}>
                 Datum rojstva uporabljamo za prikaz kuponov za upokojence (65+ let).
               </Text>
+
+              <View style={styles.birthDateWarning}>
+                <Ionicons name="information-circle" size={18} color="#fbbf24" />
+                <Text style={styles.birthDateWarningText}>
+                  Datum rojstva lahko nastaviš samo enkrat.
+                </Text>
+              </View>
 
               <View style={styles.birthDateInputRow}>
                 <View style={styles.birthDateInputContainer}>
@@ -1916,7 +1929,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableOpacity>
+          </View>
         </BlurView>
       </Modal>
     </View>
@@ -2333,6 +2346,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#f1f5f9",
   },
+  settingsValueEmpty: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#a855f7",
+  },
   settingsItemEditable: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -2356,8 +2374,22 @@ const styles = StyleSheet.create({
   birthDateModalSubtitle: {
     fontSize: 14,
     color: "#9ca3af",
-    marginBottom: 20,
+    marginBottom: 12,
     lineHeight: 20,
+  },
+  birthDateWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(251, 191, 36, 0.1)",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 20,
+    gap: 10,
+  },
+  birthDateWarningText: {
+    fontSize: 13,
+    color: "#fbbf24",
+    flex: 1,
   },
   birthDateInputRow: {
     flexDirection: "row",

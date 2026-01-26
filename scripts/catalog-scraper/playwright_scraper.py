@@ -99,6 +99,23 @@ class PlaywrightCatalogScraper:
                     # First line is usually the product name
                     name = lines[0]
 
+                    # Extract image URL
+                    image_url = None
+                    try:
+                        img_elem = await box.query_selector('img')
+                        if img_elem:
+                            image_url = await img_elem.get_attribute('src')
+                            # Handle relative URLs
+                            if image_url and image_url.startswith('/'):
+                                image_url = f'https://mercatoronline.si{image_url}'
+                            # Handle lazy loading (data-src)
+                            if not image_url or 'placeholder' in image_url.lower():
+                                image_url = await img_elem.get_attribute('data-src')
+                                if image_url and image_url.startswith('/'):
+                                    image_url = f'https://mercatoronline.si{image_url}'
+                    except:
+                        pass
+
                     # Skip if too short or already seen
                     if len(name) < 3 or name.lower() in seen_names:
                         continue
@@ -164,7 +181,8 @@ class PlaywrightCatalogScraper:
                         'salePrice': sale_price,
                         'validFrom': valid_from,
                         'validUntil': valid_until,
-                        'catalogSource': f'{store_name} online {today.strftime("%d.%m.%Y")}'
+                        'catalogSource': f'{store_name} online {today.strftime("%d.%m.%Y")}',
+                        'imageUrl': image_url
                     }
 
                     # Add bulk pricing info (Kupi 2, etc.)
@@ -242,6 +260,9 @@ class PlaywrightCatalogScraper:
 
                     seen_names.add(name.lower())
 
+                    # Check for image URL column in sheets (if exists)
+                    image_url = row.get('SLIKA', row.get('IMAGE', row.get('IMAGE_URL', None)))
+
                     product_data = {
                         'productName': name,
                         'storeName': store_name,
@@ -250,7 +271,8 @@ class PlaywrightCatalogScraper:
                         'salePrice': sale_price,
                         'validFrom': valid_from,
                         'validUntil': valid_until,
-                        'catalogSource': f'{store_name} Google Sheets {today.strftime("%d.%m.%Y")}'
+                        'catalogSource': f'{store_name} Google Sheets {today.strftime("%d.%m.%Y")}',
+                        'imageUrl': image_url
                     }
 
                     if sale_price and price:
@@ -369,6 +391,21 @@ class PlaywrightCatalogScraper:
 
                             seen_names.add(name.lower())
 
+                            # Extract image URL
+                            image_url = None
+                            try:
+                                img_elem = await elem.query_selector('img')
+                                if img_elem:
+                                    image_url = await img_elem.get_attribute('src')
+                                    if image_url and image_url.startswith('/'):
+                                        image_url = f'https://online.spar.si{image_url}'
+                                    if not image_url or 'placeholder' in image_url.lower():
+                                        image_url = await img_elem.get_attribute('data-src')
+                                        if image_url and image_url.startswith('/'):
+                                            image_url = f'https://online.spar.si{image_url}'
+                            except:
+                                pass
+
                             product_data = {
                                 'productName': name,
                                 'storeName': store_name,
@@ -377,7 +414,8 @@ class PlaywrightCatalogScraper:
                                 'salePrice': sale_price,
                                 'validFrom': valid_from,
                                 'validUntil': valid_until,
-                                'catalogSource': f'{store_name} online {today.strftime("%d.%m.%Y")}'
+                                'catalogSource': f'{store_name} online {today.strftime("%d.%m.%Y")}',
+                                'imageUrl': image_url
                             }
 
                             if sale_price and original_price:
@@ -564,6 +602,21 @@ class PlaywrightCatalogScraper:
 
                             seen_names.add(name.lower())
 
+                            # Extract image URL
+                            image_url = None
+                            try:
+                                img_elem = await card.query_selector('img')
+                                if img_elem:
+                                    image_url = await img_elem.get_attribute('src')
+                                    if image_url and image_url.startswith('/'):
+                                        image_url = f'https://hitrinakup.com{image_url}'
+                                    if not image_url or 'placeholder' in image_url.lower():
+                                        image_url = await img_elem.get_attribute('data-src')
+                                        if image_url and image_url.startswith('/'):
+                                            image_url = f'https://hitrinakup.com{image_url}'
+                            except:
+                                pass
+
                             product_data = {
                                 'productName': name,
                                 'storeName': store_name,
@@ -572,7 +625,8 @@ class PlaywrightCatalogScraper:
                                 'salePrice': sale_price,
                                 'validFrom': valid_from,
                                 'validUntil': valid_until,
-                                'catalogSource': f'{store_name} online {today.strftime("%d.%m.%Y")}'
+                                'catalogSource': f'{store_name} online {today.strftime("%d.%m.%Y")}',
+                                'imageUrl': image_url
                             }
 
                             # Add BUM label if applicable
@@ -608,16 +662,73 @@ class PlaywrightCatalogScraper:
         """Send product data to Convex"""
         if not products:
             print("No products to send")
-            return {'inserted': 0, 'updated': 0, 'skipped': 0}
+            return {'inserted': 0, 'updated': 0, 'skipped': 0, 'imagesAdded': 0}
 
-        # Filter to only sale items for the sales table
+        url = f"{self.convex_url}/api/mutation"
+
+        # ============================================
+        # 1. POŠLJI IZDELKE S SLIKAMI
+        # ============================================
+        print(f"\n[1/2] Pošiljam {len(products)} izdelkov s slikami...")
+
+        # Filtriraj izdelke s slikami
+        products_with_images = [p for p in products if p.get('imageUrl')]
+        print(f"  Izdelkov s slikami: {len(products_with_images)}")
+
+        # Format za importProductsWithImages
+        formatted_products = [{
+            'productName': p['productName'],
+            'storeName': p['storeName'],
+            'price': p.get('price', p.get('salePrice', 0)),
+            'originalPrice': p.get('originalPrice'),
+            'imageUrl': p.get('imageUrl'),
+            'category': 'Splošno',
+            'unit': 'kos'
+        } for p in products]
+
+        batch_size = 100
+        total_prod_inserted = 0
+        total_prod_updated = 0
+        total_prod_skipped = 0
+        total_images_added = 0
+
+        for i in range(0, len(formatted_products), batch_size):
+            batch = formatted_products[i:i + batch_size]
+            payload = {
+                "path": "catalogManager:importProductsWithImages",
+                "args": {"products": batch}
+            }
+
+            try:
+                response = requests.post(url, json=payload, timeout=120)
+                response.raise_for_status()
+                result = response.json()
+                value = result.get('value', {})
+                total_prod_inserted += value.get('inserted', 0)
+                total_prod_updated += value.get('updated', 0)
+                total_prod_skipped += value.get('skipped', 0)
+                total_images_added += value.get('imagesAdded', 0)
+                print(f"  Batch {i//batch_size + 1}: +{value.get('inserted', 0)} new, {value.get('updated', 0)} updated, {value.get('imagesAdded', 0)} slik")
+            except Exception as e:
+                print(f"  Batch {i//batch_size + 1} error: {e}")
+
+        print(f"  Skupaj: {total_prod_inserted} novih, {total_prod_updated} posodobljenih, {total_images_added} slik")
+
+        # ============================================
+        # 2. POŠLJI AKCIJSKE CENE
+        # ============================================
         sales = [p for p in products if p.get('salePrice') and p.get('originalPrice')]
 
         if not sales:
-            print("No sale items to send")
-            return {'inserted': 0, 'updated': 0, 'skipped': 0}
+            print("\n[2/2] Ni akcijskih cen za poslati")
+            return {
+                'inserted': total_prod_inserted,
+                'updated': total_prod_updated,
+                'skipped': total_prod_skipped,
+                'imagesAdded': total_images_added
+            }
 
-        url = f"{self.convex_url}/api/mutation"
+        print(f"\n[2/2] Pošiljam {len(sales)} akcijskih cen...")
 
         # Convert to the format expected by importCatalogSales
         formatted_sales = [{
@@ -631,13 +742,9 @@ class PlaywrightCatalogScraper:
             'catalogSource': s['catalogSource']
         } for s in sales]
 
-        # Send in batches
-        batch_size = 100
         total_inserted = 0
         total_updated = 0
         total_skipped = 0
-
-        print(f"\nSending {len(formatted_sales)} sale items to Convex...")
 
         for i in range(0, len(formatted_sales), batch_size):
             batch = formatted_sales[i:i + batch_size]
@@ -658,7 +765,12 @@ class PlaywrightCatalogScraper:
             except Exception as e:
                 print(f"  Batch {i//batch_size + 1} error: {e}")
 
-        return {'inserted': total_inserted, 'updated': total_updated, 'skipped': total_skipped}
+        return {
+            'inserted': total_prod_inserted + total_inserted,
+            'updated': total_prod_updated + total_updated,
+            'skipped': total_prod_skipped + total_skipped,
+            'imagesAdded': total_images_added
+        }
 
     async def run(self):
         """Run the complete scraping pipeline"""

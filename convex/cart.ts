@@ -417,7 +417,7 @@ export const addToCartFromSearch = authMutation({
       .first();
 
     if (!profile?.isPremium) {
-      throw new Error("Košarica je na voljo samo premium uporabnikom");
+      throw new Error("Seznam je na voljo samo premium uporabnikom");
     }
 
     // Find or create store
