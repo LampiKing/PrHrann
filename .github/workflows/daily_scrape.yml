@@ -1,9 +1,10 @@
-name: Daily Scrape PR'HRAN
+name: Weekly Scrape PR'HRAN
 
 on:
   schedule:
-    # Vsak dan ob 00:20 CET (23:20 UTC pozimi, 22:20 UTC poleti)
-    - cron: '20 23 * * *'
+    # 2x tedensko: Ponedeljek in Četrtek ob 00:20 CET
+    - cron: '20 23 * * 1'  # Ponedeljek
+    - cron: '20 23 * * 4'  # Četrtek
 
   # Omogoči ročni zagon iz GitHub UI
   workflow_dispatch:
