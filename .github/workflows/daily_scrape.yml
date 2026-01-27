@@ -263,25 +263,39 @@ jobs:
 
           if convex_url and token:
               print('\\nUploading to Convex...')
-              batch_size = 500
+              batch_size = 200  # Manjsi batch za stabilnost
               uploaded = 0
+              errors = 0
 
               for i in range(0, len(master_products), batch_size):
                   batch = master_products[i:i+batch_size]
-                  try:
-                      resp = requests.post(
-                          f'{convex_url}/api/ingest/grocery',
-                          json={'items': batch, 'clearFirst': (i == 0)},
-                          headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
-                          timeout=120
-                      )
-                      if resp.status_code == 200:
-                          uploaded += len(batch)
-                          print(f'  Batch {i//batch_size + 1}: {len(batch)} OK')
-                      else:
-                          print(f'  Batch {i//batch_size + 1}: ERROR {resp.status_code}')
-                  except Exception as e:
-                      print(f'  Batch {i//batch_size + 1}: ERROR {e}')
+                  # Retry logika
+                  for attempt in range(3):
+                      try:
+                          resp = requests.post(
+                              f'{convex_url}/api/ingest/grocery',
+                              json={'items': batch},  # Brez clearFirst - samo posodobi
+                              headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+                              timeout=180
+                          )
+                          if resp.status_code == 200:
+                              uploaded += len(batch)
+                              print(f'  Batch {i//batch_size + 1}: {len(batch)} OK')
+                              break
+                          else:
+                              if attempt < 2:
+                                  import time
+                                  time.sleep(2)
+                              else:
+                                  print(f'  Batch {i//batch_size + 1}: ERROR {resp.status_code}')
+                                  errors += 1
+                      except Exception as e:
+                          if attempt < 2:
+                              import time
+                              time.sleep(2)
+                          else:
+                              print(f'  Batch {i//batch_size + 1}: ERROR {e}')
+                              errors += 1
 
               print(f'Uploaded: {uploaded}/{len(master_products)}')
           else:

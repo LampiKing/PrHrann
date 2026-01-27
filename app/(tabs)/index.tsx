@@ -1740,7 +1740,7 @@ export default function SearchScreen() {
                 </View>
                 <View style={styles.statusDeadlinePill}>
                   <Ionicons name="time" size={14} color="#fcd34d" />
-                  <Text style={styles.statusDeadlineText}>Do 24. decembra ob 17:00</Text>
+                  <Text style={styles.statusDeadlineText}>Do 24. 12. do 17:00</Text>
                 </View>
               </View>
               <View style={styles.statusMainRow}>
