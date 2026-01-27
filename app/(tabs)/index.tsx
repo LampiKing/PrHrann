@@ -2147,11 +2147,15 @@ export default function SearchScreen() {
                 ) : isAnalyzing ? (
                   /* Analyzing State */
                   <View style={styles.scannerAnalyzingState}>
-                    <View style={styles.scannerAnalyzingIcon}>
-                      <ActivityIndicator size="large" color="#fbbf24" />
+                    <View style={styles.scannerAnalyzingIconContainer}>
+                      <View style={styles.scannerAnalyzingIcon}>
+                        <Ionicons name="cart" size={36} color="#fbbf24" />
+                      </View>
+                      <View style={styles.scannerAnalyzingBadge}>
+                        <Text style={styles.scannerAnalyzingBadgeText}>AI</Text>
+                      </View>
                     </View>
-                    <Text style={styles.scannerAnalyzingTitle}>Analiziram...</Text>
-                    <Text style={styles.scannerAnalyzingText}>AI prepoznava izdelek na sliki</Text>
+                    <Text style={styles.scannerAnalyzingTitle}>AI analizira sliko...</Text>
                     <View style={styles.scannerProgressBar}>
                       <RNAnimated.View
                         style={[
@@ -2170,9 +2174,8 @@ export default function SearchScreen() {
                   /* Success State */
                   <View style={styles.scannerSuccessState}>
                     <View style={styles.scannerSuccessIcon}>
-                      <Ionicons name="checkmark-circle" size={56} color="#22c55e" />
+                      <Ionicons name="checkmark-circle" size={52} color="#22c55e" />
                     </View>
-                    <Text style={styles.scannerSuccessLabel}>Izdelek prepoznan</Text>
                     <View style={styles.scannerSuccessCard}>
                       <Text style={styles.scannerSuccessName}>{scanResult}</Text>
                     </View>
@@ -2215,19 +2218,21 @@ export default function SearchScreen() {
                         colors={["#22c55e", "#16a34a"]}
                         style={styles.scannerPrimaryBtnGradient}
                       >
-                        <Ionicons name="search" size={22} color="#fff" />
-                        <Text style={styles.scannerPrimaryBtnText}>Poišči cene</Text>
+                        <Ionicons name="search" size={20} color="#fff" />
+                        <Text style={styles.scannerPrimaryBtnText}>
+                          Išči "{scanResult.length > 25 ? scanResult.substring(0, 25) + "..." : scanResult}"
+                        </Text>
                       </LinearGradient>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.scannerSecondaryBtn}
+                      style={styles.scannerRetryBtn}
                       onPress={() => {
                         setScanningImage(null);
                         setScanResult(null);
                       }}
                     >
-                      <Ionicons name="refresh" size={18} color="#9ca3af" />
-                      <Text style={styles.scannerSecondaryBtnText}>Nova slika</Text>
+                      <Ionicons name="refresh" size={18} color="#6b7280" />
+                      <Text style={styles.scannerRetryBtnText}>Poskusi znova</Text>
                     </TouchableOpacity>
                   </>
                 ) : (
@@ -3560,14 +3565,16 @@ const styles = StyleSheet.create({
   },
   // Scanner Modal - CLEAN DESIGN
   scannerModal: {
-    width: "92%",
-    maxWidth: 360,
-    borderRadius: 24,
+    width: "94%",
+    maxWidth: 400,
+    borderRadius: 28,
     overflow: "hidden",
-    ...createShadow("#000", 0, 20, 0.5, 40, 25),
+    ...createShadow("#000", 0, 24, 0.6, 50, 30),
   },
   scannerModalGradient: {
-    padding: 24,
+    padding: 28,
+    paddingTop: 24,
+    paddingBottom: 28,
   },
   scannerHeader: {
     flexDirection: "row",
@@ -3602,14 +3609,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   scannerContent: {
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
-    borderRadius: 16,
-    padding: 28,
-    marginBottom: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 20,
+    padding: 32,
+    marginBottom: 24,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
-    minHeight: 200,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    minHeight: 220,
     justifyContent: "center",
+    alignItems: "center",
   },
   // Empty State
   scannerEmptyState: {
@@ -3639,65 +3647,69 @@ const styles = StyleSheet.create({
   // Analyzing State
   scannerAnalyzingState: {
     alignItems: "center",
+    width: "100%",
+  },
+  scannerAnalyzingIconContainer: {
+    position: "relative",
+    marginBottom: 20,
   },
   scannerAnalyzingIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(251, 191, 36, 0.12)",
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: "rgba(251, 191, 36, 0.15)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+  },
+  scannerAnalyzingBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "#ef4444",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  scannerAnalyzingBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#fff",
   },
   scannerAnalyzingTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
     color: "#fbbf24",
-    marginBottom: 4,
-  },
-  scannerAnalyzingText: {
-    fontSize: 14,
-    color: "#9ca3af",
     marginBottom: 20,
   },
   scannerProgressBar: {
     width: "100%",
-    height: 4,
-    backgroundColor: "rgba(251, 191, 36, 0.15)",
-    borderRadius: 2,
+    height: 6,
+    backgroundColor: "rgba(251, 191, 36, 0.2)",
+    borderRadius: 3,
     overflow: "hidden",
   },
   scannerProgressFill: {
     height: "100%",
     backgroundColor: "#fbbf24",
-    borderRadius: 2,
+    borderRadius: 3,
   },
   // Success State
   scannerSuccessState: {
     alignItems: "center",
+    width: "100%",
   },
   scannerSuccessIcon: {
-    marginBottom: 12,
-  },
-  scannerSuccessLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#22c55e",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   scannerSuccessCard: {
-    backgroundColor: "rgba(34, 197, 94, 0.1)",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.25)",
+    backgroundColor: "rgba(107, 114, 128, 0.2)",
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     width: "100%",
   },
   scannerSuccessName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
     color: "#fff",
     textAlign: "center",
@@ -3723,23 +3735,25 @@ const styles = StyleSheet.create({
   },
   // Action Buttons
   scannerActions: {
-    gap: 10,
+    gap: 12,
   },
   scannerPrimaryBtn: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: "hidden",
   },
   scannerPrimaryBtnGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 15,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     gap: 10,
   },
   scannerPrimaryBtnText: {
     fontSize: 15,
     fontWeight: "700",
     color: "#fff",
+    flexShrink: 1,
   },
   scannerSecondaryBtn: {
     flexDirection: "row",
@@ -3752,6 +3766,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#9ca3af",
+  },
+  scannerRetryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    gap: 8,
+    backgroundColor: "rgba(107, 114, 128, 0.15)",
+    borderRadius: 14,
+    marginTop: 4,
+  },
+  scannerRetryBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6b7280",
   },
   scannerWaitingBtn: {
     flexDirection: "row",
