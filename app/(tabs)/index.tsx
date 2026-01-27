@@ -1887,7 +1887,7 @@ export default function SearchScreen() {
               </LinearGradient>
             </View>
             <Text style={styles.emptyTitle}>Začni z iskanjem</Text>
-            <Text style={styles.emptyText}>Vpiši ime izdelka in takoj primerjaj cene{"\n"}v trgovinah Spar, Mercator in Tuš.{"\n"}Kmalu pridejo še druge trgovine!</Text>
+            <Text style={styles.emptyText}>Vpiši ime izdelka in takoj primerjaj cene{"\n"}v trgovinah Spar, Mercator in Tuš.{"\n"}Kmalu bodo na voljo še druge trgovine!</Text>
 
             {/* Fun Fact Card */}
             <View style={styles.funFactCard}>
@@ -2096,7 +2096,7 @@ export default function SearchScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.cartPreviewButtonGradient}
               >
-                <Text style={styles.cartPreviewButtonText}>Poglej Seznam</Text>
+                <Text style={styles.cartPreviewButtonText}>Odpri seznam</Text>
                 <Ionicons name="arrow-forward" size={16} color="#fff" />
               </LinearGradient>
             </TouchableOpacity>
