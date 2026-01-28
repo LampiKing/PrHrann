@@ -661,65 +661,46 @@ class MercatorScraper(BulletproofScraper):
 
     def scrape_all_simple(self) -> list[dict]:
         """
-        NOVI FLOW: Scrape po KATEGORIJAH namesto /brskaj.
-        Veliko hitrejše! Vsaka kategorija ima manj izdelkov = hitrejši scroll.
+        Mercator /brskaj stran z infinite scroll - VSI IZDELKI.
+        Timeout je zdaj 4 ure, kar bi moralo biti dovolj.
         """
         self.start()
+        self.current_category = "Mercator"
 
-        total = len(self.CATEGORY_URLS)
-        self.log(f"Scrapajem {total} kategorij...")
+        # Odpri stran z vsemi izdelki
+        self.log(f"Odpiranje: {self.ALL_PRODUCTS_URL}")
+        if not self.safe_goto(self.ALL_PRODUCTS_URL, timeout=60000):
+            self.log("Ne morem odpreti strani!", "ERROR")
+            return []
 
-        first_page = True
-        for i, (cat_name, cat_url) in enumerate(self.CATEGORY_URLS):
-            self.log(f"\n[{i+1}/{total}] {cat_name}")
-            self.current_category = cat_name
+        # Sprejmi piškotke
+        self.accept_cookies()
+        self.close_popups()
 
-            try:
-                # 1. Odpri kategorijo direktno
-                self.log(f"Odpiranje: {cat_url}")
-                if not self.safe_goto(cat_url, timeout=60000):
-                    self.log(f"Ne morem odpreti: {cat_name}", "ERROR")
-                    continue
+        # ============ POPUP HANDLING ============
+        self.log("Zapiram popup 'Izbira nacina prevzema'...")
+        time.sleep(2)
 
-                # Samo na prvi strani obravnavaj popupe
-                if first_page:
-                    self.accept_cookies()
-                    self.close_popups()
-                    time.sleep(2)
+        for attempt in range(5):
+            if self.dismiss_delivery_popup():
+                self.log("Popup zaprt!", "SUCCESS")
+                break
+            time.sleep(0.5)
 
-                    # Zapri popup "Izbira načina prevzema"
-                    for attempt in range(5):
-                        if self.dismiss_delivery_popup():
-                            break
-                        time.sleep(0.5)
-                    self.dismiss_cookie_bar()
-                    first_page = False
-                else:
-                    # Preveri popup (včasih se vrne)
-                    self.dismiss_delivery_popup()
-                    time.sleep(1)
+        self.dismiss_cookie_bar()
+        time.sleep(1)
 
-                # 2. Počakaj da se stran naloži
-                try:
-                    self.page.wait_for_load_state("networkidle", timeout=15000)
-                except:
-                    pass
+        # ============ INFINITE SCROLL ============
+        # Mercator ima ~20.000 izdelkov - potrebujemo VELIKO scrollov!
+        self.log("Zacem infinite scroll (do 20.000 izdelkov)...")
+        self.scroll_and_load_all(max_scrolls=2000)
 
-                # 3. Infinite scroll za to kategorijo
-                # Manj scrollov ker ima manj izdelkov kot /brskaj
-                self.log("Infinite scroll...")
-                self.scroll_and_load_all(max_scrolls=300)
+        # Preveri popup še enkrat po scrollu
+        self.dismiss_delivery_popup()
+        self.dismiss_cookie_bar()
 
-                # 4. Scrapaj izdelke
-                products = self.scrape_current_page(cat_name)
-                self.log(f"{cat_name}: {len(products)} izdelkov", "SUCCESS")
-
-                # Kratka pavza
-                self.random_delay(1.0, 2.0)
-
-            except Exception as e:
-                self.log(f"Napaka pri {cat_name}: {e}", "ERROR")
-                self.metrics.errors += 1
+        # ============ SCRAPE IZDELKOV ============
+        self.scrape_current_page("Mercator")
 
         self.finish()
         return self.products
