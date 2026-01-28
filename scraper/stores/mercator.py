@@ -277,8 +277,12 @@ class MercatorScraper(BulletproofScraper):
             self.safe_scroll("down")
             scroll_count += 1
 
-            # Mercator potrebuje daljšo pavzo za nalaganje
-            self.random_delay(2.0, 3.0)
+            # Počakaj da se vsebina naloži (do 20 sekund)
+            try:
+                self.page.wait_for_load_state("networkidle", timeout=20000)
+            except:
+                pass
+            self.random_delay(1.0, 2.0)
 
             # Poskusi klikniti "Naloži več" / "Load more"
             load_more_selectors = [

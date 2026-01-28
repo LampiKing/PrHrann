@@ -262,8 +262,12 @@ class TusScraper(BulletproofScraper):
             self.safe_scroll("down")
             scroll_count += 1
 
-            # Tuš potrebuje daljšo pavzo
-            self.random_delay(2.5, 3.5)
+            # Počakaj da se vsebina naloži (do 20 sekund)
+            try:
+                self.page.wait_for_load_state("networkidle", timeout=20000)
+            except:
+                pass
+            self.random_delay(1.0, 2.0)
 
             # Poskusi klikniti "Naloži več" / "Več izdelkov"
             load_more_selectors = [
