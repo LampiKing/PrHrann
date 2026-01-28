@@ -272,7 +272,7 @@ class MercatorScraper(BulletproofScraper):
         no_change = 0
         scroll_count = 0
 
-        while no_change < 25 and scroll_count < max_scrolls:  # Več čakanja za počasno nalaganje
+        while no_change < 10 and scroll_count < max_scrolls:
             # Scroll dol
             self.safe_scroll("down")
             scroll_count += 1
@@ -695,9 +695,9 @@ class MercatorScraper(BulletproofScraper):
         time.sleep(1)
 
         # ============ INFINITE SCROLL ============
-        # Mercator ima ~20.000 izdelkov - potrebujemo VELIKO scrollov!
-        self.log("Zacem infinite scroll (do 20.000 izdelkov)...")
-        self.scroll_and_load_all(max_scrolls=2000)
+        # Mercator /brskaj = ~90 scrollov za vse izdelke
+        self.log("Zacem infinite scroll (~90 scrollov)...")
+        self.scroll_and_load_all(max_scrolls=100)
 
         # Preveri popup še enkrat po scrollu
         self.dismiss_delivery_popup()
