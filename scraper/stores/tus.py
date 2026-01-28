@@ -32,82 +32,34 @@ class TusScraper(BulletproofScraper):
     BASE_URL = "https://hitrinakup.com"
     CATEGORIES_URL = "https://hitrinakup.com/kategorije"
 
-    # VSE PODKATEGORIJE - direktno klikamo na te!
-    # Format: (ime_podkategorije, glavna_kategorija)
-    # Na /kategorije strani so te podkategorije pod glavnimi kategorijami
+    # DIREKTNI URL-ji za kategorije - iz sitemap.xml
+    # Format: (ime_kategorije, URL)
+    CATEGORY_URLS = [
+        ("Sadje in zelenjava", "https://hitrinakup.com/kategorije/Sadje%20in%20zelenjava"),
+        ("Meso, delikatesa in ribe", "https://hitrinakup.com/kategorije/Meso,%20delikatesa%20in%20ribe"),
+        ("Hlajeni in mlečni izdelki", "https://hitrinakup.com/kategorije/Hlajeni%20in%20mle%C4%8Dni%20izdelki"),
+        ("Kruh in pekovski izdelki", "https://hitrinakup.com/kategorije/Kruh%20in%20pekovski%20izdelki"),
+        ("Zamrznjeno", "https://hitrinakup.com/kategorije/Zamrznjeno"),
+        ("Shramba", "https://hitrinakup.com/kategorije/Shramba"),
+        ("Alkoholne pijače", "https://hitrinakup.com/kategorije/Alkoholne%20pija%C4%8De"),
+        ("Brezalkoholne pijače", "https://hitrinakup.com/kategorije/Brezalkoholne%20pija%C4%8De"),
+        ("Sladko in slano", "https://hitrinakup.com/kategorije/Sladko%20in%20slano"),
+        ("Osebna nega", "https://hitrinakup.com/kategorije/Osebna%20nega"),
+        ("Dom", "https://hitrinakup.com/kategorije/Dom"),
+        ("Dojenčki in otroci", "https://hitrinakup.com/kategorije/Dojen%C4%8Dki%20in%20otroci"),
+        ("Male živali", "https://hitrinakup.com/kategorije/Male%20%C5%BEivali"),
+        ("Mednarodna hrana", "https://hitrinakup.com/kategorije/Mednarodna%20hrana"),
+    ]
+
+    # Stare podkategorije - ohrani za kompatibilnost
     SUBCATEGORIES = [
-        # Sadje in zelenjava
         ("Zelenjava", "Sadje in zelenjava"),
-        ("Pripravljene jedi", "Sadje in zelenjava"),
         ("Sadje", "Sadje in zelenjava"),
-        # Meso, delikatesa in ribe
-        ("Piščančje meso", "Meso, delikatesa in ribe"),
-        ("Govedina", "Meso, delikatesa in ribe"),
-        ("Svinjina", "Meso, delikatesa in ribe"),
-        ("Mešano meso", "Meso, delikatesa in ribe"),
-        ("Ribe", "Meso, delikatesa in ribe"),
-        ("Delikatesa", "Meso, delikatesa in ribe"),
-        # Mlečni izdelki in jajca
-        ("Mleko", "Mlečni izdelki in jajca"),
-        ("Jogurti", "Mlečni izdelki in jajca"),
-        ("Siri", "Mlečni izdelki in jajca"),
-        ("Skuta in smetana", "Mlečni izdelki in jajca"),
-        ("Maslo in margarina", "Mlečni izdelki in jajca"),
-        ("Jajca", "Mlečni izdelki in jajca"),
-        # Kruh in pecivo
+        ("Mleko", "Mlečni izdelki"),
+        ("Jogurti", "Mlečni izdelki"),
+        ("Siri", "Mlečni izdelki"),
         ("Kruh", "Kruh in pecivo"),
         ("Pecivo", "Kruh in pecivo"),
-        # Zamrznjeni izdelki
-        ("Zamrznjena zelenjava", "Zamrznjeni izdelki"),
-        ("Zamrznjeno sadje", "Zamrznjeni izdelki"),
-        ("Zamrznjene ribe", "Zamrznjeni izdelki"),
-        ("Zamrznjeno meso", "Zamrznjeni izdelki"),
-        ("Sladoled", "Zamrznjeni izdelki"),
-        ("Zamrznjene jedi", "Zamrznjeni izdelki"),
-        # Pijače
-        ("Voda", "Pijače"),
-        ("Sokovi", "Pijače"),
-        ("Gazirane pijače", "Pijače"),
-        ("Pivo", "Pijače"),
-        ("Vino", "Pijače"),
-        ("Žgane pijače", "Pijače"),
-        # Zajtrk, namazi in med
-        ("Kosmiči", "Zajtrk, namazi in med"),
-        ("Namazi", "Zajtrk, namazi in med"),
-        ("Med", "Zajtrk, namazi in med"),
-        # Testenine, riž in žita
-        ("Testenine", "Testenine, riž in žita"),
-        ("Riž", "Testenine, riž in žita"),
-        ("Žita", "Testenine, riž in žita"),
-        # Olja, kis in začimbe
-        ("Olja", "Olja, kis in začimbe"),
-        ("Kis", "Olja, kis in začimbe"),
-        ("Začimbe", "Olja, kis in začimbe"),
-        # Konzerve in gotove jedi
-        ("Konzerve", "Konzerve in gotove jedi"),
-        ("Gotove jedi", "Konzerve in gotove jedi"),
-        # Sladkarije in prigrizki
-        ("Čokolada", "Sladkarije in prigrizki"),
-        ("Bonboni", "Sladkarije in prigrizki"),
-        ("Piškoti", "Sladkarije in prigrizki"),
-        ("Čips", "Sladkarije in prigrizki"),
-        # Kava, čaj in kakav
-        ("Kava", "Kava, čaj in kakav"),
-        ("Čaj", "Kava, čaj in kakav"),
-        ("Kakav", "Kava, čaj in kakav"),
-        # Čistila in pripomočki
-        ("Čistila", "Čistila in pripomočki"),
-        ("Pripomočki", "Čistila in pripomočki"),
-        # Osebna nega
-        ("Šamponi", "Osebna nega"),
-        ("Mila", "Osebna nega"),
-        ("Zobna pasta", "Osebna nega"),
-        # Otroci in dojenčki
-        ("Plenice", "Otroci in dojenčki"),
-        ("Otroška hrana", "Otroci in dojenčki"),
-        # Hrana za živali
-        ("Hrana za pse", "Hrana za živali"),
-        ("Hrana za mačke", "Hrana za živali"),
     ]
 
     # TUŠ SPECIFIČNI selektorji (iz HTML inspekcije)
@@ -729,67 +681,59 @@ class TusScraper(BulletproofScraper):
 
     def scrape_all(self) -> list[dict]:
         """
-        BULLETPROOF scraping - NOVI FLOW:
-        1. Odpri /kategorije
-        2. Klikni direktno na PODKATEGORIJO (npr. "Zelenjava")
-        3. Infinite scroll - poberi VSE izdelke
-        4. Nazaj na /kategorije
-        5. Klikni naslednjo podkategorijo
-        6. Ponovi dokler ni vse
+        NOVI FLOW z DIREKTNIMI URL-ji:
+        1. Pojdi direktno na URL kategorije (brez klikanja!)
+        2. Infinite scroll - poberi VSE izdelke
+        3. Ponovi za vsako kategorijo
+
+        Veliko hitrejše in zanesljivejše kot klikanje!
         """
         self.start()
 
-        total = len(self.SUBCATEGORIES)
-        self.log(f"Scrapajem {total} podkategorij...")
+        total = len(self.CATEGORY_URLS)
+        self.log(f"Scrapajem {total} kategorij z DIREKTNIMI URL-ji...")
 
-        for i, (subcat_name, main_cat) in enumerate(self.SUBCATEGORIES):
-            self.log(f"\n[{i+1}/{total}] {main_cat} > {subcat_name}")
-            self.current_category = main_cat
-            self.current_subcategory = subcat_name
+        first_page = True
+        for i, (cat_name, cat_url) in enumerate(self.CATEGORY_URLS):
+            self.log(f"\n[{i+1}/{total}] {cat_name}")
+            self.current_category = cat_name
+            self.current_subcategory = ""
 
             try:
-                # 1. Odpri /kategorije
-                self.log(f"Odpiranje: {self.CATEGORIES_URL}")
-                if not self.safe_goto(self.CATEGORIES_URL, timeout=60000):
-                    self.log("Ne morem odpreti strani!", "ERROR")
+                # 1. Odpri kategorijo DIREKTNO (brez klikanja!)
+                self.log(f"Odpiranje: {cat_url}")
+                if not self.safe_goto(cat_url, timeout=60000):
+                    self.log(f"Ne morem odpreti: {cat_name}", "ERROR")
                     continue
 
-                # Sprejmi piškotke in zapri popupe
-                self.accept_cookies()
-                self.close_popups()
-                time.sleep(2)
+                # Samo na prvi strani sprejmi piškotke
+                if first_page:
+                    self.accept_cookies()
+                    self.close_popups()
+                    first_page = False
+                    time.sleep(2)
+                else:
+                    time.sleep(1)
 
-                # 2. Klikni na PODKATEGORIJO direktno
-                self.log(f"Klikam podkategorijo: {subcat_name}")
-                clicked = self._click_subcategory_on_main_page(subcat_name)
-
-                if not clicked:
-                    self.log(f"Ne najdem podkategorije: {subcat_name}", "WARNING")
-                    continue
-
-                # 3. Počakaj da se stran naloži (Tuš včasih traja!)
-                self.log("Cakam da se stran nalozi...")
-                time.sleep(3)
+                # 2. Počakaj da se stran naloži
                 try:
                     self.page.wait_for_load_state("networkidle", timeout=15000)
                 except:
                     pass
-                time.sleep(2)
 
-                # 4. Infinite scroll - poberi VSE izdelke
+                # 3. Infinite scroll - poberi VSE izdelke
                 self.log("Infinite scroll...")
-                self.scroll_and_load_all(max_scrolls=150)
+                self.scroll_and_load_all(max_scrolls=200)  # Več scrollov za več izdelkov
 
-                # 5. Scrapaj izdelke
-                category_full = f"{main_cat} > {subcat_name}"
-                products = self.scrape_current_page(category_full)
-                self.log(f"{subcat_name}: {len(products)} izdelkov", "SUCCESS")
+                # 4. Scrapaj izdelke
+                products = self.scrape_current_page(cat_name)
+                self.log(f"{cat_name}: {len(products)} izdelkov", "SUCCESS")
 
                 # Kratka pavza pred naslednjo kategorijo
-                self.random_delay(1.5, 2.5)
+                self.random_delay(1.0, 2.0)
 
             except Exception as e:
-                self.log(f"Napaka pri {subcat_name}: {e}", "ERROR")
+                self.log(f"Napaka pri {cat_name}: {e}", "ERROR")
                 self.metrics.errors += 1
 
         self.finish()

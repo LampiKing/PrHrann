@@ -70,7 +70,7 @@ jobs:
 
   scrape-mercator:
     runs-on: ubuntu-latest
-    timeout-minutes: 180  # 3 ure - brez limita
+    timeout-minutes: 240  # 4 ure - kategorije so hitrejše
     defaults:
       run:
         working-directory: scraper

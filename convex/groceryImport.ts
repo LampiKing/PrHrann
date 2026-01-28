@@ -192,6 +192,9 @@ export const importFromScanner = internalMutation({
 
       // Slika izdelka
       const imageUrl = item.slika?.trim() || undefined;
+      if (imageUrl) {
+        console.log(`[groceryImport] Izdelek "${rawName}" ima sliko: ${imageUrl.substring(0, 50)}...`);
+      }
 
       // NOVO: Najprej poišči izdelek po SLIKI (isti izdelek v različnih trgovinah ima isto sliko!)
       let product = productCache.get(nameKey);
@@ -229,6 +232,7 @@ export const importFromScanner = internalMutation({
       }
 
       if (!product) {
+        console.log(`[groceryImport] Ustvarjam nov izdelek: "${rawName}", imageUrl: ${imageUrl ? 'DA' : 'NE'}`);
         const productId = await ctx.db.insert("products", {
           name: rawName,
           nameKey,
