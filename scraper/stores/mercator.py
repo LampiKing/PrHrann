@@ -29,24 +29,28 @@ class MercatorScraper(BulletproofScraper):
     BASE_URL = "https://mercatoronline.si"
     ALL_PRODUCTS_URL = "https://mercatoronline.si/brskaj"
 
-    # Mercator ima tudi kategorije - za bolj strukturirano scraping
+    # Mercator kategorije z dejanskimi ID-ji iz strani
+    # Format: /brskaj#categories=ID
     CATEGORY_URLS = [
-        ("Sadje in zelenjava", "https://mercatoronline.si/sadje-in-zelenjava"),
-        ("Meso in mesni izdelki", "https://mercatoronline.si/meso-in-mesni-izdelki"),
-        ("Ribe in morski sadeži", "https://mercatoronline.si/ribe-in-morski-sadezi"),
-        ("Mlečni izdelki", "https://mercatoronline.si/mlecni-izdelki"),
-        ("Kruh in pecivo", "https://mercatoronline.si/kruh-in-pecivo"),
-        ("Zamrznjeni izdelki", "https://mercatoronline.si/zamrznjeni-izdelki"),
-        ("Pijače", "https://mercatoronline.si/pijace"),
-        ("Zajtrk in namazi", "https://mercatoronline.si/zajtrk-namazi-in-med"),
-        ("Testenine in riž", "https://mercatoronline.si/testenine-riz-in-zita"),
-        ("Konzerve", "https://mercatoronline.si/konzerve-in-gotove-jedi"),
-        ("Sladkarije", "https://mercatoronline.si/sladkarije-in-prigrizki"),
-        ("Kava in čaj", "https://mercatoronline.si/kava-caj-in-kakav"),
-        ("Čistila", "https://mercatoronline.si/cistila-in-pripomocki"),
-        ("Osebna nega", "https://mercatoronline.si/osebna-nega"),
-        ("Otroci", "https://mercatoronline.si/otroci-in-dojencki"),
-        ("Živali", "https://mercatoronline.si/hrana-za-zivali"),
+        ("Sadje in zelenjava", "https://mercatoronline.si/brskaj#categories=14535810"),
+        ("Mlečni izdelki", "https://mercatoronline.si/brskaj#categories=14535405"),
+        ("Meso in ribe", "https://mercatoronline.si/brskaj#categories=14535446"),
+        ("Kruh in pecivo", "https://mercatoronline.si/brskaj#categories=14535463"),
+        ("Delikatesa", "https://mercatoronline.si/brskaj#categories=14535481"),
+        ("Zamrznjeni izdelki", "https://mercatoronline.si/brskaj#categories=14535512"),
+        ("Shramba", "https://mercatoronline.si/brskaj#categories=14535548"),
+        ("Zajtrk", "https://mercatoronline.si/brskaj#categories=14535588"),
+        ("Pijače", "https://mercatoronline.si/brskaj#categories=14535612"),
+        ("Testenine in riž", "https://mercatoronline.si/brskaj#categories=14535661"),
+        ("Konzerve", "https://mercatoronline.si/brskaj#categories=14535681"),
+        ("Čokolada in sladkarije", "https://mercatoronline.si/brskaj#categories=14535711"),
+        ("Slani prigrizki", "https://mercatoronline.si/brskaj#categories=14535736"),
+        ("Hrana za živali", "https://mercatoronline.si/brskaj#categories=14535768"),
+        ("Otroci", "https://mercatoronline.si/brskaj#categories=14535837"),
+        ("Higiena in lepota", "https://mercatoronline.si/brskaj#categories=14535864"),
+        ("Čistila", "https://mercatoronline.si/brskaj#categories=14535906"),
+        ("Dom in kuhinja", "https://mercatoronline.si/brskaj#categories=14535984"),
+        ("Bio izdelki", "https://mercatoronline.si/brskaj#categories=16873196"),
     ]
 
     # BULLETPROOF selektorji - specifično za Mercator Online
@@ -268,7 +272,7 @@ class MercatorScraper(BulletproofScraper):
         no_change = 0
         scroll_count = 0
 
-        while no_change < 10 and scroll_count < max_scrolls:
+        while no_change < 25 and scroll_count < max_scrolls:  # Več čakanja za počasno nalaganje
             # Scroll dol
             self.safe_scroll("down")
             scroll_count += 1

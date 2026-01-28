@@ -256,7 +256,8 @@ class TusScraper(BulletproofScraper):
         scroll_count = 0
 
         # Tuš ima infinite scroll - traja da naloži
-        while no_change < 8 and scroll_count < max_scrolls:
+        # no_change < 20 = počakaj dlje (stran se včasih počasi naloži)
+        while no_change < 20 and scroll_count < max_scrolls:
             # Scroll dol
             self.safe_scroll("down")
             scroll_count += 1
@@ -723,7 +724,7 @@ class TusScraper(BulletproofScraper):
 
                 # 3. Infinite scroll - poberi VSE izdelke
                 self.log("Infinite scroll...")
-                self.scroll_and_load_all(max_scrolls=200)  # Več scrollov za več izdelkov
+                self.scroll_and_load_all(max_scrolls=500)  # Veliko scrollov za vse izdelke
 
                 # 4. Scrapaj izdelke
                 products = self.scrape_current_page(cat_name)
