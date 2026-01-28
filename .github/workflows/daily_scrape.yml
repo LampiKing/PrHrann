@@ -240,19 +240,27 @@ jobs:
           print(f'\\nTotal: {total} products')
 
           # Ustvari master_products.json (preprost format)
+          # POMEMBNO: Convex ne sprejema null vrednosti, samo undefined
+          # Zato filtriramo vse null vrednosti iz podatkov
+          def clean_product(p, store):
+              item = {'ime': p.get('ime', ''), 'trgovina': store.capitalize()}
+              # Dodaj samo ne-null vrednosti
+              if p.get('redna_cena') is not None:
+                  item['redna_cena'] = p['redna_cena']
+              if p.get('akcijska_cena') is not None:
+                  item['akcijska_cena'] = p['akcijska_cena']
+              if p.get('slika'):
+                  item['slika'] = p['slika']
+              if p.get('kategorija'):
+                  item['kategorija'] = p['kategorija']
+              if p.get('enota'):
+                  item['enota'] = p['enota']
+              return item
+
           master_products = []
           for store, products in all_products.items():
               for p in products:
-                  master_products.append({
-                      'ime': p.get('ime', ''),
-                      'trgovina': store.capitalize(),
-                      'redna_cena': p.get('redna_cena'),
-                      'akcijska_cena': p.get('akcijska_cena'),
-                      'slika': p.get('slika', ''),
-                      'kategorija': p.get('kategorija', ''),
-                      'enota': p.get('enota', ''),
-                      'stevilo_trgovin': 1,
-                  })
+                  master_products.append(clean_product(p, store))
 
           with open('scraper/output/master_products.json', 'w', encoding='utf-8') as f:
               json.dump(master_products, f, ensure_ascii=False, indent=2)
