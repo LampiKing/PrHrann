@@ -257,17 +257,14 @@ class TusScraper(BulletproofScraper):
 
         # Tuš ima infinite scroll - traja da naloži
         # no_change < 20 = počakaj dlje (stran se včasih počasi naloži)
-        while no_change < 20 and scroll_count < max_scrolls:
+        while no_change < 30 and scroll_count < max_scrolls:
             # Scroll dol
             self.safe_scroll("down")
             scroll_count += 1
 
-            # Počakaj da se vsebina naloži (do 20 sekund)
-            try:
-                self.page.wait_for_load_state("networkidle", timeout=20000)
-            except:
-                pass
-            self.random_delay(1.0, 2.0)
+            # Počakaj fiksno 6 sekund da se naloži
+            # (networkidle povzroča probleme - strani z infinite scrollom nikoli niso "idle")
+            time.sleep(6)
 
             # Poskusi klikniti "Naloži več" / "Več izdelkov"
             load_more_selectors = [
@@ -721,14 +718,11 @@ class TusScraper(BulletproofScraper):
                     time.sleep(1)
 
                 # 2. Počakaj da se stran naloži
-                try:
-                    self.page.wait_for_load_state("networkidle", timeout=15000)
-                except:
-                    pass
+                time.sleep(5)  # Fiksna pavza za nalaganje
 
                 # 3. Infinite scroll - poberi VSE izdelke
                 self.log("Infinite scroll...")
-                self.scroll_and_load_all(max_scrolls=500)  # Veliko scrollov za vse izdelke
+                self.scroll_and_load_all(max_scrolls=1000)  # Dovolj scrollov za 8000+ izdelkov
 
                 # 4. Scrapaj izdelke
                 products = self.scrape_current_page(cat_name)
