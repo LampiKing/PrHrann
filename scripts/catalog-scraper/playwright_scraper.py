@@ -240,6 +240,8 @@ class PlaywrightCatalogScraper:
 
             response = requests.get(sheets_url, timeout=30, allow_redirects=True)
             response.raise_for_status()
+            # Ensure UTF-8 encoding for Slovenian characters (š, č, ž, etc.)
+            response.encoding = 'utf-8'
 
             reader = csv.DictReader(StringIO(response.text))
 

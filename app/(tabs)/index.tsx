@@ -1236,7 +1236,9 @@ export default function SearchScreen() {
                     />
                   ) : (
                     <LinearGradient
-                      colors={["rgba(168, 85, 247, 0.3)", "rgba(139, 92, 246, 0.1)"]}
+                      colors={["rgba(139, 92, 246, 0.25)", "rgba(99, 102, 241, 0.15)", "rgba(168, 85, 247, 0.1)"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
                       style={styles.productImageBg}
                     >
                       <Text style={styles.productEmoji}>
@@ -2853,15 +2855,40 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    // Subtle border for polish
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.3)",
+    // Subtle shadow for depth
+    ...Platform.select({
+      ios: {
+        shadowColor: "#8b5cf6",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: "0 2px 8px rgba(139, 92, 246, 0.2)",
+      },
+    }),
   },
   productImage: {
     width: 60,
     height: 60,
     borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    // Add border for crisp look
+    borderWidth: 1,
+    borderColor: "rgba(139, 92, 246, 0.15)",
   },
   productEmoji: {
-    fontSize: 28,
+    fontSize: 30,
+    // Subtle text shadow for depth
+    textShadowColor: "rgba(139, 92, 246, 0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   productInfo: {
     flex: 1,
