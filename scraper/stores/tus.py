@@ -246,7 +246,7 @@ class TusScraper(BulletproofScraper):
         self.log(f"Ne najdem podkategorije: {name}", "WARNING")
         return False
 
-    def scroll_and_load_all(self, max_scrolls: int = 100):
+    def scroll_and_load_all(self, max_scrolls: int = 200):
         """BULLETPROOF infinite scroll za Tuš"""
         self.log("Infinite scroll...")
 
@@ -256,15 +256,15 @@ class TusScraper(BulletproofScraper):
         scroll_count = 0
 
         # Tuš ima infinite scroll - traja da naloži
-        # no_change < 20 = počakaj dlje (stran se včasih počasi naloži)
-        while no_change < 30 and scroll_count < max_scrolls:
-            # Scroll dol
+        # no_change < 50 = počakaj še dlje (stran se včasih ZELO počasi naloži)
+        while no_change < 50 and scroll_count < max_scrolls:
+            # Scroll dol - večkrat za hitrejše nalaganje
+            self.safe_scroll("down")
             self.safe_scroll("down")
             scroll_count += 1
 
-            # Počakaj fiksno 6 sekund da se naloži
-            # (networkidle povzroča probleme - strani z infinite scrollom nikoli niso "idle")
-            time.sleep(6)
+            # Počakaj da se naloži - hitri nakup je počasen
+            time.sleep(3)
 
             # Poskusi klikniti "Naloži več" / "Več izdelkov"
             load_more_selectors = [
@@ -278,6 +278,9 @@ class TusScraper(BulletproofScraper):
                 'button:has-text("Več izdelkov")',
                 'a:has-text("Več izdelkov")',
                 'a:has-text("Naloži več")',
+                # Tuš specifični selektorji
+                '[class*="showMore"]',
+                '[class*="ShowMore"]',
             ]
 
             for selector in load_more_selectors:
@@ -285,7 +288,7 @@ class TusScraper(BulletproofScraper):
                     btn = self.page.query_selector(selector)
                     if btn and btn.is_visible():
                         btn.click()
-                        self.random_delay(3.0, 4.0)
+                        time.sleep(2)  # Počakaj nalaganje
                         no_change = 0  # Reset
                         break
                 except:
@@ -294,16 +297,22 @@ class TusScraper(BulletproofScraper):
             # Preveri ali je nova vsebina
             new_height = self.page.evaluate("document.body.scrollHeight")
 
-            # Preštej izdelke
+            # Preštej izdelke - uporabi več selektorjev
             current_products = 0
-            for selector in self.PRODUCT_SELECTORS[:3]:
+            for selector in self.PRODUCT_SELECTORS:
                 try:
                     els = self.page.query_selector_all(selector)
                     if els:
                         current_products = max(current_products, len(els))
-                        break
                 except:
                     continue
+            
+            # Tudi preštej a[href*="/izdelki/"] za dodatno verifikacijo
+            try:
+                product_links = self.page.query_selector_all('a[href*="/izdelki/"]')
+                current_products = max(current_products, len(product_links))
+            except:
+                pass
 
             if new_height == last_height and current_products == last_product_count:
                 no_change += 1
@@ -312,10 +321,10 @@ class TusScraper(BulletproofScraper):
                 last_height = new_height
                 last_product_count = current_products
 
-            if scroll_count % 10 == 0:
-                self.log(f"Scroll {scroll_count}: ~{current_products} izdelkov")
+            if scroll_count % 5 == 0:
+                self.log(f"Scroll {scroll_count}: ~{current_products} izdelkov, no_change={no_change}")
 
-        self.log(f"Scroll končan po {scroll_count} scrollih")
+        self.log(f"Scroll končan po {scroll_count} scrollih, končno {last_product_count} izdelkov")
 
     # ==================== DATA EXTRACTION ====================
 
