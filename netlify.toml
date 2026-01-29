@@ -4,7 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  EXPO_PUBLIC_CONVEX_URL = "https://amicable-kudu-812.convex.cloud"
+  EXPO_PUBLIC_CONVEX_URL = "https://vibrant-dolphin-871.convex.cloud"
 
 [[plugins]]
   package = "@netlify/plugin-lighthouse"
