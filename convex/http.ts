@@ -222,4 +222,75 @@ http.route({
   }),
 });
 
+// Endpoint za popravek encoding-a v imenih izdelkov
+http.route({
+  path: "/api/admin/fix-encoding",
+  method: "POST",
+  handler: httpActionGeneric(async (ctx, request) => {
+    const expectedToken = process.env.PRHRAN_INGEST_TOKEN;
+    if (!expectedToken) {
+      return new Response("Token not configured", { status: 500 });
+    }
+
+    const authHeader = request.headers.get("authorization") || "";
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : authHeader.trim();
+
+    if (token !== expectedToken) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    let payload: any = null;
+    try {
+      payload = await request.json();
+    } catch {
+      payload = {};
+    }
+
+    const batchSize = payload?.batchSize ?? 500;
+    const iterations = payload?.iterations ?? 20;
+
+    try {
+      let totalFixed = 0;
+      let totalProcessed = 0;
+
+      for (let i = 0; i < iterations; i++) {
+        const result = await ctx.runMutation(
+          internal.fixEncoding.fixProductEncoding,
+          { batchSize }
+        );
+        totalFixed += result.fixed;
+        totalProcessed += result.processed;
+
+        // Če ni več kaj popraviti, končaj
+        if (result.remaining === 0) {
+          break;
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          totalFixed,
+          totalProcessed,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return new Response(
+        JSON.stringify({ error: message }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+  }),
+});
+
 export default http;
