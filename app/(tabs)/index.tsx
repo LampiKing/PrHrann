@@ -244,12 +244,13 @@ export default function SearchScreen() {
   const guestOptionsCount = (showRegistrationCta ? 1 : 0) + (showPlusCta ? 1 : 0);
   const guestOptionsSingle = guestOptionsCount === 1;
   const showTopFabs = !isPremium || isGuestMode;
+  const isVeryCompact = width < 360;
   const fabTop = insets.top + (isCompact ? 4 : 12);
-  const fabHorizontal = isCompact ? 10 : 16;
-  const premiumIconSize = isCompact ? 16 : 18;
-  const authIconSize = isCompact ? 16 : 18;
-  const premiumFabLabel = isCompact ? PLAN_PLUS : `Kupi ${PLAN_PLUS}`;
-  const authFabLabel = isCompact ? "Prijava" : "Prijava / Registracija";
+  const fabHorizontal = isVeryCompact ? 6 : isCompact ? 10 : 16;
+  const premiumIconSize = isVeryCompact ? 12 : isCompact ? 14 : 18;
+  const authIconSize = isVeryCompact ? 12 : isCompact ? 14 : 18;
+  const premiumFabLabel = isVeryCompact ? "Plus" : isCompact ? PLAN_PLUS : `Kupi ${PLAN_PLUS}`;
+  const authFabLabel = isVeryCompact ? "Prijava" : isCompact ? "Prijava" : "Prijava / Registracija";
   const fabScaleMin = isCompact ? 0.92 : 0.98;
   const fabScaleMax = isCompact ? 1.02 : 1.04;
   const scrollTopPadding = insets.top + (showTopFabs ? (isCompact ? 60 : 50) : 10);
@@ -3291,9 +3292,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   premiumFabGradientCompact: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 4,
   },
   premiumFabText: {
     fontSize: 15,
@@ -3302,8 +3303,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   premiumFabTextCompact: {
-    fontSize: 12,
-    letterSpacing: 0,
+    fontSize: 11,
+    letterSpacing: -0.2,
   },
   authFab: {
     position: "absolute",
@@ -3325,9 +3326,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   authFabGradientCompact: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 4,
   },
   authFabText: {
     fontSize: 14,
@@ -3336,8 +3337,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
   authFabTextCompact: {
-    fontSize: 12,
-    letterSpacing: 0,
+    fontSize: 11,
+    letterSpacing: -0.2,
   },
   cartToast: {
     position: "absolute",
