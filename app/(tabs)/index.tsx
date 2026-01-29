@@ -262,6 +262,32 @@ export default function SearchScreen() {
   // Timer state for countdown
   const [timeRemaining, setTimeRemaining] = useState<string | null>(null);
 
+  // Popular sizes that should be prioritized in search results
+  const POPULAR_SIZES = ["1L", "1l", "1kg", "1 kg", "1 L", "500g", "500ml", "500 g", "500 ml", "250g", "250ml", "2L", "2l", "750ml", "1.5L"];
+
+  // Helper to check if a product has a popular size
+  const hasPopularSize = (unit: string): boolean => {
+    const normalizedUnit = unit.toLowerCase().replace(/\s+/g, '');
+    return POPULAR_SIZES.some(size => {
+      const normalizedSize = size.toLowerCase().replace(/\s+/g, '');
+      return normalizedUnit.includes(normalizedSize) || normalizedUnit === normalizedSize;
+    });
+  };
+
+  // Get size priority (lower = better, popular sizes first)
+  const getSizePriority = (unit: string): number => {
+    const normalizedUnit = unit.toLowerCase().replace(/\s+/g, '');
+    // Most popular sizes first
+    if (normalizedUnit.includes("1l") || normalizedUnit.includes("1kg")) return 1;
+    if (normalizedUnit.includes("500g") || normalizedUnit.includes("500ml")) return 2;
+    if (normalizedUnit.includes("1.5l") || normalizedUnit.includes("2l")) return 3;
+    if (normalizedUnit.includes("250g") || normalizedUnit.includes("250ml")) return 4;
+    if (normalizedUnit.includes("750ml")) return 5;
+    if (normalizedUnit.includes("100g") || normalizedUnit.includes("200ml")) return 6;
+    // Unpopular/small sizes last
+    return 10;
+  };
+
   // Countdown timer effect
   useEffect(() => {
     if (!searchResetTime || isPremium || searchesRemaining > 0) {
@@ -569,9 +595,18 @@ export default function SearchScreen() {
   const isWaitingForNewResults = approvedQuery.length >= 2 && approvedQuery !== lastQueriedFor;
   const isSearchResultsLoading = searching || isConvexLoading || isWaitingForNewResults;
 
-  // Sort results based on swipe direction
+  // Sort results: prioritize popular sizes (1L, 1kg, 500g, etc.) first, then by price
   const sortedResults = searchResults
-    ? [...searchResults].sort((a, b) => a.lowestPrice - b.lowestPrice)
+    ? [...searchResults].sort((a, b) => {
+        const aPriority = getSizePriority(a.unit);
+        const bPriority = getSizePriority(b.unit);
+        // First sort by size priority (popular sizes first)
+        if (aPriority !== bPriority) {
+          return aPriority - bPriority;
+        }
+        // Within same priority, sort by lowest price
+        return a.lowestPrice - b.lowestPrice;
+      })
     : [];
 
   const limitedResults = sortedResults.slice(0, 20);

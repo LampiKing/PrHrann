@@ -1086,3 +1086,543 @@ export const fixProductNames = mutation({
     return { processed: products.length, fixed };
   },
 });
+
+// ===========================================
+// MERGE BY NAMEKEY - Združi izdelke z enakim nameKey
+// ===========================================
+
+/**
+ * Normalizira ime izdelka v ključ za primerjavo
+ * "MILKA ČOKOLADA MLEČNA 100G" -> "0.1kg cokolada milka mlecna"
+ */
+function generateNameKey(name: string): string {
+  // Normaliziraj v male črke brez šumnikov
+  let normalized = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/,/g, ".")
+    .replace(/[^a-z0-9.%]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) return "";
+
+  // Združi število + enoto če sta ločena: "250 g" -> "250g"
+  normalized = normalized.replace(/(\d+(?:\.\d+)?)\s+(kg|g|l|ml|cl|dl|kos|kom)\b/gi, "$1$2");
+
+  // Normaliziraj enote v osnovno obliko
+  const normalizeUnit = (token: string): string => {
+    const match = token.match(/^(\d+(?:\.\d+)?)(kg|g|l|ml|cl|dl)$/i);
+    if (!match) return token;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value) || value <= 0) return token;
+    const unit = match[2].toLowerCase();
+    const formatNumber = (num: number) => {
+      const rounded = Math.round(num * 1000) / 1000;
+      return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+    };
+    if (unit === "g") return `${formatNumber(value / 1000)}kg`;
+    if (unit === "ml") return `${formatNumber(value / 1000)}l`;
+    if (unit === "cl") return `${formatNumber(value / 100)}l`;
+    if (unit === "dl") return `${formatNumber(value / 10)}l`;
+    return `${formatNumber(value)}${unit}`;
+  };
+
+  const tokens = normalized
+    .split(" ")
+    .map(normalizeUnit)
+    .filter(Boolean);
+
+  if (!tokens.length) return "";
+
+  // Sortiraj tokene da "Jaffa keksi 150g" = "Keksi Jaffa 150g"
+  const tokenSet = new Set(tokens);
+  return Array.from(tokenSet).sort().join(" ");
+}
+
+/**
+ * Generiraj nameKey za vse izdelke ki ga nimajo
+ */
+export const generateMissingNameKeys = mutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  returns: v.object({
+    processed: v.number(),
+    updated: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? 200;
+
+    // Pridobi batch izdelkov (ne filtriramo v query da izognemo prebiranju)
+    const products = await ctx.db
+      .query("products")
+      .take(batchSize);
+
+    let updated = 0;
+    let processed = 0;
+
+    for (const product of products) {
+      // Preskoči če že ima nameKey
+      if (product.nameKey) {
+        processed++;
+        continue;
+      }
+
+      const nameKey = generateNameKey(product.name);
+      if (nameKey) {
+        await ctx.db.patch(product._id, { nameKey });
+        updated++;
+      }
+      processed++;
+    }
+
+    return { processed, updated };
+  },
+});
+
+// ===========================================
+// AGGRESSIVE MERGE - Združi po blagovni znamki + velikosti
+// ===========================================
+
+const KNOWN_BRANDS = [
+  "alpsko", "ljubljanske", "vindija", "mu", "ego", "zott", "danone", "activia", "dukat",
+  "milka", "jaffa", "dorina", "gorenjka", "lindt", "toblerone", "ritter", "kinder", "ferrero",
+  "nutella", "raffaello", "mars", "snickers", "twix", "bounty", "kit", "kat", "lion",
+  "coca", "cola", "pepsi", "fanta", "sprite", "schweppes", "radenska", "donat", "costella", "jana", "zala",
+  "barilla", "buitoni", "knorr", "podravka", "vegeta", "argeta", "gavrilovic",
+  "nivea", "dove", "palmolive", "colgate", "oral", "signal", "elmex",
+  "poli", "lay", "pringles", "chio", "kelly", "solano",
+  "nescafe", "jacobs", "lavazza", "barcaffe", "illy", "franck",
+  "lipton", "teekanne", "pickwick",
+  "heinz", "hellmann", "calve", "zvijezda", "thomy",
+  "dr", "oetker", "carte", "dor", "president", "philadelphia", "galbani",
+  "domestos", "ajax", "cif", "pur", "fairy", "finish",
+  "pampers", "huggies", "libero", "babylove",
+  "whiskas", "felix", "friskies", "purina", "pedigree", "chappi",
+];
+
+function extractBrandFromName(name: string): string | null {
+  const normalized = name.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  for (const brand of KNOWN_BRANDS) {
+    if (normalized.includes(brand)) {
+      return brand;
+    }
+  }
+  return null;
+}
+
+function extractSizeFromName(name: string): string | null {
+  const normalized = name.toLowerCase().replace(/,/g, ".").replace(/\s+/g, "");
+
+  // Vzorci velikosti
+  const patterns = [
+    /(\d+(?:\.\d+)?)\s*(kg|g|l|ml|cl|dl)/i,
+    /(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*(kg|g|l|ml)/i, // multipack: 6x1.5l
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match) {
+      if (match[3]) {
+        // Multipack
+        const count = parseInt(match[1]);
+        const value = parseFloat(match[2]);
+        const unit = match[3].toLowerCase();
+        return `${count}x${value}${unit}`;
+      }
+      const value = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      // Normaliziraj v osnovno enoto
+      if (unit === "kg") return `${value * 1000}g`;
+      if (unit === "l") return `${value * 1000}ml`;
+      if (unit === "cl") return `${value * 10}ml`;
+      if (unit === "dl") return `${value * 100}ml`;
+      return `${value}${unit}`;
+    }
+  }
+  return null;
+}
+
+function extractProductType(name: string): string | null {
+  const normalized = name.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+
+  const productTypes = [
+    "mleko", "jogurt", "sir", "skuta", "maslo", "smetana", "kefir",
+    "cokolada", "cokoladica", "keks", "keksi", "piškoti", "vafel", "bonbon",
+    "sok", "nektar", "voda", "pijaca", "napitek", "pivo", "vino",
+    "kruh", "pecivo", "zdrob", "moka", "testo", "testenine", "spageti", "riz",
+    "olje", "kis", "sol", "sladkor", "med",
+    "kava", "caj", "kakao",
+    "meso", "salama", "sunek", "pašteta", "klobasa",
+    "zelenjava", "sadje", "jabolka", "banana", "paradiznik",
+    "čistilo", "pralni", "mehčalec", "šampon", "milo", "zobna",
+    "plenice", "robčki",
+    "hrana za", "pasja", "mačja",
+  ];
+
+  for (const type of productTypes) {
+    if (normalized.includes(type)) {
+      return type;
+    }
+  }
+  return null;
+}
+
+/**
+ * Ekstrahiraj % maščobe iz imena izdelka
+ * npr. "3,5 % m.m." ali "1,5%" ali "0,5% m.m."
+ */
+function extractFatPercentage(name: string): string | null {
+  const normalized = name.toLowerCase().replace(/,/g, ".");
+
+  // Vzorec: številka + % (opcijsko m.m. ali mm)
+  const match = normalized.match(/(\d+(?:\.\d+)?)\s*%\s*(?:m\.?m\.?)?/);
+  if (match) {
+    return match[1]; // Vrni samo število (npr. "3.5")
+  }
+  return null;
+}
+
+/**
+ * Preveri ali je izdelek multipack (npr. 6x1L)
+ */
+function isMultipack(name: string): boolean {
+  const normalized = name.toLowerCase();
+  return /\d+\s*x\s*\d+/i.test(normalized);
+}
+
+/**
+ * Ekstrahiraj varianto izdelka (čokoladno, proteini, brez laktoze, barista...)
+ */
+function extractVariant(name: string): string | null {
+  const normalized = name.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+
+  const variants = [
+    "cokoladno", "cokolada", "okoladno", // čokoladno (z encoding problemi)
+    "protein", "proteini", "high protein",
+    "brez laktoze", "laktoze",
+    "barista",
+    "polnomastno", "pol posneto", "posneto",
+    "z vitaminom", "s kalcijem",
+  ];
+
+  for (const variant of variants) {
+    if (normalized.includes(variant)) {
+      return variant;
+    }
+  }
+  return null;
+}
+
+/**
+ * AGRESIVNO ZDRUŽEVANJE - Učinkovito!
+ * Naloži vse izdelke ENKRAT, zgradi indeks v pomnilniku, in združi duplikate.
+ */
+export const aggressiveMerge = mutation({
+  args: {
+    maxProducts: v.optional(v.number()),
+    maxMerges: v.optional(v.number()),
+  },
+  returns: v.object({
+    processed: v.number(),
+    merged: v.number(),
+    pricesMoved: v.number(),
+    groups: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const maxProducts = args.maxProducts ?? 8000;
+    const maxMerges = args.maxMerges ?? 20;
+
+    // Naloži izdelke ENKRAT
+    const allProducts = await ctx.db
+      .query("products")
+      .take(maxProducts);
+
+    // Zgradi indeks: ključ = brand:size:fat:variant
+    const byKey = new Map<string, typeof allProducts>();
+
+    for (const product of allProducts) {
+      const brand = extractBrandFromName(product.name);
+      const size = extractSizeFromName(product.name);
+
+      if (!brand || !size) continue;
+      if (isMultipack(product.name)) continue;
+
+      const fat = extractFatPercentage(product.name) || "";
+      const variant = extractVariant(product.name) || "";
+
+      const key = `${brand}:${size}:${fat}:${variant}`;
+      const existing = byKey.get(key) || [];
+      existing.push(product);
+      byKey.set(key, existing);
+    }
+
+    let processed = 0;
+    let merged = 0;
+    let pricesMoved = 0;
+    let groups = 0;
+
+    // Poišči skupine z več kot 1 izdelkom (duplikati!)
+    for (const [key, products] of byKey) {
+      if (products.length < 2) continue;
+      if (merged >= maxMerges) break;
+
+      groups++;
+      processed += products.length;
+
+      // Izberi glavni izdelek (ima sliko + najdaljše ime)
+      const sorted = [...products].sort((a, b) => {
+        if (a.imageUrl && !b.imageUrl) return -1;
+        if (!a.imageUrl && b.imageUrl) return 1;
+        return b.name.length - a.name.length;
+      });
+
+      const keepProduct = sorted[0];
+      const toMerge = sorted.slice(1);
+
+      for (const mergeProduct of toMerge) {
+        if (merged >= maxMerges) break;
+
+        // Prenesi cene
+        const mergePrices = await ctx.db
+          .query("prices")
+          .withIndex("by_product", (q) => q.eq("productId", mergeProduct._id))
+          .collect();
+
+        for (const price of mergePrices) {
+          const existing = await ctx.db
+            .query("prices")
+            .withIndex("by_product_and_store", (q) =>
+              q.eq("productId", keepProduct._id).eq("storeId", price.storeId)
+            )
+            .first();
+
+          if (existing) {
+            if (price.price < existing.price) {
+              await ctx.db.patch(existing._id, {
+                price: price.price,
+                originalPrice: price.originalPrice,
+                isOnSale: price.isOnSale,
+                lastUpdated: Date.now(),
+              });
+            }
+            await ctx.db.delete(price._id);
+          } else {
+            await ctx.db.patch(price._id, { productId: keepProduct._id });
+            pricesMoved++;
+          }
+        }
+
+        // Posodobi sliko če manjka
+        if (!keepProduct.imageUrl && mergeProduct.imageUrl) {
+          await ctx.db.patch(keepProduct._id, { imageUrl: mergeProduct.imageUrl });
+        }
+
+        // Pobriši duplikat
+        await ctx.db.delete(mergeProduct._id);
+        merged++;
+      }
+    }
+
+    return { processed, merged, pricesMoved, groups };
+  },
+});
+
+/**
+ * Debug funkcija za preverjanje ekstrakcije brand/size/fat/variant
+ */
+export const debugExtraction = query({
+  args: { name: v.string() },
+  returns: v.object({
+    brand: v.union(v.string(), v.null()),
+    size: v.union(v.string(), v.null()),
+    type: v.union(v.string(), v.null()),
+    fat: v.union(v.string(), v.null()),
+    variant: v.union(v.string(), v.null()),
+    isMultipack: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    return {
+      brand: extractBrandFromName(args.name),
+      size: extractSizeFromName(args.name),
+      type: extractProductType(args.name),
+      fat: extractFatPercentage(args.name),
+      variant: extractVariant(args.name),
+      isMultipack: isMultipack(args.name),
+    };
+  },
+});
+
+/**
+ * Poišči vse izdelke z dano blagovno znamko, velikostjo, maščobo in varianto
+ * STROGO ujemanje - samo identični izdelki!
+ */
+export const findByBrandAndSize = query({
+  args: {
+    brand: v.string(),
+    size: v.string(),
+    fat: v.optional(v.union(v.string(), v.null())),
+    variant: v.optional(v.union(v.string(), v.null())),
+  },
+  returns: v.array(v.object({
+    _id: v.id("products"),
+    name: v.string(),
+    storeName: v.string(),
+    fat: v.union(v.string(), v.null()),
+    variant: v.union(v.string(), v.null()),
+  })),
+  handler: async (ctx, args) => {
+    const allProducts = await ctx.db.query("products").take(10000);
+
+    const matches = [];
+    for (const product of allProducts) {
+      const pBrand = extractBrandFromName(product.name);
+      const pSize = extractSizeFromName(product.name);
+      const pFat = extractFatPercentage(product.name);
+      const pVariant = extractVariant(product.name);
+      const pIsMultipack = isMultipack(product.name);
+
+      // Preskoči multipacks
+      if (pIsMultipack) continue;
+
+      // Brand + Size morata biti enaka
+      if (pBrand !== args.brand || pSize !== args.size) continue;
+
+      // Če je fat podan, mora biti enak
+      if (args.fat !== undefined && pFat !== args.fat) continue;
+
+      // Če je variant podan, mora biti enak
+      if (args.variant !== undefined && pVariant !== args.variant) continue;
+
+      // Pridobi trgovino
+      const price = await ctx.db
+        .query("prices")
+        .withIndex("by_product", (q) => q.eq("productId", product._id))
+        .first();
+
+      const store = price ? await ctx.db.get(price.storeId) : null;
+
+      matches.push({
+        _id: product._id,
+        name: product.name,
+        storeName: store?.name || "Unknown",
+        fat: pFat,
+        variant: pVariant,
+      });
+    }
+
+    return matches;
+  },
+});
+
+/**
+ * Poišči in združi izdelke z enakim nameKey
+ * To združi npr. "Jaffa keksi 150g" (Spar) z "Keksi Jaffa 150g" (Mercator)
+ */
+export const mergeByNameKey = mutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  returns: v.object({
+    processed: v.number(),
+    merged: v.number(),
+    pricesMoved: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? 100;
+
+    // Pridobi batch izdelkov (brez filtriranja da izognemo prebiranju)
+    const products = await ctx.db
+      .query("products")
+      .take(batchSize);
+
+    // Grupiraj po nameKey in poišči duplikate v bazi
+    const byNameKey = new Map<string, typeof products>();
+    for (const product of products) {
+      if (!product.nameKey) continue;
+
+      // Poišči vse izdelke z enakim nameKey
+      const duplicates = await ctx.db
+        .query("products")
+        .withIndex("by_name_key", (q) => q.eq("nameKey", product.nameKey))
+        .take(10);
+
+      if (duplicates.length > 1) {
+        byNameKey.set(product.nameKey, duplicates);
+      }
+    }
+
+    let processed = 0;
+    let merged = 0;
+    let pricesMoved = 0;
+
+    // Združi duplikate
+    for (const [nameKey, duplicates] of byNameKey) {
+      if (duplicates.length < 2) continue;
+      processed++;
+
+      // Izberi "glavni" izdelek - tisti z najdaljšim imenom ali sliko
+      const sorted = [...duplicates].sort((a, b) => {
+        // Preferiraj izdelke s sliko
+        if (a.imageUrl && !b.imageUrl) return -1;
+        if (!a.imageUrl && b.imageUrl) return 1;
+        // Nato po dolžini imena
+        return b.name.length - a.name.length;
+      });
+
+      const keepProduct = sorted[0];
+      const mergeProducts = sorted.slice(1);
+
+      for (const mergeProduct of mergeProducts) {
+        // Prenesi cene
+        const pricesToMove = await ctx.db
+          .query("prices")
+          .withIndex("by_product", (q) => q.eq("productId", mergeProduct._id))
+          .collect();
+
+        for (const price of pricesToMove) {
+          // Preveri če cena za to trgovino že obstaja
+          const existing = await ctx.db
+            .query("prices")
+            .withIndex("by_product_and_store", (q) =>
+              q.eq("productId", keepProduct._id).eq("storeId", price.storeId)
+            )
+            .first();
+
+          if (existing) {
+            // Posodobi če je nova cena nižja
+            if (price.price < existing.price) {
+              await ctx.db.patch(existing._id, {
+                price: price.price,
+                originalPrice: price.originalPrice,
+                isOnSale: price.isOnSale,
+                lastUpdated: Date.now(),
+              });
+            }
+            // Pobriši duplikat
+            await ctx.db.delete(price._id);
+          } else {
+            // Prenesi ceno na glavni izdelek
+            await ctx.db.patch(price._id, {
+              productId: keepProduct._id,
+            });
+            pricesMoved++;
+          }
+        }
+
+        // Posodobi sliko če manjka
+        if (!keepProduct.imageUrl && mergeProduct.imageUrl) {
+          await ctx.db.patch(keepProduct._id, { imageUrl: mergeProduct.imageUrl });
+        }
+
+        // Pobriši duplikat
+        await ctx.db.delete(mergeProduct._id);
+        merged++;
+      }
+    }
+
+    return { processed, merged, pricesMoved };
+  },
+});
