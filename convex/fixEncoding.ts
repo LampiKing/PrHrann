@@ -1,4 +1,4 @@
-import { internalMutation } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -8,48 +8,52 @@ import { v } from "convex/values";
  */
 
 // Mapa za popravek napačno kodiranih znakov
-const ENCODING_FIXES: Record<string, string> = {
+const ENCODING_FIXES: [string, string][] = [
   // Velike črke
-  "Ä\u008c": "Č",  // Č
-  "ÄŒ": "Č",       // Č (alternativa)
-  "Å½": "Ž",       // Ž
-  "Å ": "Š",       // Š
-  "Ä†": "Ć",       // Ć
-  "Ä": "Đ",       // Đ
+  ["\u00c4\u008c", "Č"],     // Č
+  ["\u00c4\u0152", "Č"],     // Č (alternativa)
+  ["\u00c5\u00bd", "Ž"],     // Ž
+  ["\u00c5\u00a0", "Š"],     // Š
+  ["\u00c4\u2020", "Ć"],     // Ć
   
   // Male črke
-  "Ä\u008d": "č",  // č
-  "ÄŤ": "č",       // č (alternativa)
-  "Å¾": "ž",       // ž
-  "Å¡": "š",       // š
-  "Ä‡": "ć",       // ć
-  "Ä'": "đ",       // đ
+  ["\u00c4\u008d", "č"],     // č
+  ["\u00c4\u0165", "č"],     // č (alternativa)
+  ["\u00c5\u00be", "ž"],     // ž
+  ["\u00c5\u00a1", "š"],     // š
+  ["\u00c4\u2021", "ć"],     // ć
   
   // Posebni znaki
-  "Â´": "'",       // apostrof
-  "Â ": " ",       // non-breaking space
-  "â€"": "–",      // en-dash
-  "â€™": "'",      // right single quote
-  "â€œ": '"',      // left double quote
-  "â€": '"',       // right double quote
-};
+  ["\u00c2\u00b4", "'"],     // apostrof
+  ["\u00c2\u00a0", " "],     // non-breaking space
+];
 
 function fixEncoding(text: string): string {
   if (!text) return text;
   
   let fixed = text;
   
-  // Uporabi vse popravke
-  for (const [broken, correct] of Object.entries(ENCODING_FIXES)) {
+  // Uporabi vse popravke iz array-a
+  for (const [broken, correct] of ENCODING_FIXES) {
     fixed = fixed.split(broken).join(correct);
   }
   
   // Dodatni regex popravki za posebne primere
   // Ä + control char → Č ali č
-  fixed = fixed.replace(/Ä[\x00-\x1f]/g, (match) => {
+  fixed = fixed.replace(/\u00c4[\x00-\x1f\x80-\x9f]/g, (match) => {
     const code = match.charCodeAt(1);
     if (code === 0x0c || code === 0x8c) return "Č";
     if (code === 0x0d || code === 0x8d) return "č";
+    return match;
+  });
+  
+  // Å + special char → Š, Ž, š, ž
+  fixed = fixed.replace(/\u00c5[\x00-\xff]/g, (match) => {
+    const code = match.charCodeAt(1);
+    if (code === 0xbd) return "Ž";
+    if (code === 0xa0) return "Š";
+    if (code === 0xbe) return "ž";
+    if (code === 0xa1) return "š";
     return match;
   });
   
@@ -57,7 +61,52 @@ function fixEncoding(text: string): string {
 }
 
 /**
- * Popravi encoding v vseh izdelkih (batch)
+ * Popravi encoding v vseh izdelkih (batch) - PUBLIC verzija za CLI
+ */
+export const runEncodingFix = mutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  returns: v.object({
+    processed: v.number(),
+    fixed: v.number(),
+    remaining: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? 500;
+    
+    // Pridobi izdelke
+    const products = await ctx.db
+      .query("products")
+      .take(batchSize);
+    
+    let fixed = 0;
+    
+    for (const product of products) {
+      const originalName = product.name;
+      const fixedName = fixEncoding(originalName);
+      
+      if (fixedName !== originalName) {
+        await ctx.db.patch(product._id, {
+          name: fixedName,
+        });
+        fixed++;
+      }
+    }
+    
+    // Preštej preostale - sampling namesto polnega pregleda
+    const sampleProducts = await ctx.db.query("products").take(1000);
+    const remaining = sampleProducts.filter(p => {
+      const fixedName = fixEncoding(p.name);
+      return fixedName !== p.name;
+    }).length;
+    
+    return { processed: products.length, fixed, remaining };
+  },
+});
+
+/**
+ * Popravi encoding v vseh izdelkih (batch) - INTERNAL verzija
  */
 export const fixProductEncoding = internalMutation({
   args: {

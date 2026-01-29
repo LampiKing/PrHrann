@@ -1014,3 +1014,75 @@ export const batchUpdateImages = mutation({
     return { updated, failed };
   },
 });
+
+// ===========================================
+// ENCODING FIX - Popravek napačnih šumnikov
+// ===========================================
+
+function fixEncodingChars(text: string): string {
+  if (!text) return text;
+  
+  let fixed = text;
+  
+  // Å + special char → Š, Ž, š, ž
+  fixed = fixed.replace(/\u00c5[\u0080-\u00ff]/g, (match) => {
+    const code = match.charCodeAt(1);
+    if (code === 0xbd) return "Ž";
+    if (code === 0xa0) return "Š";
+    if (code === 0xbe) return "ž";
+    if (code === 0xa1) return "š";
+    return match;
+  });
+  
+  // Ä + control char → Č ali č
+  fixed = fixed.replace(/\u00c4[\u0080-\u00ff]/g, (match) => {
+    const code = match.charCodeAt(1);
+    if (code === 0x8c || code === 0x0c) return "Č";
+    if (code === 0x8d || code === 0x0d) return "č";
+    return match;
+  });
+  
+  // Â + char → apostrof, etc
+  fixed = fixed.replace(/\u00c2[\u0080-\u00ff]/g, (match) => {
+    const code = match.charCodeAt(1);
+    if (code === 0xb4) return "'";
+    if (code === 0xa0) return " ";
+    return match;
+  });
+  
+  return fixed;
+}
+
+/**
+ * Popravi encoding v imenih izdelkov
+ */
+export const fixProductNames = mutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  returns: v.object({
+    processed: v.number(),
+    fixed: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize ?? 500;
+    
+    const products = await ctx.db
+      .query("products")
+      .take(batchSize);
+    
+    let fixed = 0;
+    
+    for (const product of products) {
+      const originalName = product.name;
+      const fixedName = fixEncodingChars(originalName);
+      
+      if (fixedName !== originalName) {
+        await ctx.db.patch(product._id, { name: fixedName });
+        fixed++;
+      }
+    }
+    
+    return { processed: products.length, fixed };
+  },
+});

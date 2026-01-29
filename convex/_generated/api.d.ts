@@ -22,6 +22,7 @@ import type * as deviceManager from "../deviceManager.js";
 import type * as emailVerification from "../emailVerification.js";
 import type * as familyPlan from "../familyPlan.js";
 import type * as feedback from "../feedback.js";
+import type * as fixEncoding from "../fixEncoding.js";
 import type * as functions from "../functions.js";
 import type * as groceryImport from "../groceryImport.js";
 import type * as http from "../http.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   emailVerification: typeof emailVerification;
   familyPlan: typeof familyPlan;
   feedback: typeof feedback;
+  fixEncoding: typeof fixEncoding;
   functions: typeof functions;
   groceryImport: typeof groceryImport;
   http: typeof http;
