@@ -40,7 +40,8 @@ jobs:
       - name: Run Playwright catalog scraper
         working-directory: scripts/catalog-scraper
         env:
-          CONVEX_URL: https://vibrant-dolphin-871.convex.cloud
+          CONVEX_URL: ${{ secrets.PRHRAN_INGEST_URL }}
+          PRHRAN_INGEST_TOKEN: ${{ secrets.PRHRAN_INGEST_TOKEN }}
         run: |
           python playwright_scraper.py
           echo "✅ Scraping končano!"

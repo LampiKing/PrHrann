@@ -8,6 +8,7 @@ Runs automatically via GitHub Actions
 import re
 import json
 import asyncio
+import time
 import requests
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Set
@@ -531,10 +532,28 @@ class PlaywrightCatalogScraper:
                     await subcat_link.click()
                     await asyncio.sleep(3)
 
-                    # Scroll to load products
-                    for _ in range(5):
+                    # AGRESIVEN infinite scroll - nalagaj dokler ni več novih izdelkov
+                    last_count = 0
+                    no_change_count = 0
+                    max_scrolls = 50  # Varnostni limit
+
+                    for scroll_num in range(max_scrolls):
                         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                        await asyncio.sleep(1)
+                        await asyncio.sleep(1.5)  # Več časa za nalaganje
+
+                        # Preštej izdelke
+                        current_cards = await page.query_selector_all('[class*="itemCard"], [class*="ItemCard"], [class*="product-card"]')
+                        current_count = len(current_cards)
+
+                        if current_count == last_count:
+                            no_change_count += 1
+                            if no_change_count >= 3:  # 3x brez spremembe = konec
+                                break
+                        else:
+                            no_change_count = 0
+                            last_count = current_count
+
+                    print(f"    Loaded {last_count} cards after scrolling")
 
                     # Find product cards
                     cards = await page.query_selector_all('[class*="itemCard"], [class*="ItemCard"], [class*="product-card"]')
@@ -659,117 +678,123 @@ class PlaywrightCatalogScraper:
         return products
 
     def send_to_convex(self, products: List[Dict]) -> Dict:
-        """Send product data to Convex"""
+        """Send product data to Convex via /api/ingest/grocery endpoint"""
         if not products:
             print("No products to send")
-            return {'inserted': 0, 'updated': 0, 'skipped': 0, 'imagesAdded': 0}
+            return {'inserted': 0, 'updated': 0, 'skipped': 0}
 
-        url = f"{self.convex_url}/api/mutation"
+        # Uporabi pravilni HTTP endpoint z avtentikacijo
+        url = f"{self.convex_url}/api/ingest/grocery"
+        token = os.getenv('PRHRAN_INGEST_TOKEN', '')
+
+        if not token:
+            print("⚠️  WARNING: PRHRAN_INGEST_TOKEN ni nastavljen!")
+            print("   Podatki ne bodo poslani v Convex.")
+            print("   Dodaj PRHRAN_INGEST_TOKEN v GitHub Secrets.")
+            return {'inserted': 0, 'updated': 0, 'skipped': 0}
 
         # ============================================
-        # 1. POŠLJI IZDELKE S SLIKAMI
+        # PRETVORI V FORMAT ZA groceryImport
         # ============================================
-        print(f"\n[1/2] Pošiljam {len(products)} izdelkov s slikami...")
+        print(f"\nPošiljam {len(products)} izdelkov v Convex...")
 
-        # Filtriraj izdelke s slikami
+        # Filtriraj izdelke s slikami za statistiko
         products_with_images = [p for p in products if p.get('imageUrl')]
         print(f"  Izdelkov s slikami: {len(products_with_images)}")
 
-        # Format za importProductsWithImages
-        formatted_products = [{
-            'productName': p['productName'],
-            'storeName': p['storeName'],
-            'price': p.get('price', p.get('salePrice', 0)),
-            'originalPrice': p.get('originalPrice'),
-            'imageUrl': p.get('imageUrl'),
-            'category': 'Splošno',
-            'unit': 'kos'
-        } for p in products]
+        # Format za groceryImport (ime, redna_cena, akcijska_cena, trgovina, slika, kategorija, enota)
+        def clean_product(p):
+            """Pretvori v format za Convex - brez null vrednosti"""
+            # Določi trgovino
+            store_map = {
+                'Mercator': 'Mercator',
+                'Spar': 'Spar',
+                'Tuš': 'Tus',
+                'Tus': 'Tus',
+            }
+            store_name = store_map.get(p.get('storeName', ''), p.get('storeName', ''))
 
-        batch_size = 100
-        total_prod_inserted = 0
-        total_prod_updated = 0
-        total_prod_skipped = 0
-        total_images_added = 0
-
-        for i in range(0, len(formatted_products), batch_size):
-            batch = formatted_products[i:i + batch_size]
-            payload = {
-                "path": "catalogManager:importProductsWithImages",
-                "args": {"products": batch}
+            item = {
+                'ime': p.get('productName', ''),
+                'trgovina': store_name,
             }
 
-            try:
-                response = requests.post(url, json=payload, timeout=120)
-                response.raise_for_status()
-                result = response.json()
-                value = result.get('value', {})
-                total_prod_inserted += value.get('inserted', 0)
-                total_prod_updated += value.get('updated', 0)
-                total_prod_skipped += value.get('skipped', 0)
-                total_images_added += value.get('imagesAdded', 0)
-                print(f"  Batch {i//batch_size + 1}: +{value.get('inserted', 0)} new, {value.get('updated', 0)} updated, {value.get('imagesAdded', 0)} slik")
-            except Exception as e:
-                print(f"  Batch {i//batch_size + 1} error: {e}")
+            # Cene
+            price = p.get('price', 0) or p.get('salePrice', 0)
+            original = p.get('originalPrice')
+            sale = p.get('salePrice')
 
-        print(f"  Skupaj: {total_prod_inserted} novih, {total_prod_updated} posodobljenih, {total_images_added} slik")
+            if sale and original and sale < original:
+                # Na akciji
+                item['redna_cena'] = original
+                item['akcijska_cena'] = sale
+            elif price:
+                # Redna cena
+                item['redna_cena'] = price
 
-        # ============================================
-        # 2. POŠLJI AKCIJSKE CENE
-        # ============================================
-        sales = [p for p in products if p.get('salePrice') and p.get('originalPrice')]
+            # Opcijski podatki - samo če niso null
+            if p.get('imageUrl'):
+                item['slika'] = p['imageUrl']
+            if p.get('category'):
+                item['kategorija'] = p['category']
+            if p.get('unit'):
+                item['enota'] = p['unit']
 
-        if not sales:
-            print("\n[2/2] Ni akcijskih cen za poslati")
-            return {
-                'inserted': total_prod_inserted,
-                'updated': total_prod_updated,
-                'skipped': total_prod_skipped,
-                'imagesAdded': total_images_added
-            }
+            return item
 
-        print(f"\n[2/2] Pošiljam {len(sales)} akcijskih cen...")
+        formatted_products = [clean_product(p) for p in products if p.get('productName')]
+        # Filtriraj izdelke brez cene
+        formatted_products = [p for p in formatted_products if p.get('redna_cena') or p.get('akcijska_cena')]
 
-        # Convert to the format expected by importCatalogSales
-        formatted_sales = [{
-            'productName': s['productName'],
-            'storeName': s['storeName'],
-            'originalPrice': s['originalPrice'],
-            'salePrice': s['salePrice'],
-            'discountPercentage': s.get('discountPercentage', 0),
-            'validFrom': s['validFrom'],
-            'validUntil': s['validUntil'],
-            'catalogSource': s['catalogSource']
-        } for s in sales]
+        print(f"  Veljavnih izdelkov: {len(formatted_products)}")
 
-        total_inserted = 0
+        batch_size = 200
+        total_created = 0
         total_updated = 0
         total_skipped = 0
 
-        for i in range(0, len(formatted_sales), batch_size):
-            batch = formatted_sales[i:i + batch_size]
-            payload = {
-                "path": "catalogManager:importCatalogSales",
-                "args": {"sales": batch}
-            }
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json'
+        }
 
-            try:
-                response = requests.post(url, json=payload, timeout=120)
-                response.raise_for_status()
-                result = response.json()
-                value = result.get('value', {})
-                total_inserted += value.get('inserted', 0)
-                total_updated += value.get('updated', 0)
-                total_skipped += value.get('skipped', 0)
-                print(f"  Batch {i//batch_size + 1}: +{value.get('inserted', 0)} new, {value.get('updated', 0)} updated")
-            except Exception as e:
-                print(f"  Batch {i//batch_size + 1} error: {e}")
+        for i in range(0, len(formatted_products), batch_size):
+            batch = formatted_products[i:i + batch_size]
+
+            # Retry logika
+            for attempt in range(3):
+                try:
+                    response = requests.post(
+                        url,
+                        json={'items': batch},
+                        headers=headers,
+                        timeout=180
+                    )
+
+                    if response.status_code == 200:
+                        result = response.json()
+                        total_created += result.get('createdProducts', 0)
+                        total_updated += result.get('updatedProducts', 0)
+                        total_skipped += result.get('skipped', 0)
+                        print(f"  Batch {i//batch_size + 1}: +{result.get('createdProducts', 0)} new, {result.get('updatedProducts', 0)} updated")
+                        break
+                    else:
+                        if attempt < 2:
+                            time.sleep(2)
+                        else:
+                            print(f"  Batch {i//batch_size + 1} error: HTTP {response.status_code} - {response.text[:200]}")
+                except Exception as e:
+                    if attempt < 2:
+                        time.sleep(2)
+                    else:
+                        print(f"  Batch {i//batch_size + 1} error: {e}")
+
+        print(f"\n✅ Skupaj: {total_created} novih, {total_updated} posodobljenih, {total_skipped} preskočenih")
 
         return {
-            'inserted': total_prod_inserted + total_inserted,
-            'updated': total_prod_updated + total_updated,
-            'skipped': total_prod_skipped + total_skipped,
-            'imagesAdded': total_images_added
+            'inserted': total_created,
+            'updated': total_updated,
+            'skipped': total_skipped
         }
 
     async def run(self):
